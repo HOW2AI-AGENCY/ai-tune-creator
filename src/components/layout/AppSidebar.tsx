@@ -1,0 +1,107 @@
+import { Music, Users, FolderOpen, Settings, Mic, Headphones, Zap } from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+  useSidebar,
+} from "@/components/ui/sidebar";
+
+const mainNavItems = [
+  { title: "Dashboard", url: "/", icon: Headphones },
+  { title: "Projects", url: "/projects", icon: FolderOpen },
+  { title: "Artists", url: "/artists", icon: Users },
+  { title: "AI Generation", url: "/generate", icon: Zap },
+];
+
+const settingsNavItems = [
+  { title: "Settings", url: "/settings", icon: Settings },
+];
+
+export function AppSidebar() {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  const isActive = (path: string) => {
+    if (path === "/") {
+      return currentPath === "/";
+    }
+    return currentPath.startsWith(path);
+  };
+
+  const getNavCls = ({ isActive }: { isActive: boolean }) =>
+    isActive 
+      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
+      : "hover:bg-sidebar-accent/50 text-sidebar-foreground";
+
+  return (
+    <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible>
+      <SidebarHeader className="p-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+            <Music className="w-5 h-5 text-primary-foreground" />
+          </div>
+          {!collapsed && (
+            <div className="flex flex-col">
+              <span className="font-bold text-sidebar-foreground">AI Music</span>
+              <span className="text-xs text-sidebar-foreground/60">Platform</span>
+            </div>
+          )}
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {mainNavItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to={item.url} 
+                      end={item.url === "/"}
+                      className={({ isActive }) => getNavCls({ isActive })}
+                    >
+                      <item.icon className="w-4 h-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Account</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {settingsNavItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to={item.url}
+                      className={({ isActive }) => getNavCls({ isActive })}
+                    >
+                      <item.icon className="w-4 h-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+}
