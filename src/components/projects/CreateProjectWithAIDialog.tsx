@@ -160,11 +160,13 @@ export function CreateProjectWithAIDialog({
         Создай подробную концепцию, которая будет соответствовать стилю артиста и заданной идее.
       `;
 
-      const { data: result, error } = await supabase.functions.invoke('generate-artist-info', {
+      const { data: result, error } = await supabase.functions.invoke('generate-project-concept', {
         body: {
-          name: `${selectedArtist.name} - ${data.type}`,
-          prompt: prompt,
-          context: `Создание концепции ${data.type} проекта`,
+          artistName: selectedArtist.name,
+          artistInfo: selectedArtist.description || '',
+          projectIdea: data.projectIdea,
+          projectType: data.type,
+          additionalContext: data.additionalContext,
           provider: settings.provider,
           model: settings.model,
           temperature: settings.temperature,
@@ -174,17 +176,17 @@ export function CreateProjectWithAIDialog({
 
       if (error) throw error;
 
-      const projectInfo = result.artistInfo;
+      const projectInfo = result.projectConcept;
       
-      // Адаптируем полученные данные под структуру проекта
+      // Используем правильную структуру из новой функции
       const adaptedData: GeneratedProjectData = {
-        title: projectInfo.style || `Новый ${data.type}`,
+        title: projectInfo.title || `Новый ${data.type}`,
         description: projectInfo.description || '',
-        concept: projectInfo.background || '',
+        concept: projectInfo.concept || '',
         genre: projectInfo.genre || selectedArtist.metadata?.genre || '',
-        mood: projectInfo.style || '',
-        target_audience: 'Широкая аудитория',
-        suggested_tracks: projectInfo.influences || []
+        mood: projectInfo.mood || '',
+        target_audience: projectInfo.target_audience || 'Широкая аудитория',
+        suggested_tracks: projectInfo.suggested_tracks || []
       };
 
       setGeneratedData(adaptedData);
