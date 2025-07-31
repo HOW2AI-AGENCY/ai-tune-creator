@@ -219,33 +219,88 @@ export function CreateProjectWithAIDialog({
 
       const formData = form.getValues();
 
-      const { error } = await supabase.from("projects").insert({
-        title: generatedData.title,
-        description: generatedData.description,
-        type: formData.type,
-        status: 'draft',
-        artist_id: formData.artistId,
-        metadata: {
-          generated_by_ai: true,
-          concept: generatedData.concept,
-          genre: generatedData.genre,
-          mood: generatedData.mood,
-          target_audience: generatedData.target_audience,
-          suggested_tracks: generatedData.suggested_tracks,
-          original_idea: formData.projectIdea,
-          additional_context: formData.additionalContext,
-          ai_provider: settings.provider,
-          ai_model: settings.model,
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-        },
-      });
+      // Создаем проект
+      const { data: projectData, error: projectError } = await supabase
+        .from("projects")
+        .insert({
+          title: generatedData.title,
+          description: generatedData.description,
+          type: formData.type,
+          status: 'draft',
+          artist_id: formData.artistId,
+          metadata: {
+            generated_by_ai: true,
+            concept: generatedData.concept,
+            genre: generatedData.genre,
+            mood: generatedData.mood,
+            target_audience: generatedData.target_audience,
+            suggested_tracks: generatedData.suggested_tracks,
+            original_idea: formData.projectIdea,
+            additional_context: formData.additionalContext,
+            ai_provider: settings.provider,
+            ai_model: settings.model,
+            created_by: user.id,
+            created_at: new Date().toISOString(),
+          },
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (projectError) throw projectError;
+
+      // Для сингла - сразу создаем трек
+      if (formData.type === 'single' && generatedData.suggested_tracks.length > 0) {
+        const { error: trackError } = await supabase.from("tracks").insert({
+          title: generatedData.suggested_tracks[0] || generatedData.title,
+          project_id: projectData.id,
+          track_number: 1,
+          metadata: {
+            generated_by_ai: true,
+            concept: generatedData.concept,
+            mood: generatedData.mood,
+            genre: generatedData.genre,
+            created_by: user.id,
+          }
+        });
+
+        if (trackError) {
+          console.error('Error creating track:', trackError);
+          // Не блокируем создание проекта из-за ошибки трека
+        }
+      }
+
+      // Для альбома/EP - создаем предложенные треки
+      if ((formData.type === 'album' || formData.type === 'ep') && generatedData.suggested_tracks.length > 0) {
+        const tracks = generatedData.suggested_tracks.map((trackTitle, index) => ({
+          title: trackTitle,
+          project_id: projectData.id,
+          track_number: index + 1,
+          metadata: {
+            generated_by_ai: true,
+            concept: generatedData.concept,
+            mood: generatedData.mood,
+            genre: generatedData.genre,
+            created_by: user.id,
+          }
+        }));
+
+        const { error: tracksError } = await supabase.from("tracks").insert(tracks);
+
+        if (tracksError) {
+          console.error('Error creating tracks:', tracksError);
+          // Не блокируем создание проекта
+        }
+      }
+
+      const trackCountMessage = formData.type === 'single' 
+        ? ' и трек добавлен' 
+        : (generatedData.suggested_tracks && generatedData.suggested_tracks.length > 0)
+          ? ` и ${generatedData.suggested_tracks.length} треков добавлено`
+          : '';
 
       toast({
         title: "Успешно",
-        description: "Проект создан с помощью ИИ",
+        description: `Проект создан с помощью ИИ${trackCountMessage}`,
       });
 
       form.reset();
