@@ -142,7 +142,7 @@ export function ArtistDetailsDialog({ artist, open, onOpenChange }: ArtistDetail
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
@@ -153,8 +153,8 @@ export function ArtistDetailsDialog({ artist, open, onOpenChange }: ArtistDetail
             </DialogTitle>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 pr-4">
-            <div className="space-y-6">
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="space-y-6 pr-4">
               {/* Основная информация */}
               <Card>
                 <CardHeader>
