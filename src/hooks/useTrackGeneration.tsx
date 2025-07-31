@@ -7,6 +7,7 @@ import { useAISettings } from '@/hooks/useAISettings';
 interface UseTrackGenerationProps {
   onLyricsGenerated?: (lyrics: any) => void;
   onConceptGenerated?: (concept: any) => void;
+  onStylePromptGenerated?: (stylePrompt: string, genreTags: string[]) => void;
 }
 
 interface GenerationParams {
@@ -19,10 +20,12 @@ interface GenerationParams {
 
 export function useTrackGeneration({ 
   onLyricsGenerated, 
-  onConceptGenerated 
+  onConceptGenerated,
+  onStylePromptGenerated
 }: UseTrackGenerationProps = {}) {
   const [generatingLyrics, setGeneratingLyrics] = useState(false);
   const [generatingConcept, setGeneratingConcept] = useState(false);
+  const [generatingStylePrompt, setGeneratingStylePrompt] = useState(false);
   const { toast } = useToast();
   const { settings } = useAISettings();
 
@@ -139,6 +142,52 @@ export function useTrackGeneration({
     }
   };
 
+  const generateStylePrompt = async (artistInfo?: any, projectInfo?: any) => {
+    try {
+      setGeneratingStylePrompt(true);
+      
+      console.log('Generating style prompt with context:', { artistInfo, projectInfo });
+
+      const { data, error } = await supabase.functions.invoke('generate-style-prompt', {
+        body: {
+          artistInfo,
+          projectInfo,
+          provider: settings.provider,
+          model: settings.model,
+          temperature: settings.temperature,
+          maxTokens: 500
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Не удалось сгенерировать промпт стиля');
+      }
+
+      onStylePromptGenerated?.(data.data.style_prompt, data.data.genre_tags);
+      
+      toast({
+        title: "Успешно",
+        description: "Промпт стиля и жанры сгенерированы"
+      });
+
+      return data.data;
+    } catch (error: any) {
+      console.error('Error generating style prompt:', error);
+      toast({
+        title: "Ошибка генерации",
+        description: error.message || "Не удалось сгенерировать промпт стиля",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setGeneratingStylePrompt(false);
+    }
+  };
+
   // TODO: Добавить retry логику при ошибках
   // FIXME: Оптимизировать повторные запросы при одинаковых параметрах
 
@@ -147,6 +196,8 @@ export function useTrackGeneration({
     generatingLyrics,
     generateConcept,
     generatingConcept,
+    generateStylePrompt,
+    generatingStylePrompt,
     generateDescription
   };
 }

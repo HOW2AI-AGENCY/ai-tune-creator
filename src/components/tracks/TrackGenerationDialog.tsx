@@ -49,7 +49,9 @@ export function TrackGenerationDialog({
     generateLyrics, 
     generatingLyrics,
     generateConcept,
-    generatingConcept 
+    generatingConcept,
+    generateStylePrompt,
+    generatingStylePrompt
   } = useTrackGeneration({
     onLyricsGenerated: (lyrics) => {
       setGeneratedData(prev => ({ ...prev, lyrics }));
@@ -58,6 +60,13 @@ export function TrackGenerationDialog({
     onConceptGenerated: (concept) => {
       setGeneratedData(prev => ({ ...prev, concept }));
       onGenerated('concept', concept);
+    },
+    onStylePromptGenerated: (stylePrompt, genreTags) => {
+      setFormData(prev => ({ 
+        ...prev, 
+        stylePrompt, 
+        genreTags: genreTags.join(', ') 
+      }));
     }
   });
 
@@ -98,6 +107,10 @@ export function TrackGenerationDialog({
     });
   };
 
+  const handleGenerateStylePrompt = async () => {
+    await generateStylePrompt(artistInfo, projectInfo);
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({
@@ -124,7 +137,23 @@ export function TrackGenerationDialog({
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium">Промпт стиля *</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Промпт стиля *</label>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleGenerateStylePrompt}
+                    disabled={generatingStylePrompt || !artistInfo?.name}
+                    className="h-7 px-2"
+                  >
+                    {generatingStylePrompt ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    ИИ
+                  </Button>
+                </div>
                 <Textarea
                   value={formData.stylePrompt}
                   onChange={(e) => setFormData({ ...formData, stylePrompt: e.target.value })}
@@ -134,7 +163,23 @@ export function TrackGenerationDialog({
               </div>
 
               <div>
-                <label className="text-sm font-medium">Жанры</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Жанры</label>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleGenerateStylePrompt}
+                    disabled={generatingStylePrompt || !artistInfo?.name}
+                    className="h-7 px-2"
+                  >
+                    {generatingStylePrompt ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    ИИ
+                  </Button>
+                </div>
                 <Input
                   value={formData.genreTags}
                   onChange={(e) => setFormData({ ...formData, genreTags: e.target.value })}
