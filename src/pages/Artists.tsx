@@ -1,7 +1,8 @@
-import { Plus, Search, MoreHorizontal, User, Music, Calendar } from "lucide-react";
+import { Plus, Search, MoreHorizontal, User, Music, Calendar, ArrowLeft, MapPin, Users, FolderOpen, Play, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/useTranslation";
 import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
-import { ArtistDetailsDialog } from "@/components/artists/ArtistDetailsDialog";
+import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +27,9 @@ export default function Artists() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedArtist, setSelectedArtist] = useState<any>(null);
-  const [showArtistDetails, setShowArtistDetails] = useState(false);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [showCreateProject, setShowCreateProject] = useState(false);
   
   const fetchArtists = async () => {
     try {
@@ -80,9 +83,37 @@ export default function Artists() {
     }
   };
 
+  const loadProjects = async (artistId: string) => {
+    try {
+      setProjectsLoading(true);
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('artist_id', artistId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error: any) {
+      console.error('Error loading projects:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить проекты",
+        variant: "destructive"
+      });
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
   const handleArtistClick = (artist: any) => {
     setSelectedArtist(artist);
-    setShowArtistDetails(true);
+    loadProjects(artist.id);
+  };
+
+  const handleBackToArtists = () => {
+    setSelectedArtist(null);
+    setProjects([]);
   };
 
   const handleViewProfile = (artist: any) => {
@@ -103,9 +134,246 @@ export default function Artists() {
     artist.metadata?.genre?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleProjectCreated = () => {
+    if (selectedArtist) {
+      loadProjects(selectedArtist.id);
+    }
+    setShowCreateProject(false);
+  };
+
   const getInitials = (name: string) => {
     return name.split(' ').map(word => word[0]).join('').toUpperCase();
   };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'published':
+        return 'bg-green-500/10 text-green-700 border-green-500/20';
+      case 'in_progress':
+        return 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20';
+      case 'draft':
+        return 'bg-gray-500/10 text-gray-700 border-gray-500/20';
+      default:
+        return 'bg-blue-500/10 text-blue-700 border-blue-500/20';
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'album':
+        return <Music className="h-4 w-4" />;
+      case 'single':
+        return <Play className="h-4 w-4" />;
+      case 'ep':
+        return <FolderOpen className="h-4 w-4" />;
+      default:
+        return <Music className="h-4 w-4" />;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('ru-RU', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  // Если выбран артист, показываем его детали
+  if (selectedArtist) {
+    const metadata = selectedArtist.metadata || {};
+
+    return (
+      <div className="space-y-6 animate-fade-in">
+        {/* Кнопка назад */}
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            onClick={handleBackToArtists}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Назад к артистам
+          </Button>
+        </div>
+
+        {/* Заголовок артиста */}
+        <div className="flex items-center gap-4">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={selectedArtist.avatar_url} alt={selectedArtist.name} />
+            <AvatarFallback>{getInitials(selectedArtist.name)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-3xl font-bold">{selectedArtist.name}</h1>
+            <p className="text-muted-foreground">Информация об артисте и его проектах</p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {/* Основная информация */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Информация об артисте
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedArtist.description && (
+                <div>
+                  <h4 className="font-medium mb-2">Описание</h4>
+                  <p className="text-muted-foreground">{selectedArtist.description}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {metadata.genre && (
+                  <div className="flex items-center gap-2">
+                    <Music className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      <strong>Жанр:</strong> {metadata.genre}
+                    </span>
+                  </div>
+                )}
+
+                {metadata.location && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      <strong>Локация:</strong> {metadata.location}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">
+                    <strong>Создан:</strong> {formatDate(selectedArtist.created_at)}
+                  </span>
+                </div>
+              </div>
+
+              {metadata.influences && metadata.influences.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-2">Влияния</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {metadata.influences.map((influence: string, index: number) => (
+                      <Badge key={index} variant="secondary">
+                        {influence}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {metadata.style && (
+                <div>
+                  <h4 className="font-medium mb-2">Стиль</h4>
+                  <p className="text-sm text-muted-foreground">{metadata.style}</p>
+                </div>
+              )}
+
+              {metadata.background && (
+                <div>
+                  <h4 className="font-medium mb-2">Предыстория</h4>
+                  <p className="text-sm text-muted-foreground">{metadata.background}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Separator />
+
+          {/* Проекты */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5" />
+                  Проекты ({projects.length})
+                </CardTitle>
+                <Button
+                  onClick={() => setShowCreateProject(true)}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Создать проект
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {projectsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                  Загрузка проектов...
+                </div>
+              ) : projects.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FolderOpen className="h-8 w-8 mx-auto mb-2" />
+                  <p>У этого артиста пока нет проектов</p>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCreateProject(true)}
+                    className="mt-4 gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Создать первый проект
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {projects.map((project: any) => (
+                    <Card key={project.id} className="border-border/50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1">
+                              {getTypeIcon(project.type)}
+                            </div>
+                            <div className="space-y-1">
+                              <h4 className="font-medium">{project.title}</h4>
+                              {project.description && (
+                                <p className="text-sm text-muted-foreground">
+                                  {project.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>Тип: {project.type}</span>
+                                <span>•</span>
+                                <span>Обновлен: {formatDate(project.updated_at)}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Badge 
+                            variant="outline" 
+                            className={getStatusColor(project.status)}
+                          >
+                            {project.status === 'published' && 'Опубликован'}
+                            {project.status === 'in_progress' && 'В работе'}
+                            {project.status === 'draft' && 'Черновик'}
+                            {!['published', 'in_progress', 'draft'].includes(project.status) && project.status}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Диалог создания проекта */}
+        <CreateProjectDialog
+          artist={selectedArtist}
+          open={showCreateProject}
+          onOpenChange={setShowCreateProject}
+          onProjectCreated={handleProjectCreated}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -283,12 +551,6 @@ export default function Artists() {
         </div>
       )}
 
-      {/* Artist Details Dialog */}
-      <ArtistDetailsDialog
-        artist={selectedArtist}
-        open={showArtistDetails}
-        onOpenChange={setShowArtistDetails}
-      />
     </div>
   );
 }
