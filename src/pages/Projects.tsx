@@ -5,6 +5,7 @@ import { Plus, Search, Filter, MoreHorizontal, FolderOpen, Music, Calendar, Eye,
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -166,7 +167,8 @@ export default function Projects() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <ScrollArea className="h-[calc(100vh-120px)]">
+      <div className="space-y-6 animate-fade-in p-1">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -382,6 +384,7 @@ export default function Projects() {
         onOpenChange={setShowProjectDetails}
         onProjectUpdated={fetchProjects}
       />
-    </div>
+      </div>
+    </ScrollArea>
   );
 }
