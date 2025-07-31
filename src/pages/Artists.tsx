@@ -12,12 +12,47 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/useTranslation";
+import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Artists() {
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const [artists, setArtists] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  // Mock data - will be replaced with real data from Supabase
-  const artists = [
+  const fetchArtists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setArtists(data || []);
+    } catch (error: any) {
+      console.error('Fetch artists error:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить артистов",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchArtists();
+  }, []);
+
+  // Mock data for demo purposes - remove when real data is ready
+  const mockArtists = [
     {
       id: "1",
       name: "Digital Soundscapes",
@@ -84,10 +119,7 @@ export default function Artists() {
           <h1 className="text-3xl font-bold">{t("artistsTitle")}</h1>
           <p className="text-muted-foreground">Управляйте вашими музыкальными артистами и коллаборациями</p>
         </div>
-        <Button className="shadow-glow">
-          <Plus className="mr-2 h-4 w-4" />
-          Новый артист
-        </Button>
+        <CreateArtistDialog onArtistCreated={fetchArtists} />
       </div>
 
       {/* Search */}
@@ -103,7 +135,7 @@ export default function Artists() {
 
       {/* Artists Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {artists.map((artist) => (
+        {(artists.length > 0 ? artists : mockArtists).map((artist) => (
           <Card key={artist.id} className="shadow-card hover:shadow-elevated transition-all duration-200 group cursor-pointer">
             <CardHeader className="pb-3">
               <div className="flex items-start gap-4">
