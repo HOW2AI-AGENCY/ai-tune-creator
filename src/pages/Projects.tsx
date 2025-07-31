@@ -19,6 +19,7 @@ import {
 import { useTranslation } from "@/hooks/useTranslation";
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
 import { CreateProjectWithAIDialog } from "@/components/projects/CreateProjectWithAIDialog";
+import { CreateTrackDialog } from "@/components/tracks/CreateTrackDialog";
 import { CoverUploadDialog } from "@/components/projects/CoverUploadDialog";
 import { BannerUploadDialog } from "@/components/projects/BannerUploadDialog";
 import { 
@@ -64,6 +65,7 @@ export default function Projects() {
   const [showCreateWithAI, setShowCreateWithAI] = useState(false);
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const [bannerDialogOpen, setBannerDialogOpen] = useState(false);
+  const [createTrackDialogOpen, setCreateTrackDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const fetchProjects = async () => {
@@ -504,7 +506,11 @@ export default function Projects() {
                   <Music className="h-5 w-5" />
                   Треки ({tracks.length})
                 </CardTitle>
-                <Button size="sm" className="gap-2">
+                <Button 
+                  size="sm" 
+                  className="gap-2"
+                  onClick={() => setCreateTrackDialogOpen(true)}
+                >
                   <Plus className="h-4 w-4" />
                   Добавить трек
                 </Button>
@@ -523,6 +529,7 @@ export default function Projects() {
                   <Button
                     variant="outline"
                     className="mt-4 gap-2"
+                    onClick={() => setCreateTrackDialogOpen(true)}
                   >
                     <Plus className="h-4 w-4" />
                     Добавить первый трек
@@ -704,7 +711,10 @@ export default function Projects() {
                         <Eye className="mr-2 h-4 w-4" />
                         Посмотреть детали
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setSelectedProject(project);
+                        setCreateTrackDialogOpen(true);
+                      }}>
                         <Music className="mr-2 h-4 w-4" />
                         Добавить трек
                       </DropdownMenuItem>
@@ -848,6 +858,21 @@ export default function Projects() {
               fetchProjects();
             }
           }}
+        />
+
+        <CreateTrackDialog
+          open={createTrackDialogOpen}
+          onOpenChange={setCreateTrackDialogOpen}
+          projectId={selectedProject?.id || ""}
+          artistInfo={selectedProject?.artist}
+          projectInfo={selectedProject}
+          onTrackCreated={() => {
+            if (selectedProject) {
+              loadTracks(selectedProject.id);
+            }
+            setCreateTrackDialogOpen(false);
+          }}
+          nextTrackNumber={(tracks.length || 0) + 1}
         />
       </div>
     </ScrollArea>

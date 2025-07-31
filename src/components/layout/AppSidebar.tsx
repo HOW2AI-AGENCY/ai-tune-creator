@@ -25,6 +25,7 @@ export function AppSidebar() {
     { title: t("dashboard"), url: "/", icon: Headphones },
     { title: t("artists"), url: "/artists", icon: Users },
     { title: t("projects"), url: "/projects", icon: FolderOpen },
+    { title: "Треки", url: "/tracks", icon: Music },
     { title: t("aiGeneration"), url: "/generate", icon: Zap },
   ];
 
