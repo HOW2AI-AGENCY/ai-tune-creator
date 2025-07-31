@@ -330,11 +330,11 @@ export function TrackGenerationDialog({
                       <CardTitle className="text-lg">Концепция трека</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {generatedData.concept.title_suggestions && (
+                      {(generatedData.concept.title_suggestions || generatedData.concept.TITLE_SUGGESTIONS) && (
                         <div>
                           <p className="text-sm font-medium">Предложения названий:</p>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {generatedData.concept.title_suggestions.map((title: string, index: number) => (
+                            {(generatedData.concept.title_suggestions || generatedData.concept.TITLE_SUGGESTIONS).map((title: string, index: number) => (
                               <Badge key={index} variant="outline" className="cursor-pointer"
                                      onClick={() => copyToClipboard(title)}>
                                 {title}
@@ -344,27 +344,27 @@ export function TrackGenerationDialog({
                         </div>
                       )}
 
-                      {generatedData.concept.description && (
+                      {(generatedData.concept.description || generatedData.concept.DESCRIPTION) && (
                         <div>
                           <p className="text-sm font-medium">Описание:</p>
                           <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                            {generatedData.concept.description}
+                            {generatedData.concept.description || generatedData.concept.DESCRIPTION}
                           </p>
                         </div>
                       )}
 
-                      {generatedData.concept.mood_energy && (
+                      {(generatedData.concept.mood_energy || generatedData.concept.MOOD_ENERGY) && (
                         <div>
                           <p className="text-sm font-medium">Настроение и энергетика:</p>
-                          <p className="text-sm text-muted-foreground">{generatedData.concept.mood_energy}</p>
+                          <p className="text-sm text-muted-foreground">{generatedData.concept.mood_energy || generatedData.concept.MOOD_ENERGY}</p>
                         </div>
                       )}
 
-                      {generatedData.concept.lyrical_themes && (
+                      {(generatedData.concept.lyrical_themes || generatedData.concept.LYRICAL_THEMES) && (
                         <div>
                           <p className="text-sm font-medium">Лирические темы:</p>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {generatedData.concept.lyrical_themes.map((theme: string, index: number) => (
+                            {(generatedData.concept.lyrical_themes || generatedData.concept.LYRICAL_THEMES).map((theme: string, index: number) => (
                               <Badge key={index} variant="secondary" className="text-xs">
                                 {theme}
                               </Badge>
