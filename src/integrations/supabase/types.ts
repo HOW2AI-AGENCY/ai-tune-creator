@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_generations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          external_id: string | null
+          id: string
+          parameters: Json | null
+          prompt: string
+          result_url: string | null
+          service: string
+          status: string
+          track_id: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          parameters?: Json | null
+          prompt: string
+          result_url?: string | null
+          service: string
+          status?: string
+          track_id?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          parameters?: Json | null
+          prompt?: string
+          result_url?: string | null
+          service?: string
+          status?: string
+          track_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_generations_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artists: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       logs: {
         Row: {
           action: string | null
@@ -62,6 +148,204 @@ export type Database = {
           url?: string | null
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          metadata: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          metadata?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          metadata?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          artist_id: string
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      track_versions: {
+        Row: {
+          audio_url: string
+          change_description: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          track_id: string
+          version_number: number
+        }
+        Insert: {
+          audio_url: string
+          change_description?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          track_id: string
+          version_number: number
+        }
+        Update: {
+          audio_url?: string
+          change_description?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          track_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_versions_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracks: {
+        Row: {
+          audio_url: string | null
+          created_at: string
+          duration: number | null
+          id: string
+          lyrics: string | null
+          metadata: Json | null
+          project_id: string
+          title: string
+          track_number: number
+          updated_at: string
+          waveform_data: Json | null
+        }
+        Insert: {
+          audio_url?: string | null
+          created_at?: string
+          duration?: number | null
+          id?: string
+          lyrics?: string | null
+          metadata?: Json | null
+          project_id: string
+          title: string
+          track_number: number
+          updated_at?: string
+          waveform_data?: Json | null
+        }
+        Update: {
+          audio_url?: string | null
+          created_at?: string
+          duration?: number | null
+          id?: string
+          lyrics?: string | null
+          metadata?: Json | null
+          project_id?: string
+          title?: string
+          track_number?: number
+          updated_at?: string
+          waveform_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_settings: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          user_id: string
+          value: Json
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          user_id: string
+          value: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          user_id?: string
+          value?: Json
         }
         Relationships: []
       }
