@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/useTranslation";
 import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
+import { ArtistDetailsDialog } from "@/components/artists/ArtistDetailsDialog";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -21,8 +22,11 @@ export default function Artists() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [artists, setArtists] = useState<any[]>([]);
+  const [projectCounts, setProjectCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedArtist, setSelectedArtist] = useState<any>(null);
+  const [showArtistDetails, setShowArtistDetails] = useState(false);
   
   const fetchArtists = async () => {
     try {
@@ -37,6 +41,11 @@ export default function Artists() {
       }
 
       setArtists(data || []);
+      
+      // Загружаем количество проектов для каждого артиста
+      if (data && data.length > 0) {
+        await fetchProjectCounts(data.map(artist => artist.id));
+      }
     } catch (error: any) {
       console.error('Fetch artists error:', error);
       toast({
@@ -47,6 +56,41 @@ export default function Artists() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchProjectCounts = async (artistIds: string[]) => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('artist_id')
+        .in('artist_id', artistIds);
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      artistIds.forEach(id => counts[id] = 0);
+      
+      data?.forEach(project => {
+        counts[project.artist_id] = (counts[project.artist_id] || 0) + 1;
+      });
+
+      setProjectCounts(counts);
+    } catch (error: any) {
+      console.error('Error fetching project counts:', error);
+    }
+  };
+
+  const handleArtistClick = (artist: any) => {
+    setSelectedArtist(artist);
+    setShowArtistDetails(true);
+  };
+
+  const handleViewProfile = (artist: any) => {
+    handleArtistClick(artist);
+  };
+
+  const handleViewProjects = (artist: any) => {
+    handleArtistClick(artist);
   };
 
   useEffect(() => {
@@ -142,11 +186,11 @@ export default function Artists() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewProfile(artist)}>
                             <User className="mr-2 h-4 w-4" />
                             Посмотреть профиль
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewProjects(artist)}>
                             <Music className="mr-2 h-4 w-4" />
                             Посмотреть проекты
                           </DropdownMenuItem>
@@ -178,28 +222,35 @@ export default function Artists() {
                   </p>
                 )}
                 
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="text-center p-2 rounded-lg bg-muted/50">
-                    <div className="font-semibold text-foreground">0</div>
-                    <div className="text-muted-foreground text-xs">Проекты</div>
-                  </div>
-                  <div className="text-center p-2 rounded-lg bg-muted/50">
-                    <div className="font-semibold text-foreground">0</div>
-                    <div className="text-muted-foreground text-xs">Треки</div>
-                  </div>
-                </div>
+                 <div className="grid grid-cols-2 gap-4 text-sm">
+                   <div className="text-center p-2 rounded-lg bg-muted/50">
+                     <div className="font-semibold text-foreground">
+                       {projectCounts[artist.id] || 0}
+                     </div>
+                     <div className="text-muted-foreground text-xs">Проекты</div>
+                   </div>
+                   <div className="text-center p-2 rounded-lg bg-muted/50">
+                     <div className="font-semibold text-foreground">0</div>
+                     <div className="text-muted-foreground text-xs">Треки</div>
+                   </div>
+                 </div>
 
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  <span>Создан {new Date(artist.created_at).toLocaleDateString()}</span>
-                </div>
+                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                   <Calendar className="h-3 w-3" />
+                   <span>Создан {new Date(artist.created_at).toLocaleDateString()}</span>
+                 </div>
 
-                <div className="pt-2 border-t border-border">
-                  <Button variant="outline" size="sm" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                    <User className="mr-2 h-4 w-4" />
-                    Посмотреть артиста
-                  </Button>
-                </div>
+                 <div className="pt-2 border-t border-border">
+                   <Button 
+                     variant="outline" 
+                     size="sm" 
+                     className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                     onClick={() => handleArtistClick(artist)}
+                   >
+                     <User className="mr-2 h-4 w-4" />
+                     Посмотреть артиста
+                   </Button>
+                 </div>
               </CardContent>
             </Card>
           ))}
@@ -231,6 +282,13 @@ export default function Artists() {
           </Button>
         </div>
       )}
+
+      {/* Artist Details Dialog */}
+      <ArtistDetailsDialog
+        artist={selectedArtist}
+        open={showArtistDetails}
+        onOpenChange={setShowArtistDetails}
+      />
     </div>
   );
 }
