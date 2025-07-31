@@ -10,6 +10,10 @@ interface GenerateArtistInfoRequest {
   name: string;
   prompt?: string;
   context?: string;
+  provider?: 'openai' | 'anthropic' | 'deepseek';
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
 interface GeneratedArtistInfo {
@@ -21,6 +25,105 @@ interface GeneratedArtistInfo {
   influences: string[];
 }
 
+// AI Provider configurations
+const AI_PROVIDERS = {
+  openai: {
+    url: 'https://api.openai.com/v1/chat/completions',
+    defaultModel: 'gpt-4o-mini',
+    keyEnv: 'OPENAI_API_KEY'
+  },
+  anthropic: {
+    url: 'https://api.anthropic.com/v1/messages',
+    defaultModel: 'claude-3-haiku-20240307',
+    keyEnv: 'ANTHROPIC_API_KEY'
+  },
+  deepseek: {
+    url: 'https://api.deepseek.com/v1/chat/completions',
+    defaultModel: 'deepseek-chat',
+    keyEnv: 'DEEPSEEK_API_KEY'
+  }
+};
+
+async function callOpenAI(apiKey: string, model: string, messages: any[], temperature: number, maxTokens: number) {
+  const response = await fetch(AI_PROVIDERS.openai.url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error('OpenAI API error:', errorData);
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+async function callAnthropic(apiKey: string, model: string, messages: any[], temperature: number, maxTokens: number) {
+  const systemMessage = messages.find(m => m.role === 'system');
+  const userMessages = messages.filter(m => m.role !== 'system');
+
+  const response = await fetch(AI_PROVIDERS.anthropic.url, {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      temperature,
+      system: systemMessage?.content || '',
+      messages: userMessages,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error('Anthropic API error:', errorData);
+    throw new Error(`Anthropic API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.content[0].text;
+}
+
+async function callDeepseek(apiKey: string, model: string, messages: any[], temperature: number, maxTokens: number) {
+  const response = await fetch(AI_PROVIDERS.deepseek.url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error('DeepSeek API error:', errorData);
+    throw new Error(`DeepSeek API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -28,12 +131,27 @@ serve(async (req) => {
   }
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OPENAI_API_KEY not configured');
+    const { 
+      name, 
+      prompt, 
+      context, 
+      provider = 'openai', 
+      model, 
+      temperature = 0.8, 
+      maxTokens = 1000 
+    }: GenerateArtistInfoRequest = await req.json();
+
+    const providerConfig = AI_PROVIDERS[provider];
+    if (!providerConfig) {
+      throw new Error(`Unsupported AI provider: ${provider}`);
     }
 
-    const { name, prompt, context }: GenerateArtistInfoRequest = await req.json();
+    const apiKey = Deno.env.get(providerConfig.keyEnv);
+    if (!apiKey) {
+      throw new Error(`${providerConfig.keyEnv} not configured`);
+    }
+
+    const selectedModel = model || providerConfig.defaultModel;
 
     if (!name) {
       throw new Error('Artist name is required');
@@ -57,31 +175,29 @@ ${prompt ? `Особые требования: ${prompt}` : ''}
 
 Создай реалистичный и интересный профиль, который будет полезен для дальнейшего создания лирики и маркетинговых материалов.`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.8,
-        max_tokens: 1000,
-      }),
-    });
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('OpenAI API error:', errorData);
-      throw new Error(`OpenAI API error: ${response.status}`);
+    let generatedContent: string;
+
+    // Call appropriate AI provider
+    switch (provider) {
+      case 'openai':
+        generatedContent = await callOpenAI(apiKey, selectedModel, messages, temperature, maxTokens);
+        break;
+      case 'anthropic':
+        generatedContent = await callAnthropic(apiKey, selectedModel, messages, temperature, maxTokens);
+        break;
+      case 'deepseek':
+        generatedContent = await callDeepseek(apiKey, selectedModel, messages, temperature, maxTokens);
+        break;
+      default:
+        throw new Error(`Unsupported provider: ${provider}`);
     }
 
-    const data = await response.json();
-    const generatedContent = data.choices[0].message.content;
+    console.log('Generated content:', generatedContent);
 
     let artistInfo: GeneratedArtistInfo;
     try {
@@ -91,15 +207,31 @@ ${prompt ? `Особые требования: ${prompt}` : ''}
       throw new Error('Invalid response format from AI');
     }
 
-    return new Response(JSON.stringify({ artistInfo }), {
+    return new Response(JSON.stringify({ 
+      artistInfo,
+      metadata: {
+        provider,
+        model: selectedModel,
+        temperature,
+        maxTokens,
+        generatedAt: new Date().toISOString()
+      }
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Error in generate-artist-info function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'An unexpected error occurred' 
-    }), {
+    
+    // Return detailed error information for debugging
+    const errorResponse = {
+      error: error.message || 'An unexpected error occurred',
+      timestamp: new Date().toISOString(),
+      provider: provider || 'unknown',
+      ...(Deno.env.get('DENO_ENV') === 'development' && { stack: error.stack })
+    };
+
+    return new Response(JSON.stringify(errorResponse), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

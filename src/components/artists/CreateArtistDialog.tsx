@@ -86,7 +86,11 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
       const { data, error } = await supabase.functions.invoke('generate-artist-info', {
         body: {
           name: artistName,
-          context: "Российский музыкальный артист"
+          context: "Российский музыкальный артист",
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          temperature: 0.8,
+          maxTokens: 1000
         }
       });
 
