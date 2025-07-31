@@ -230,6 +230,32 @@ export function TrackGenerationDialog({
                         </div>
                       )}
                       
+                      {generatedData.lyrics.structure && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium">Структура:</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {generatedData.lyrics.structure.map((part: string, index: number) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {part}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {generatedData.lyrics.suno_tags && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium">SUNO AI теги:</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {generatedData.lyrics.suno_tags.map((tag: string, index: number) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
                       {generatedData.lyrics.themes && generatedData.lyrics.themes.length > 0 && (
                         <div className="mt-2">
                           <p className="text-sm font-medium">Темы:</p>
@@ -278,10 +304,10 @@ export function TrackGenerationDialog({
                         </div>
                       )}
 
-                      {generatedData.concept.mood_and_energy && (
+                      {generatedData.concept.mood_energy && (
                         <div>
                           <p className="text-sm font-medium">Настроение и энергетика:</p>
-                          <p className="text-sm text-muted-foreground">{generatedData.concept.mood_and_energy}</p>
+                          <p className="text-sm text-muted-foreground">{generatedData.concept.mood_energy}</p>
                         </div>
                       )}
 
