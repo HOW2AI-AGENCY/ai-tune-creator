@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { useTrackGeneration } from "@/hooks/useTrackGeneration";
-import { Loader2, Sparkles, Music, FileText, Lightbulb } from "lucide-react";
+import { LyricsAnalysisReport } from './LyricsAnalysisReport';
+import { Loader2, Sparkles, Music, FileText, Lightbulb, BarChart3, Copy } from "lucide-react";
 
 // T-059: Компонент для ИИ генерации треков
 interface TrackGenerationDialogProps {
@@ -40,9 +41,11 @@ export function TrackGenerationDialog({
   const [generatedData, setGeneratedData] = useState<{
     lyrics: any | null;
     concept: any | null;
+    analysis: any | null;
   }>({
     lyrics: null,
-    concept: null
+    concept: null,
+    analysis: null
   });
 
   console.log('Current generatedData:', generatedData);
@@ -53,7 +56,9 @@ export function TrackGenerationDialog({
     generateConcept,
     generatingConcept,
     generateStylePrompt,
-    generatingStylePrompt
+    generatingStylePrompt,
+    analyzeLyrics,
+    analyzingLyrics
   } = useTrackGeneration({
     onLyricsGenerated: (lyrics) => {
       console.log('Lyrics generated:', lyrics);
@@ -113,6 +118,43 @@ export function TrackGenerationDialog({
 
   const handleGenerateStylePrompt = async () => {
     await generateStylePrompt(artistInfo, projectInfo);
+  };
+
+  const handleAnalyzeLyrics = async () => {
+    if (!generatedData.lyrics) {
+      toast({
+        title: "Ошибка",
+        description: "Сначала сгенерируйте лирику для анализа",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const lyricsText = extractLyricsText(generatedData.lyrics);
+      const analysis = await analyzeLyrics(lyricsText, formData.stylePrompt, formData.genreTags.split(',').map(tag => tag.trim()).filter(tag => tag));
+      if (analysis) {
+        setGeneratedData(prev => ({ ...prev, analysis }));
+      }
+    } catch (error) {
+      console.error('Lyrics analysis failed:', error);
+    }
+  };
+
+  const extractLyricsText = (lyricsData: any) => {
+    if (typeof lyricsData === 'string') return lyricsData;
+    
+    if (lyricsData?.song?.structure) {
+      return lyricsData.song.structure.map((part: any) => 
+        `[${part.tag.replace(/[\[\]]/g, '').toUpperCase()}]\n${part.lyrics}`
+      ).join('\n\n');
+    }
+    
+    if (lyricsData?.lyrics) {
+      return lyricsData.lyrics;
+    }
+    
+    return JSON.stringify(lyricsData, null, 2);
   };
 
   const copyToClipboard = (text: string) => {
@@ -241,14 +283,17 @@ export function TrackGenerationDialog({
           </div>
 
           {/* Результаты генерации */}
-          {(generatedData.lyrics || generatedData.concept) && (
-            <Tabs defaultValue={generatedData.lyrics ? "lyrics" : "concept"} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+          {(generatedData.lyrics || generatedData.concept || generatedData.analysis) && (
+            <Tabs defaultValue={generatedData.lyrics ? "lyrics" : (generatedData.concept ? "concept" : "analysis")} className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="lyrics" disabled={!generatedData.lyrics}>
                   Лирика
                 </TabsTrigger>
                 <TabsTrigger value="concept" disabled={!generatedData.concept}>
                   Концепция
+                </TabsTrigger>
+                <TabsTrigger value="analysis" disabled={!generatedData.analysis}>
+                  Анализ
                 </TabsTrigger>
               </TabsList>
 
@@ -258,31 +303,29 @@ export function TrackGenerationDialog({
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                       <CardTitle className="text-lg">Сгенерированная лирика</CardTitle>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => copyToClipboard(
-                          generatedData.lyrics.lyrics || 
-                          (generatedData.lyrics.song ? 
-                            generatedData.lyrics.song.structure?.map((part: any) => 
-                              `${part.tag}\n${part.lyrics}\n\n`
-                            ).join('') 
-                            : JSON.stringify(generatedData.lyrics, null, 2)
-                          )
-                        )}
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Копировать
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleAnalyzeLyrics}
+                          disabled={analyzingLyrics}
+                        >
+                          <BarChart3 className="h-4 w-4 mr-2" />
+                          {analyzingLyrics ? 'Анализируем...' : 'Проанализировать'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => copyToClipboard(extractLyricsText(generatedData.lyrics))}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Копировать
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="whitespace-pre-wrap font-mono text-sm bg-muted/50 p-4 rounded-lg max-h-60 overflow-y-auto">
-                        {generatedData.lyrics.lyrics || (generatedData.lyrics.song ? 
-                          generatedData.lyrics.song.structure?.map((part: any, index: number) => 
-                            `${part.tag}\n${part.lyrics}\n\n`
-                          ).join('') 
-                          : JSON.stringify(generatedData.lyrics, null, 2)
-                        )}
+                        {extractLyricsText(generatedData.lyrics)}
                       </div>
                       
                       {(generatedData.lyrics.mood || generatedData.lyrics.song?.mood) && (
@@ -332,6 +375,33 @@ export function TrackGenerationDialog({
                       )}
                     </CardContent>
                   </Card>
+                </TabsContent>
+              )}
+
+              {/* Результат анализа */}
+              {generatedData.analysis && (
+                <TabsContent value="analysis" className="space-y-4">
+                  <LyricsAnalysisReport 
+                    analysis={generatedData.analysis}
+                    onImproveClick={() => {
+                      toast({
+                        title: "В разработке",
+                        description: "Функция улучшения лирики будет добавлена в следующих версиях"
+                      });
+                    }}
+                  />
+                </TabsContent>
+              )}
+
+              {!generatedData.analysis && (
+                <TabsContent value="analysis" className="space-y-4">
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Анализ лирики пока не проведен</p>
+                    <p className="text-sm mt-2">
+                      Сгенерируйте лирику и нажмите "Проанализировать" для получения экспертной оценки
+                    </p>
+                  </div>
                 </TabsContent>
               )}
 

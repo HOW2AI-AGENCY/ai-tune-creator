@@ -26,6 +26,7 @@ export function useTrackGeneration({
   const [generatingLyrics, setGeneratingLyrics] = useState(false);
   const [generatingConcept, setGeneratingConcept] = useState(false);
   const [generatingStylePrompt, setGeneratingStylePrompt] = useState(false);
+  const [analyzingLyrics, setAnalyzingLyrics] = useState(false);
   const { toast } = useToast();
   const { settings } = useAISettings();
 
@@ -188,6 +189,50 @@ export function useTrackGeneration({
     }
   };
 
+  const analyzeLyrics = async (lyrics: string, stylePrompt?: string, genreTags?: string[]) => {
+    try {
+      setAnalyzingLyrics(true);
+      
+      console.log('Analyzing lyrics:', { lyrics: lyrics.substring(0, 100) + '...', stylePrompt, genreTags });
+
+      const { data, error } = await supabase.functions.invoke('analyze-lyrics', {
+        body: {
+          lyrics,
+          stylePrompt,
+          genreTags,
+          provider: settings.provider,
+          model: settings.model,
+          temperature: settings.temperature
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Не удалось проанализировать лирику');
+      }
+
+      toast({
+        title: "Успешно",
+        description: "Анализ лирики завершен"
+      });
+
+      return data.data;
+    } catch (error: any) {
+      console.error('Error analyzing lyrics:', error);
+      toast({
+        title: "Ошибка анализа",
+        description: error.message || "Не удалось проанализировать лирику",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setAnalyzingLyrics(false);
+    }
+  };
+
   // TODO: Добавить retry логику при ошибках
   // FIXME: Оптимизировать повторные запросы при одинаковых параметрах
 
@@ -198,6 +243,8 @@ export function useTrackGeneration({
     generatingConcept,
     generateStylePrompt,
     generatingStylePrompt,
-    generateDescription
+    generateDescription,
+    analyzeLyrics,
+    analyzingLyrics
   };
 }
