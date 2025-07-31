@@ -45,6 +45,8 @@ export function TrackGenerationDialog({
     concept: null
   });
 
+  console.log('Current generatedData:', generatedData);
+
   const { 
     generateLyrics, 
     generatingLyrics,
@@ -54,10 +56,12 @@ export function TrackGenerationDialog({
     generatingStylePrompt
   } = useTrackGeneration({
     onLyricsGenerated: (lyrics) => {
+      console.log('Lyrics generated:', lyrics);
       setGeneratedData(prev => ({ ...prev, lyrics }));
       onGenerated('lyrics', lyrics);
     },
     onConceptGenerated: (concept) => {
+      console.log('Concept generated:', concept);
       setGeneratedData(prev => ({ ...prev, concept }));
       onGenerated('concept', concept);
     },
@@ -238,7 +242,7 @@ export function TrackGenerationDialog({
 
           {/* Результаты генерации */}
           {(generatedData.lyrics || generatedData.concept) && (
-            <Tabs defaultValue="lyrics" className="w-full">
+            <Tabs defaultValue={generatedData.lyrics ? "lyrics" : "concept"} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="lyrics" disabled={!generatedData.lyrics}>
                   Лирика
