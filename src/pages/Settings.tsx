@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { User, Bell, Palette, Shield, Database, Save } from "lucide-react";
+import { User, Bell, Palette, Shield, Database, Save, Bot, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -35,6 +36,13 @@ export default function Settings() {
       defaultAiService: "suno",
       autoSaveProjects: true,
       darkMode: false
+    },
+    ai: {
+      provider: "openai",
+      model: "gpt-4o-mini",
+      customPrompt: "Ты опытный музыкальный продюсер и A&R. Помоги создать детальное описание артиста на основе его имени и контекста. Включи информацию о жанре, локации, предыстории, музыкальном стиле и влияниях.",
+      maxTokens: 1000,
+      temperature: 0.7
     }
   });
 
@@ -65,22 +73,31 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="profile" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Профиль
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <TabsTrigger value="profile" className="flex items-center gap-1 text-xs sm:text-sm">
+            <User className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Профиль</span>
+            <span className="sm:hidden">Я</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
-            Уведомления
+          <TabsTrigger value="notifications" className="flex items-center gap-1 text-xs sm:text-sm">
+            <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Уведомления</span>
+            <span className="sm:hidden">🔔</span>
           </TabsTrigger>
-          <TabsTrigger value="preferences" className="flex items-center gap-2">
-            <Palette className="h-4 w-4" />
-            Предпочтения
+          <TabsTrigger value="preferences" className="flex items-center gap-1 text-xs sm:text-sm">
+            <Palette className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Предпочтения</span>
+            <span className="sm:hidden">⚙️</span>
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Безопасность
+          <TabsTrigger value="ai" className="flex items-center gap-1 text-xs sm:text-sm">
+            <Bot className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">ИИ</span>
+            <span className="sm:hidden">🤖</span>
+          </TabsTrigger>
+          <TabsTrigger value="security" className="flex items-center gap-1 text-xs sm:text-sm">
+            <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Безопасность</span>
+            <span className="sm:hidden">🔒</span>
           </TabsTrigger>
         </TabsList>
 
@@ -284,6 +301,177 @@ export default function Settings() {
               <Button onClick={() => handleSave('предпочтений')}>
                 <Save className="mr-2 h-4 w-4" />
                 Сохранить предпочтения
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ai" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="h-5 w-5" />
+                Настройки ИИ генерации
+              </CardTitle>
+              <CardDescription>
+                Настройте параметры ИИ для генерации информации об артистах, лирики и маркетинговых материалов
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="provider">Провайдер ИИ</Label>
+                    <Select
+                      value={settings.ai.provider}
+                      onValueChange={(value) => updateSetting('ai', 'provider', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
+                        <SelectItem value="google">Google (Gemini)</SelectItem>
+                        <SelectItem value="cohere">Cohere</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="model">Модель</Label>
+                    <Select
+                      value={settings.ai.model}
+                      onValueChange={(value) => updateSetting('ai', 'model', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {settings.ai.provider === 'openai' && (
+                          <>
+                            <SelectItem value="gpt-4o">GPT-4O</SelectItem>
+                            <SelectItem value="gpt-4o-mini">GPT-4O Mini</SelectItem>
+                            <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                          </>
+                        )}
+                        {settings.ai.provider === 'anthropic' && (
+                          <>
+                            <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
+                            <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                            <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
+                          </>
+                        )}
+                        {settings.ai.provider === 'google' && (
+                          <>
+                            <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
+                            <SelectItem value="gemini-pro-vision">Gemini Pro Vision</SelectItem>
+                          </>
+                        )}
+                        {settings.ai.provider === 'cohere' && (
+                          <>
+                            <SelectItem value="command">Command</SelectItem>
+                            <SelectItem value="command-light">Command Light</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="temperature">Креативность (Temperature)</Label>
+                    <div className="space-y-2">
+                      <Input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={settings.ai.temperature}
+                        onChange={(e) => updateSetting('ai', 'temperature', parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Консервативно (0.0)</span>
+                        <span className="font-medium">{settings.ai.temperature}</span>
+                        <span>Креативно (1.0)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="maxTokens">Максимум токенов</Label>
+                    <Input
+                      type="number"
+                      min="100"
+                      max="4000"
+                      value={settings.ai.maxTokens}
+                      onChange={(e) => updateSetting('ai', 'maxTokens', parseInt(e.target.value))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="customPrompt">Системный промпт</Label>
+                    <Textarea
+                      id="customPrompt"
+                      value={settings.ai.customPrompt}
+                      onChange={(e) => updateSetting('ai', 'customPrompt', e.target.value)}
+                      placeholder="Кастомизируйте поведение ИИ..."
+                      className="min-h-[200px] resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Этот промпт будет использоваться как системное сообщение для всех ИИ генераций
+                    </p>
+                  </div>
+
+                  <div className="p-4 border border-border rounded-lg bg-muted/50">
+                    <h4 className="font-medium mb-2 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      Предварительные настройки
+                    </h4>
+                    <div className="space-y-2">
+                      <Button
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => {
+                          updateSetting('ai', 'customPrompt', 'Ты опытный музыкальный продюсер и A&R. Помоги создать детальное описание артиста на основе его имени и контекста. Включи информацию о жанре, локации, предыстории, музыкальном стиле и влияниях.');
+                          updateSetting('ai', 'temperature', 0.7);
+                        }}
+                      >
+                        Для артистов
+                      </Button>
+                      <Button
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => {
+                          updateSetting('ai', 'customPrompt', 'Ты талантливый автор песен и поэт. Создавай креативную и эмоциональную лирику на основе заданной темы, настроения и стиля.');
+                          updateSetting('ai', 'temperature', 0.8);
+                        }}
+                      >
+                        Для лирики
+                      </Button>
+                      <Button
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => {
+                          updateSetting('ai', 'customPrompt', 'Ты креативный маркетолог в музыкальной индустрии. Создавай привлекательные маркетинговые материалы, описания релизов и промо-тексты.');
+                          updateSetting('ai', 'temperature', 0.6);
+                        }}
+                      >
+                        Для маркетинга
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button onClick={() => handleSave('ИИ')}>
+                <Save className="mr-2 h-4 w-4" />
+                Сохранить настройки ИИ
               </Button>
             </CardContent>
           </Card>

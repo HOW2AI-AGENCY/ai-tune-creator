@@ -186,7 +186,7 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
           Новый артист
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Создать нового артиста</DialogTitle>
           <DialogDescription>
@@ -244,7 +244,7 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="metadata.genre"
