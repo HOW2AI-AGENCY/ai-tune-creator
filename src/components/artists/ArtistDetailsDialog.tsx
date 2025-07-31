@@ -158,8 +158,8 @@ export function ArtistDetailsDialog({ artist, open, onOpenChange }: ArtistDetail
               </DialogDescription>
             </DialogHeader>
 
-            <div className="flex-1 overflow-auto p-6">
-              <div className="space-y-6">
+            <ScrollArea className="flex-1">
+              <div className="space-y-6 p-6">
               {/* Основная информация */}
               <Card>
                 <CardHeader>
@@ -313,7 +313,7 @@ export function ArtistDetailsDialog({ artist, open, onOpenChange }: ArtistDetail
                 </CardContent>
               </Card>
               </div>
-            </div>
+            </ScrollArea>
           </div>
         </DialogContent>
       </Dialog>
