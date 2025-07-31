@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ interface Artist {
 }
 
 interface CreateProjectDialogProps {
-  artist: Artist;
+  artist?: Artist;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProjectCreated?: () => void;
@@ -54,6 +54,7 @@ const formSchema = z.object({
   status: z.enum(["draft", "in_progress", "published"], {
     required_error: "Выберите статус проекта",
   }),
+  artistId: z.string().min(1, "Выберите артиста"),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -104,6 +105,7 @@ export function CreateProjectDialog({
   onProjectCreated,
 }: CreateProjectDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [artists, setArtists] = useState<Artist[]>([]);
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -113,8 +115,34 @@ export function CreateProjectDialog({
       description: "",
       type: "single",
       status: "draft",
+      artistId: artist?.id || "",
     },
   });
+
+  const loadArtists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('id, name')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setArtists(data || []);
+    } catch (error: any) {
+      console.error('Error loading artists:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить артистов",
+        variant: "destructive"
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (open && !artist) {
+      loadArtists();
+    }
+  }, [open, artist]);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -130,7 +158,7 @@ export function CreateProjectDialog({
         description: data.description || null,
         type: data.type,
         status: data.status,
-        artist_id: artist.id,
+        artist_id: data.artistId,
         metadata: {
           created_by: user.id,
           created_at: new Date().toISOString(),
@@ -161,6 +189,9 @@ export function CreateProjectDialog({
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen && !loading) {
       form.reset();
+      if (!artist) {
+        form.setValue('artistId', '');
+      }
     }
     onOpenChange(newOpen);
   };
@@ -171,12 +202,41 @@ export function CreateProjectDialog({
         <DialogHeader>
           <DialogTitle>Создать новый проект</DialogTitle>
           <DialogDescription>
-            Создание нового музыкального проекта для артиста {artist.name}
+            {artist 
+              ? `Создание нового музыкального проекта для артиста ${artist.name}`
+              : "Создание нового музыкального проекта"
+            }
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {!artist && (
+              <FormField
+                control={form.control}
+                name="artistId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Артист</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Выберите артиста" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {artists.map((artistOption) => (
+                          <SelectItem key={artistOption.id} value={artistOption.id}>
+                            {artistOption.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name="title"
