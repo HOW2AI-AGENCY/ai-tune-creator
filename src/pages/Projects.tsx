@@ -21,6 +21,16 @@ import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
 import { CreateProjectWithAIDialog } from "@/components/projects/CreateProjectWithAIDialog";
 import { CoverUploadDialog } from "@/components/projects/CoverUploadDialog";
 import { BannerUploadDialog } from "@/components/projects/BannerUploadDialog";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Project {
   id: string;
@@ -54,6 +64,7 @@ export default function Projects() {
   const [showCreateWithAI, setShowCreateWithAI] = useState(false);
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const [bannerDialogOpen, setBannerDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const fetchProjects = async () => {
     try {
@@ -229,6 +240,98 @@ export default function Projects() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm('Вы уверены, что хотите удалить этот проект? Все треки и данные будут потеряны.')) {
+      return;
+    }
+
+    try {
+      // Удаляем треки
+      const { error: tracksError } = await supabase
+        .from('tracks')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (tracksError) throw tracksError;
+
+      // Удаляем заметки проекта
+      const { error: notesError } = await supabase
+        .from('project_notes')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (notesError) throw notesError;
+
+      // Удаляем проект
+      const { error: projectError } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+
+      if (projectError) throw projectError;
+
+      toast({
+        title: "Проект удален",
+        description: "Проект и все связанные данные успешно удалены"
+      });
+
+      // Возвращаемся к списку проектов
+      handleBackToProjects();
+      fetchProjects();
+    } catch (error: any) {
+      console.error('Delete project error:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить проект",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+  };
+
+  const handleUpdateProject = async (data: any) => {
+    if (!editingProject) return;
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          title: data.title,
+          description: data.description,
+          type: data.type,
+          status: data.status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingProject.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Проект обновлен",
+        description: "Изменения успешно сохранены"
+      });
+
+      setEditingProject(null);
+      fetchProjects();
+      
+      // Обновляем выбранный проект
+      if (selectedProject?.id === editingProject.id) {
+        const updatedProject = { ...selectedProject, ...data };
+        setSelectedProject(updatedProject);
+      }
+    } catch (error: any) {
+      console.error('Update project error:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить проект",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <ScrollArea className="h-[calc(100vh-120px)]">
       <div className="space-y-6 animate-fade-in p-1">
@@ -358,9 +461,13 @@ export default function Projects() {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="gap-2">
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => handleEditProject(selectedProject)}>
                       <Edit className="h-4 w-4" />
                       Редактировать
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => handleDeleteProject(selectedProject.id)}>
+                      <Trash2 className="h-4 w-4" />
+                      Удалить
                     </Button>
                   </div>
                 </div>
@@ -602,7 +709,15 @@ export default function Projects() {
                         Добавить трек
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Редактировать
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-destructive" 
+                        onClick={() => handleDeleteProject(project.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
                         Удалить
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -692,6 +807,16 @@ export default function Projects() {
         onOpenChange={setShowCreateWithAI}
         onProjectCreated={handleProjectCreated}
       />
+
+      {editingProject && (
+        <CreateProjectDialog
+          open={!!editingProject}
+          onOpenChange={(open) => !open && setEditingProject(null)}
+          onProjectCreated={handleUpdateProject}
+          initialData={editingProject}
+          mode="edit"
+        />
+      )}
 
         <CoverUploadDialog
           open={coverDialogOpen}

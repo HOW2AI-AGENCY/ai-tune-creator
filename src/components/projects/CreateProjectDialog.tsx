@@ -46,7 +46,9 @@ interface CreateProjectDialogProps {
   artist?: Artist;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onProjectCreated?: () => void;
+  onProjectCreated?: (data?: any) => void;
+  initialData?: any;
+  mode?: 'create' | 'edit';
 }
 
 const formSchema = z.object({
@@ -107,6 +109,8 @@ export function CreateProjectDialog({
   open,
   onOpenChange,
   onProjectCreated,
+  initialData,
+  mode = 'create',
 }: CreateProjectDialogProps) {
   const [loading, setLoading] = useState(false);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -128,11 +132,11 @@ export function CreateProjectDialog({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      type: "single",
-      status: "draft",
-      artistId: artist?.id || "",
+      title: initialData?.title || "",
+      description: initialData?.description || "",
+      type: initialData?.type || "single",
+      status: initialData?.status || "draft",
+      artistId: initialData?.artist_id || artist?.id || "",
     },
   });
 
@@ -188,44 +192,50 @@ export function CreateProjectDialog({
     try {
       setLoading(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error("Пользователь не авторизован");
+      if (mode === 'edit') {
+        // Режим редактирования
+        onProjectCreated?.(data);
+      } else {
+        // Режим создания
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error("Пользователь не авторизован");
+        }
+
+        const { error } = await supabase.from("projects").insert({
+          title: data.title,
+          description: data.description || null,
+          type: data.type,
+          status: data.status,
+          artist_id: data.artistId,
+          cover_url: coverUrl || null,
+          cover_metadata: coverUrl ? {
+            uploaded_at: new Date().toISOString(),
+            type: coverUrl.includes('generated') ? 'ai_generated' : 'uploaded'
+          } : null,
+          metadata: {
+            created_by: user.id,
+            created_at: new Date().toISOString(),
+          },
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Успешно",
+          description: "Проект создан",
+        });
+
+        form.reset();
+        setCoverUrl("");
+        setCoverPrompt("");
+        onProjectCreated?.();
       }
-
-      const { error } = await supabase.from("projects").insert({
-        title: data.title,
-        description: data.description || null,
-        type: data.type,
-        status: data.status,
-        artist_id: data.artistId,
-        cover_url: coverUrl || null,
-        cover_metadata: coverUrl ? {
-          uploaded_at: new Date().toISOString(),
-          type: coverUrl.includes('generated') ? 'ai_generated' : 'uploaded'
-        } : null,
-        metadata: {
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Успешно",
-        description: "Проект создан",
-      });
-
-      form.reset();
-      setCoverUrl("");
-      setCoverPrompt("");
-      onProjectCreated?.();
     } catch (error: any) {
-      console.error("Error creating project:", error);
+      console.error("Error creating/updating project:", error);
       toast({
         title: "Ошибка",
-        description: "Не удалось создать проект",
+        description: mode === 'edit' ? "Не удалось обновить проект" : "Не удалось создать проект",
         variant: "destructive",
       });
     } finally {
@@ -249,11 +259,13 @@ export function CreateProjectDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Создать новый проект</DialogTitle>
+          <DialogTitle>{mode === 'edit' ? 'Редактировать проект' : 'Создать новый проект'}</DialogTitle>
           <DialogDescription>
-            {artist 
-              ? `Создание нового музыкального проекта для артиста ${artist.name}`
-              : "Создание нового музыкального проекта"
+            {mode === 'edit' 
+              ? 'Редактирование музыкального проекта'
+              : artist 
+                ? `Создание нового музыкального проекта для артиста ${artist.name}`
+                : "Создание нового музыкального проекта"
             }
           </DialogDescription>
         </DialogHeader>
