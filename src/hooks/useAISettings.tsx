@@ -11,6 +11,9 @@ export interface AISettings {
     artistGeneration: string;
     lyricsGeneration: string;
     marketingMaterials: string;
+    // T-052: Добавляем промпты для треков
+    trackConceptGeneration: string;
+    trackDescriptionGeneration: string;
   };
 }
 
@@ -22,7 +25,10 @@ const DEFAULT_SETTINGS: AISettings = {
   customPrompts: {
     artistGeneration: 'Создай детальный профиль артиста, который будет полезен для дальнейшего создания лирики и маркетинговых материалов.',
     lyricsGeneration: 'Создай текст песни в стиле и тематике данного артиста.',
-    marketingMaterials: 'Создай маркетинговые материалы для продвижения артиста и его музыки.'
+    marketingMaterials: 'Создай маркетинговые материалы для продвижения артиста и его музыки.',
+    // T-052: Промпты для генерации треков
+    trackConceptGeneration: 'Создай концепцию трека с описанием стиля, настроения и основной идеи песни.',
+    trackDescriptionGeneration: 'Создай краткое описание трека, которое будет использоваться для его продвижения и каталогизации.'
   }
 };
 

@@ -20,6 +20,10 @@ interface Track {
   metadata: any;
   created_at: string;
   updated_at: string;
+  // T-051: Добавляем новые поля для ИИ генерации
+  description?: string | null;
+  genre_tags?: string[] | null;
+  style_prompt?: string | null;
 }
 
 interface TrackEditDialogProps {
@@ -38,6 +42,10 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
     duration: "",
     lyrics: "",
     change_description: "",
+    // T-051: Добавляем поля для новых данных треков
+    description: "",
+    genre_tags: "",
+    style_prompt: "",
   });
 
   useEffect(() => {
@@ -48,6 +56,10 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
         duration: track.duration ? String(track.duration) : "",
         lyrics: track.lyrics || "",
         change_description: "",
+        // T-051: Заполняем новые поля
+        description: track.description || "",
+        genre_tags: track.genre_tags ? track.genre_tags.join(", ") : "",
+        style_prompt: track.style_prompt || "",
       });
     }
   }, [track]);
@@ -90,6 +102,10 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
           duration: formData.duration ? parseInt(formData.duration) : null,
           lyrics: formData.lyrics || null,
           current_version: track.current_version + 1,
+          // T-051: Обновляем новые поля
+          description: formData.description || null,
+          genre_tags: formData.genre_tags ? formData.genre_tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+          style_prompt: formData.style_prompt || null,
           metadata: {
             ...track.metadata,
             last_edited_by: user.id,
@@ -114,6 +130,10 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
         duration: "",
         lyrics: "",
         change_description: "",
+        // T-051: Сбрасываем новые поля
+        description: "",
+        genre_tags: "",
+        style_prompt: "",
       });
     } catch (error: any) {
       console.error('Error updating track:', error);
@@ -218,6 +238,42 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
                   Примерно: {formatDuration(parseInt(formData.duration) || 0)}
                 </p>
               )}
+            </div>
+
+            {/* T-051: Добавляем новые поля */}
+            <div>
+              <label className="text-sm font-medium">Описание трека</label>
+              <Textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Краткое описание трека..."
+                rows={2}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Жанры</label>
+              <Input
+                value={formData.genre_tags}
+                onChange={(e) => setFormData({ ...formData, genre_tags: e.target.value })}
+                placeholder="pop, rock, electronic (через запятую)"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Укажите жанры через запятую
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Промпт стиля (для ИИ)</label>
+              <Textarea
+                value={formData.style_prompt}
+                onChange={(e) => setFormData({ ...formData, style_prompt: e.target.value })}
+                placeholder="Энергичная поп-песня с элементами рока, яркие эмоции..."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Опишите стиль и настроение для генерации ИИ
+              </p>
             </div>
 
             <div>

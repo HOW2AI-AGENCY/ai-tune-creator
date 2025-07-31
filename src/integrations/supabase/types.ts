@@ -404,11 +404,14 @@ export type Database = {
           audio_url: string | null
           created_at: string
           current_version: number | null
+          description: string | null
           duration: number | null
+          genre_tags: string[] | null
           id: string
           lyrics: string | null
           metadata: Json | null
           project_id: string
+          style_prompt: string | null
           title: string
           track_number: number
           updated_at: string
@@ -418,11 +421,14 @@ export type Database = {
           audio_url?: string | null
           created_at?: string
           current_version?: number | null
+          description?: string | null
           duration?: number | null
+          genre_tags?: string[] | null
           id?: string
           lyrics?: string | null
           metadata?: Json | null
           project_id: string
+          style_prompt?: string | null
           title: string
           track_number: number
           updated_at?: string
@@ -432,11 +438,14 @@ export type Database = {
           audio_url?: string | null
           created_at?: string
           current_version?: number | null
+          description?: string | null
           duration?: number | null
+          genre_tags?: string[] | null
           id?: string
           lyrics?: string | null
           metadata?: Json | null
           project_id?: string
+          style_prompt?: string | null
           title?: string
           track_number?: number
           updated_at?: string
