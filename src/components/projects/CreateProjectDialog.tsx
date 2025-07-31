@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useFileUpload } from "@/hooks/useFileUpload";
+import { useImageGeneration } from "@/hooks/useImageGeneration";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,10 +30,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Music, Play, FolderOpen } from "lucide-react";
+import { Loader2, Music, Play, FolderOpen, Upload, Wand2, Image as ImageIcon, Camera } from "lucide-react";
 
 interface Artist {
   id: string;
@@ -106,7 +110,20 @@ export function CreateProjectDialog({
 }: CreateProjectDialogProps) {
   const [loading, setLoading] = useState(false);
   const [artists, setArtists] = useState<Artist[]>([]);
+  const [coverUrl, setCoverUrl] = useState("");
+  const [coverPrompt, setCoverPrompt] = useState("");
   const { toast } = useToast();
+
+  const { uploadFile, uploading } = useFileUpload({
+    bucket: 'project-covers',
+    folder: 'covers',
+    maxSize: 10 * 1024 * 1024,
+    allowedTypes: ['image/jpeg', 'image/png', 'image/webp']
+  });
+
+  const { generateImage, generating } = useImageGeneration({
+    onImageGenerated: (imageUrl) => setCoverUrl(imageUrl)
+  });
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -144,6 +161,29 @@ export function CreateProjectDialog({
     }
   }, [open, artist]);
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const uploadedUrl = await uploadFile(file);
+    if (uploadedUrl) {
+      setCoverUrl(uploadedUrl);
+    }
+  };
+
+  const handleGenerateCover = async () => {
+    if (!coverPrompt.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Введите описание для генерации обложки",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await generateImage(coverPrompt);
+  };
+
   const onSubmit = async (data: FormData) => {
     try {
       setLoading(true);
@@ -159,6 +199,11 @@ export function CreateProjectDialog({
         type: data.type,
         status: data.status,
         artist_id: data.artistId,
+        cover_url: coverUrl || null,
+        cover_metadata: coverUrl ? {
+          uploaded_at: new Date().toISOString(),
+          type: coverUrl.includes('generated') ? 'ai_generated' : 'uploaded'
+        } : null,
         metadata: {
           created_by: user.id,
           created_at: new Date().toISOString(),
@@ -173,6 +218,8 @@ export function CreateProjectDialog({
       });
 
       form.reset();
+      setCoverUrl("");
+      setCoverPrompt("");
       onProjectCreated?.();
     } catch (error: any) {
       console.error("Error creating project:", error);
@@ -189,6 +236,8 @@ export function CreateProjectDialog({
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen && !loading) {
       form.reset();
+      setCoverUrl("");
+      setCoverPrompt("");
       if (!artist) {
         form.setValue('artistId', '');
       }
@@ -341,6 +390,103 @@ export function CreateProjectDialog({
                   </FormItem>
                 )}
               />
+            </div>
+
+            {/* Cover Upload Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="h-5 w-5" />
+                <FormLabel>Обложка проекта (опционально)</FormLabel>
+              </div>
+              
+              <Tabs defaultValue="upload" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="upload" className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    Загрузить
+                  </TabsTrigger>
+                  <TabsTrigger value="generate" className="gap-2">
+                    <Wand2 className="h-4 w-4" />
+                    Генерировать ИИ
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="upload" className="space-y-3">
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                  />
+                  <FormDescription>
+                    Поддерживаются форматы: JPEG, PNG, WebP. Максимум: 10MB
+                  </FormDescription>
+                  {uploading && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Загрузка...
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="generate" className="space-y-3">
+                  <Input
+                    value={coverPrompt}
+                    onChange={(e) => setCoverPrompt(e.target.value)}
+                    placeholder="Опишите желаемую обложку..."
+                    disabled={generating}
+                  />
+                  <Button 
+                    type="button"
+                    onClick={handleGenerateCover} 
+                    disabled={generating || !coverPrompt.trim()}
+                    className="w-full gap-2"
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Генерация...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="h-4 w-4" />
+                        Сгенерировать
+                      </>
+                    )}
+                  </Button>
+                  <FormDescription>
+                    Например: "Минималистичная обложка в синих тонах с абстрактными волнами для электронной музыки"
+                  </FormDescription>
+                </TabsContent>
+              </Tabs>
+
+              {/* Cover Preview */}
+              {coverUrl && (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <FormLabel>Предпросмотр обложки</FormLabel>
+                      <div className="flex justify-center">
+                        <img
+                          src={coverUrl}
+                          alt="Предпросмотр обложки"
+                          className="w-32 h-32 rounded-lg object-cover border"
+                        />
+                      </div>
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setCoverUrl("")}
+                        className="w-full gap-2"
+                      >
+                        <Camera className="h-4 w-4" />
+                        Удалить обложку
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             <DialogFooter>
