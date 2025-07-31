@@ -265,7 +265,20 @@ export default function Projects() {
                         </Badge>
                       )}
                     </div>
-                    <CardTitle className="group-hover:text-primary transition-colors">
+                    <div className="w-full h-32 bg-muted rounded-lg overflow-hidden mb-2">
+                      {project.cover_url ? (
+                        <img 
+                          src={project.cover_url} 
+                          alt={project.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                          <Music className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <CardTitle className="group-hover:text-primary transition-colors text-sm">
                       {project.title}
                     </CardTitle>
                     <CardDescription className="text-sm">
