@@ -8,8 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function AIGeneration() {
+  const { t } = useTranslation();
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedService, setSelectedService] = useState("suno");
@@ -18,7 +20,7 @@ export default function AIGeneration() {
   const generations = [
     {
       id: "1",
-      prompt: "Electronic ambient track with ethereal vocals and deep bass",
+      prompt: "Электронный эмбиент трек с эфирным вокалом и глубоким басом",
       service: "suno",
       status: "completed",
       resultUrl: "https://example.com/track1.mp3",
@@ -27,7 +29,7 @@ export default function AIGeneration() {
     },
     {
       id: "2",
-      prompt: "Upbeat pop song with guitar riffs and energetic drums",
+      prompt: "Оптимистичная поп-песня с гитарными риффами и энергичными барабанами",
       service: "mureka",
       status: "processing",
       progress: 65,
@@ -35,7 +37,7 @@ export default function AIGeneration() {
     },
     {
       id: "3",
-      prompt: "Jazz fusion instrumental with complex harmonies",
+      prompt: "Джаз-фьюжн инструментал со сложными гармониями",
       service: "suno",
       status: "completed",
       resultUrl: "https://example.com/track3.mp3",
@@ -44,10 +46,10 @@ export default function AIGeneration() {
     },
     {
       id: "4",
-      prompt: "Chill lo-fi hip hop for studying",
+      prompt: "Chill lo-fi хип-хоп для учебы",
       service: "openai",
       status: "failed",
-      errorMessage: "Service temporarily unavailable",
+      errorMessage: "Сервис временно недоступен",
       createdAt: "2024-01-19T09:20:00Z"
     }
   ];
@@ -76,6 +78,19 @@ export default function AIGeneration() {
     }
   };
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'завершено';
+      case 'processing':
+        return 'обрабатывается';
+      case 'failed':
+        return 'ошибка';
+      default:
+        return status;
+    }
+  };
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -88,10 +103,10 @@ export default function AIGeneration() {
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
           <Sparkles className="h-8 w-8 text-primary" />
-          AI Music Generation
+          {t("aiGenerationTitle")}
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Create unique music tracks using advanced AI. Describe your vision and let AI bring your musical ideas to life.
+          Создавайте уникальные музыкальные треки с помощью продвинутого ИИ. Опишите ваше видение и позвольте ИИ воплотить ваши музыкальные идеи в жизнь.
         </p>
       </div>
 
@@ -99,11 +114,11 @@ export default function AIGeneration() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="generate" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            Generate
+            Генерация
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
             <Music className="h-4 w-4" />
-            History
+            История
           </TabsTrigger>
         </TabsList>
 
@@ -113,38 +128,38 @@ export default function AIGeneration() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="h-5 w-5" />
-                Create New Track
+                Создать новый трек
               </CardTitle>
               <CardDescription>
-                Describe the music you want to create and select your preferred AI service
+                Опишите музыку, которую хотите создать, и выберите предпочитаемый ИИ сервис
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="service">AI Service</Label>
+                <Label htmlFor="service">ИИ Сервис</Label>
                 <Select value={selectedService} onValueChange={setSelectedService}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select AI service" />
+                    <SelectValue placeholder="Выберите ИИ сервис" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="suno">Suno AI - Best for full songs</SelectItem>
-                    <SelectItem value="mureka">Mureka - Creative compositions</SelectItem>
-                    <SelectItem value="openai">OpenAI - Experimental sounds</SelectItem>
+                    <SelectItem value="suno">Suno AI - Лучший для полных песен</SelectItem>
+                    <SelectItem value="mureka">Mureka - Креативные композиции</SelectItem>
+                    <SelectItem value="openai">OpenAI - Экспериментальные звуки</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="prompt">Music Description</Label>
+                <Label htmlFor="prompt">Описание музыки</Label>
                 <Textarea
                   id="prompt"
-                  placeholder="Describe the music you want to create... (e.g., 'An upbeat electronic dance track with synth leads and a driving bass line')"
+                  placeholder="Опишите музыку, которую хотите создать... (например, 'Оптимистичный электронный танцевальный трек с синт-лидами и драйвовой басовой линией')"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   className="min-h-[120px] resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Be specific about genre, instruments, mood, and style for best results
+                  Будьте конкретны в отношении жанра, инструментов, настроения и стиля для лучших результатов
                 </p>
               </div>
 
@@ -157,12 +172,12 @@ export default function AIGeneration() {
                 {isGenerating ? (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
+                    Генерируется...
                   </>
                 ) : (
                   <>
                     <Zap className="mr-2 h-4 w-4" />
-                    Generate Track
+                    Создать трек
                   </>
                 )}
               </Button>
@@ -174,11 +189,11 @@ export default function AIGeneration() {
             <Card className="text-center">
               <CardHeader>
                 <CardTitle className="text-lg">Suno AI</CardTitle>
-                <CardDescription>Full song generation</CardDescription>
+                <CardDescription>Создание полных песен</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Best for complete songs with vocals and lyrics. Excels at popular music genres.
+                  Лучший для полных песен с вокалом и текстами. Превосходен в популярных музыкальных жанрах.
                 </p>
               </CardContent>
             </Card>
@@ -186,11 +201,11 @@ export default function AIGeneration() {
             <Card className="text-center">
               <CardHeader>
                 <CardTitle className="text-lg">Mureka</CardTitle>
-                <CardDescription>Creative compositions</CardDescription>
+                <CardDescription>Креативные композиции</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Perfect for instrumental tracks and creative sound design. Great for ambient music.
+                  Идеален для инструментальных треков и креативного звукового дизайна. Отлично для эмбиент музыки.
                 </p>
               </CardContent>
             </Card>
@@ -198,11 +213,11 @@ export default function AIGeneration() {
             <Card className="text-center">
               <CardHeader>
                 <CardTitle className="text-lg">OpenAI</CardTitle>
-                <CardDescription>Experimental sounds</CardDescription>
+                <CardDescription>Экспериментальные звуки</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Ideal for unique textures and experimental compositions. Cutting-edge technology.
+                  Идеален для уникальных текстур и экспериментальных композиций. Передовые технологии.
                 </p>
               </CardContent>
             </Card>
@@ -219,7 +234,7 @@ export default function AIGeneration() {
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className={getStatusColor(generation.status)}>
-                          {generation.status}
+                          {getStatusText(generation.status)}
                         </Badge>
                         <Badge variant="secondary">{generation.service}</Badge>
                         <span className="text-sm text-muted-foreground">
@@ -232,7 +247,7 @@ export default function AIGeneration() {
                       {generation.status === 'processing' && generation.progress && (
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Processing...</span>
+                            <span className="text-muted-foreground">Обрабатывается...</span>
                             <span className="text-muted-foreground">{generation.progress}%</span>
                           </div>
                           <Progress value={generation.progress} className="h-2" />
@@ -245,7 +260,7 @@ export default function AIGeneration() {
                       
                       {generation.status === 'completed' && generation.duration && (
                         <p className="text-sm text-muted-foreground">
-                          Duration: {formatDuration(generation.duration)}
+                          Длительность: {formatDuration(generation.duration)}
                         </p>
                       )}
                     </div>
@@ -276,13 +291,13 @@ export default function AIGeneration() {
           {generations.length === 0 && (
             <div className="text-center py-12">
               <Music className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No generations yet</h3>
+              <h3 className="text-lg font-semibold mb-2">Пока нет генераций</h3>
               <p className="text-muted-foreground mb-4">
-                Start creating music with AI to see your generation history
+                Начните создавать музыку с ИИ, чтобы увидеть историю генераций
               </p>
               <Button>
                 <Zap className="mr-2 h-4 w-4" />
-                Generate Your First Track
+                Создать ваш первый трек
               </Button>
             </div>
           )}

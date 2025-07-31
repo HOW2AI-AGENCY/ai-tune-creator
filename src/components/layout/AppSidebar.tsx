@@ -12,23 +12,26 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar";
-
-const mainNavItems = [
-  { title: "Dashboard", url: "/", icon: Headphones },
-  { title: "Projects", url: "/projects", icon: FolderOpen },
-  { title: "Artists", url: "/artists", icon: Users },
-  { title: "AI Generation", url: "/generate", icon: Zap },
-];
-
-const settingsNavItems = [
-  { title: "Settings", url: "/settings", icon: Settings },
-];
+import { useTranslation } from "@/hooks/useTranslation";
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const currentPath = location.pathname;
+  const { t } = useTranslation();
+
+  const mainNavItems = [
+    { title: t("dashboard"), url: "/", icon: Headphones },
+    { title: t("artists"), url: "/artists", icon: Users },
+    { title: t("projects"), url: "/projects", icon: FolderOpen },
+    { title: t("aiGeneration"), url: "/generate", icon: Zap },
+  ];
+
+  const settingsNavItems = [
+    { title: t("settings"), url: "/settings", icon: Settings },
+  ];
+
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -43,7 +46,7 @@ export function AppSidebar() {
       : "hover:bg-sidebar-accent/50 text-sidebar-foreground";
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible>
+    <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
@@ -51,8 +54,8 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-bold text-sidebar-foreground">AI Music</span>
-              <span className="text-xs text-sidebar-foreground/60">Platform</span>
+              <span className="font-bold text-sidebar-foreground">{t("appName")}</span>
+              <span className="text-xs text-sidebar-foreground/60">{t("appSubtitle")}</span>
             </div>
           )}
         </div>
@@ -60,7 +63,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("main")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNavItems.map((item) => (
@@ -82,7 +85,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Account</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("account")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {settingsNavItems.map((item) => (

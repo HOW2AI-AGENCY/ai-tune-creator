@@ -10,14 +10,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function Projects() {
+  const { t } = useTranslation();
+  
   // Mock data - will be replaced with real data from Supabase
   const projects = [
     {
       id: "1",
-      title: "Electronic Dreams",
-      description: "A collection of ambient electronic tracks with ethereal soundscapes",
+      title: "Электронные мечты",
+      description: "Коллекция эмбиент электронных треков с эфирными звуковыми ландшафтами",
       type: "album",
       status: "published",
       coverUrl: null,
@@ -30,8 +33,8 @@ export default function Projects() {
     },
     {
       id: "2", 
-      title: "Midnight Vibes",
-      description: "Late night chill tracks perfect for relaxation",
+      title: "Полуночные вибрации",
+      description: "Поздние ночные chill треки, идеальные для расслабления",
       type: "ep",
       status: "draft",
       coverUrl: null,
@@ -44,8 +47,8 @@ export default function Projects() {
     },
     {
       id: "3",
-      title: "Summer Anthem",
-      description: "Upbeat summer single with tropical vibes",
+      title: "Летний гимн",
+      description: "Оптимистичный летний сингл с тропическими вибрациями",
       type: "single",
       status: "published",
       coverUrl: null,
@@ -58,8 +61,8 @@ export default function Projects() {
     },
     {
       id: "4",
-      title: "Classical Fusion",
-      description: "Modern take on classical compositions",
+      title: "Классический фьюжн",
+      description: "Современный взгляд на классические композиции",
       type: "album",
       status: "draft",
       coverUrl: null,
@@ -85,6 +88,19 @@ export default function Projects() {
     }
   };
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'published':
+        return 'опубликован';
+      case 'draft':
+        return 'черновик';
+      case 'archived':
+        return 'архив';
+      default:
+        return status;
+    }
+  };
+
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'album':
@@ -98,17 +114,30 @@ export default function Projects() {
     }
   };
 
+  const getTypeText = (type: string) => {
+    switch (type) {
+      case 'album':
+        return 'альбом';
+      case 'ep':
+        return 'EP';
+      case 'single':
+        return 'сингл';
+      default:
+        return type;
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Projects</h1>
-          <p className="text-muted-foreground">Manage your music projects and albums</p>
+          <h1 className="text-3xl font-bold">{t("projectsTitle")}</h1>
+          <p className="text-muted-foreground">Управляйте вашими музыкальными проектами и альбомами</p>
         </div>
         <Button className="shadow-glow">
           <Plus className="mr-2 h-4 w-4" />
-          New Project
+          Новый проект
         </Button>
       </div>
 
@@ -117,13 +146,13 @@ export default function Projects() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search projects..." 
+            placeholder="Поиск проектов..." 
             className="pl-10"
           />
         </div>
         <Button variant="outline" size="sm">
           <Filter className="mr-2 h-4 w-4" />
-          Filter
+          Фильтр
         </Button>
       </div>
 
@@ -136,17 +165,17 @@ export default function Projects() {
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className={getTypeColor(project.type)}>
-                      {project.type.toUpperCase()}
+                      {getTypeText(project.type).toUpperCase()}
                     </Badge>
                     <Badge variant="outline" className={getStatusColor(project.status)}>
-                      {project.status}
+                      {getStatusText(project.status)}
                     </Badge>
                   </div>
                   <CardTitle className="group-hover:text-primary transition-colors">
                     {project.title}
                   </CardTitle>
                   <CardDescription className="text-sm">
-                    by {project.artist.name}
+                    от {project.artist.name}
                   </CardDescription>
                 </div>
                 
@@ -159,15 +188,15 @@ export default function Projects() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem>
                       <FolderOpen className="mr-2 h-4 w-4" />
-                      Open
+                      Открыть
                     </DropdownMenuItem>
                     <DropdownMenuItem>
                       <Music className="mr-2 h-4 w-4" />
-                      Add Track
+                      Добавить трек
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-destructive">
-                      Delete
+                      Удалить
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -182,7 +211,7 @@ export default function Projects() {
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Music className="h-4 w-4" />
-                  <span>{project.tracksCount} tracks</span>
+                  <span>{project.tracksCount} треков</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
@@ -193,7 +222,7 @@ export default function Projects() {
               <div className="pt-2 border-t border-border">
                 <Button variant="outline" size="sm" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <FolderOpen className="mr-2 h-4 w-4" />
-                  Open Project
+                  Открыть проект
                 </Button>
               </div>
             </CardContent>
@@ -205,13 +234,13 @@ export default function Projects() {
       {projects.length === 0 && (
         <div className="text-center py-12">
           <FolderOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
+          <h3 className="text-lg font-semibold mb-2">Пока нет проектов</h3>
           <p className="text-muted-foreground mb-4">
-            Create your first music project to get started
+            Создайте ваш первый музыкальный проект, чтобы начать
           </p>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            Create Project
+            Создать проект
           </Button>
         </div>
       )}

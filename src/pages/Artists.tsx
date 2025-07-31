@@ -11,60 +11,63 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function Artists() {
+  const { t } = useTranslation();
+  
   // Mock data - will be replaced with real data from Supabase
   const artists = [
     {
       id: "1",
       name: "Digital Soundscapes",
-      description: "Electronic music producer specializing in ambient and atmospheric tracks",
+      description: "Продюсер электронной музыки, специализирующийся на эмбиент и атмосферных треках",
       avatarUrl: null,
       projectsCount: 3,
       tracksCount: 24,
       createdAt: "2023-12-01",
       metadata: {
-        genre: "Electronic",
-        location: "Los Angeles, CA"
+        genre: "Электроника",
+        location: "Лос-Анджелес, США"
       }
     },
     {
       id: "2",
       name: "Chill Masters",
-      description: "Lo-fi and chill hop collective creating relaxing music for study and work",
+      description: "Lo-fi и chill hop коллектив, создающий расслабляющую музыку для учебы и работы",
       avatarUrl: null,
       projectsCount: 2,
       tracksCount: 18,
       createdAt: "2023-11-15",
       metadata: {
         genre: "Lo-fi Hip Hop",
-        location: "Tokyo, Japan"
+        location: "Токио, Япония"
       }
     },
     {
       id: "3",
       name: "Tropical Beats",
-      description: "Summer vibes and tropical house music for the dancefloor",
+      description: "Летние вибрации и тропический хаус для танцпола",
       avatarUrl: null,
       projectsCount: 1,
       tracksCount: 8,
       createdAt: "2024-01-05",
       metadata: {
-        genre: "Tropical House",
-        location: "Miami, FL"
+        genre: "Тропический хаус",
+        location: "Майами, США"
       }
     },
     {
       id: "4",
       name: "Neo Classical",
-      description: "Modern classical composer blending traditional orchestration with contemporary elements",
+      description: "Современный композитор классической музыки, сочетающий традиционную оркестровку с современными элементами",
       avatarUrl: null,
       projectsCount: 2,
       tracksCount: 15,
       createdAt: "2023-10-20",
       metadata: {
-        genre: "Contemporary Classical",
-        location: "Vienna, Austria"
+        genre: "Современная классика",
+        location: "Вена, Австрия"
       }
     }
   ];
@@ -78,12 +81,12 @@ export default function Artists() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Artists</h1>
-          <p className="text-muted-foreground">Manage your music artists and collaborators</p>
+          <h1 className="text-3xl font-bold">{t("artistsTitle")}</h1>
+          <p className="text-muted-foreground">Управляйте вашими музыкальными артистами и коллаборациями</p>
         </div>
         <Button className="shadow-glow">
           <Plus className="mr-2 h-4 w-4" />
-          New Artist
+          Новый артист
         </Button>
       </div>
 
@@ -92,7 +95,7 @@ export default function Artists() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search artists..." 
+            placeholder="Поиск артистов..." 
             className="pl-10"
           />
         </div>
@@ -125,15 +128,15 @@ export default function Artists() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem>
                           <User className="mr-2 h-4 w-4" />
-                          View Profile
+                          Посмотреть профиль
                         </DropdownMenuItem>
                         <DropdownMenuItem>
                           <Music className="mr-2 h-4 w-4" />
-                          View Projects
+                          Посмотреть проекты
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive">
-                          Delete
+                          Удалить
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -162,23 +165,23 @@ export default function Artists() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="text-center p-2 rounded-lg bg-muted/50">
                   <div className="font-semibold text-foreground">{artist.projectsCount}</div>
-                  <div className="text-muted-foreground text-xs">Projects</div>
+                  <div className="text-muted-foreground text-xs">Проекты</div>
                 </div>
                 <div className="text-center p-2 rounded-lg bg-muted/50">
                   <div className="font-semibold text-foreground">{artist.tracksCount}</div>
-                  <div className="text-muted-foreground text-xs">Tracks</div>
+                  <div className="text-muted-foreground text-xs">Треки</div>
                 </div>
               </div>
 
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3" />
-                <span>Created {new Date(artist.createdAt).toLocaleDateString()}</span>
+                <span>Создан {new Date(artist.createdAt).toLocaleDateString()}</span>
               </div>
 
               <div className="pt-2 border-t border-border">
                 <Button variant="outline" size="sm" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                   <User className="mr-2 h-4 w-4" />
-                  View Artist
+                  Посмотреть артиста
                 </Button>
               </div>
             </CardContent>
@@ -190,13 +193,13 @@ export default function Artists() {
       {artists.length === 0 && (
         <div className="text-center py-12">
           <User className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No artists yet</h3>
+          <h3 className="text-lg font-semibold mb-2">Пока нет артистов</h3>
           <p className="text-muted-foreground mb-4">
-            Add your first artist to start organizing your music
+            Добавьте вашего первого артиста, чтобы начать организовывать вашу музыку
           </p>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            Add Artist
+            Добавить артиста
           </Button>
         </div>
       )}

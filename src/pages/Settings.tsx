@@ -10,10 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   
   // Mock user settings - will be replaced with real data from Supabase
   const [settings, setSettings] = useState({
@@ -39,8 +41,8 @@ export default function Settings() {
   const handleSave = (section: string) => {
     // TODO: Implement save to Supabase
     toast({
-      title: "Settings saved",
-      description: `Your ${section} settings have been updated.`,
+      title: "Настройки сохранены",
+      description: `Ваши настройки ${section} были обновлены.`,
     });
   };
 
@@ -58,36 +60,36 @@ export default function Settings() {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and application preferences</p>
+        <h1 className="text-3xl font-bold">{t("settingsTitle")}</h1>
+        <p className="text-muted-foreground">Управляйте настройками вашего аккаунта и приложения</p>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
-            Profile
+            Профиль
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
-            Notifications
+            Уведомления
           </TabsTrigger>
           <TabsTrigger value="preferences" className="flex items-center gap-2">
             <Palette className="h-4 w-4" />
-            Preferences
+            Предпочтения
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            Security
+            Безопасность
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
+              <CardTitle>Информация профиля</CardTitle>
               <CardDescription>
-                Update your profile information and how others see you on the platform
+                Обновите информацию профиля и то, как другие видят вас на платформе
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -101,34 +103,34 @@ export default function Settings() {
                     className="bg-muted"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Email cannot be changed here. Contact support if needed.
+                    Email нельзя изменить здесь. Обратитесь в поддержку при необходимости.
                   </p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="displayName">Display Name</Label>
+                  <Label htmlFor="displayName">Отображаемое имя</Label>
                   <Input
                     id="displayName"
                     value={settings.profile.displayName}
                     onChange={(e) => updateSetting('profile', 'displayName', e.target.value)}
-                    placeholder="Your display name"
+                    placeholder="Ваше отображаемое имя"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
+                <Label htmlFor="bio">Биография</Label>
                 <Textarea
                   id="bio"
                   value={settings.profile.bio}
                   onChange={(e) => updateSetting('profile', 'bio', e.target.value)}
-                  placeholder="Tell us about yourself and your music..."
+                  placeholder="Расскажите о себе и вашей музыке..."
                   className="min-h-[100px] resize-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="avatarUrl">Avatar URL</Label>
+                <Label htmlFor="avatarUrl">URL аватара</Label>
                 <Input
                   id="avatarUrl"
                   value={settings.profile.avatarUrl}
@@ -137,9 +139,9 @@ export default function Settings() {
                 />
               </div>
 
-              <Button onClick={() => handleSave('profile')}>
+              <Button onClick={() => handleSave('профиля')}>
                 <Save className="mr-2 h-4 w-4" />
-                Save Profile
+                Сохранить профиль
               </Button>
             </CardContent>
           </Card>
@@ -148,18 +150,18 @@ export default function Settings() {
         <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
+              <CardTitle>Настройки уведомлений</CardTitle>
               <CardDescription>
-                Choose what notifications you want to receive
+                Выберите, какие уведомления вы хотите получать
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="emailNotifications">Email Notifications</Label>
+                    <Label htmlFor="emailNotifications">Email уведомления</Label>
                     <p className="text-sm text-muted-foreground">
-                      Receive notifications via email
+                      Получать уведомления по электронной почте
                     </p>
                   </div>
                   <Switch
@@ -173,9 +175,9 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="pushNotifications">Push Notifications</Label>
+                    <Label htmlFor="pushNotifications">Push уведомления</Label>
                     <p className="text-sm text-muted-foreground">
-                      Receive browser push notifications
+                      Получать push-уведомления в браузере
                     </p>
                   </div>
                   <Switch
@@ -189,9 +191,9 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="aiGenerationComplete">AI Generation Complete</Label>
+                    <Label htmlFor="aiGenerationComplete">ИИ генерация завершена</Label>
                     <p className="text-sm text-muted-foreground">
-                      Notify when AI music generation is finished
+                      Уведомлять когда генерация музыки ИИ завершена
                     </p>
                   </div>
                   <Switch
@@ -203,9 +205,9 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="projectUpdates">Project Updates</Label>
+                    <Label htmlFor="projectUpdates">Обновления проектов</Label>
                     <p className="text-sm text-muted-foreground">
-                      Notify about project changes and collaborations
+                      Уведомлять об изменениях проектов и коллаборациях
                     </p>
                   </div>
                   <Switch
@@ -217,9 +219,9 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="weeklyDigest">Weekly Digest</Label>
+                    <Label htmlFor="weeklyDigest">Еженедельная сводка</Label>
                     <p className="text-sm text-muted-foreground">
-                      Receive weekly summary of your activity
+                      Получать еженедельную сводку вашей активности
                     </p>
                   </div>
                   <Switch
@@ -230,9 +232,9 @@ export default function Settings() {
                 </div>
               </div>
 
-              <Button onClick={() => handleSave('notifications')}>
+              <Button onClick={() => handleSave('уведомлений')}>
                 <Save className="mr-2 h-4 w-4" />
-                Save Notifications
+                Сохранить уведомления
               </Button>
             </CardContent>
           </Card>
@@ -241,18 +243,18 @@ export default function Settings() {
         <TabsContent value="preferences" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Application Preferences</CardTitle>
+              <CardTitle>Предпочтения приложения</CardTitle>
               <CardDescription>
-                Customize how the application works for you
+                Настройте, как приложение работает для вас
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="autoSaveProjects">Auto-save Projects</Label>
+                    <Label htmlFor="autoSaveProjects">Автосохранение проектов</Label>
                     <p className="text-sm text-muted-foreground">
-                      Automatically save project changes
+                      Автоматически сохранять изменения в проектах
                     </p>
                   </div>
                   <Switch
@@ -266,9 +268,9 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="darkMode">Dark Mode</Label>
+                    <Label htmlFor="darkMode">Темная тема</Label>
                     <p className="text-sm text-muted-foreground">
-                      Use dark theme across the application
+                      Использовать темную тему в приложении
                     </p>
                   </div>
                   <Switch
@@ -279,9 +281,9 @@ export default function Settings() {
                 </div>
               </div>
 
-              <Button onClick={() => handleSave('preferences')}>
+              <Button onClick={() => handleSave('предпочтений')}>
                 <Save className="mr-2 h-4 w-4" />
-                Save Preferences
+                Сохранить предпочтения
               </Button>
             </CardContent>
           </Card>
@@ -290,41 +292,41 @@ export default function Settings() {
         <TabsContent value="security" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
+              <CardTitle>Настройки безопасности</CardTitle>
               <CardDescription>
-                Manage your account security and data
+                Управляйте безопасностью вашего аккаунта и данными
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="p-4 border border-border rounded-lg">
-                  <h4 className="font-medium mb-2">Account Security</h4>
+                  <h4 className="font-medium mb-2">Безопасность аккаунта</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Your account is secured with email authentication through Supabase Auth.
+                    Ваш аккаунт защищен email-аутентификацией через Supabase Auth.
                   </p>
                   <Button variant="outline" size="sm">
-                    Change Password
+                    Изменить пароль
                   </Button>
                 </div>
 
                 <div className="p-4 border border-border rounded-lg">
-                  <h4 className="font-medium mb-2">Data Export</h4>
+                  <h4 className="font-medium mb-2">Экспорт данных</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Download a copy of your data including projects, tracks, and AI generations.
+                    Скачать копию ваших данных, включая проекты, треки и ИИ генерации.
                   </p>
                   <Button variant="outline" size="sm">
                     <Database className="mr-2 h-4 w-4" />
-                    Export Data
+                    Экспортировать данные
                   </Button>
                 </div>
 
                 <div className="p-4 border border-destructive/20 bg-destructive/5 rounded-lg">
-                  <h4 className="font-medium mb-2 text-destructive">Danger Zone</h4>
+                  <h4 className="font-medium mb-2 text-destructive">Опасная зона</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Permanently delete your account and all associated data.
+                    Навсегда удалить ваш аккаунт и все связанные данные.
                   </p>
                   <Button variant="destructive" size="sm">
-                    Delete Account
+                    Удалить аккаунт
                   </Button>
                 </div>
               </div>

@@ -2,35 +2,38 @@ import { Music, Users, FolderOpen, Zap, TrendingUp, Clock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function Dashboard() {
+  const { t } = useTranslation();
+  
   // Mock data - will be replaced with real data from Supabase
   const stats = [
     {
-      title: "Total Projects",
+      title: "Всего проектов",
       value: "12",
-      description: "+2 from last month",
+      description: "+2 за последний месяц",
       icon: FolderOpen,
       trend: "up"
     },
     {
-      title: "Artists",
+      title: "Артисты",
       value: "5",
-      description: "+1 new artist",
+      description: "+1 новый артист",
       icon: Users,
       trend: "up"
     },
     {
-      title: "AI Generations",
+      title: "ИИ генераций",
       value: "47",
-      description: "+12 this week",
+      description: "+12 на этой неделе",
       icon: Zap,
       trend: "up"
     },
     {
-      title: "Tracks Created",
+      title: "Треков создано",
       value: "89",
-      description: "+23 completed",
+      description: "+23 завершено",
       icon: Music,
       trend: "up"
     }
@@ -39,51 +42,51 @@ export default function Dashboard() {
   const recentProjects = [
     {
       id: "1",
-      title: "Electronic Dreams",
+      title: "Электронные мечты",
       artist: "Digital Soundscapes",
-      status: "In Progress",
+      status: "В работе",
       progress: 75,
-      lastUpdated: "2 hours ago"
+      lastUpdated: "2 часа назад"
     },
     {
       id: "2", 
-      title: "Ambient Journey",
+      title: "Эмбиент путешествие",
       artist: "Zen Productions",
-      status: "Draft",
+      status: "Черновик",
       progress: 30,
-      lastUpdated: "1 day ago"
+      lastUpdated: "1 день назад"
     },
     {
       id: "3",
-      title: "Rock Revival",
+      title: "Рок возрождение",
       artist: "Classic Vibes",
-      status: "Published",
+      status: "Опубликован",
       progress: 100,
-      lastUpdated: "3 days ago"
+      lastUpdated: "3 дня назад"
     }
   ];
 
   const recentGenerations = [
     {
       id: "1",
-      prompt: "Electronic ambient track with ethereal vocals",
-      status: "completed",
+      prompt: "Электронный эмбиент трек с эфирным вокалом",
+      status: "завершен",
       service: "suno",
-      createdAt: "1 hour ago"
+      createdAt: "1 час назад"
     },
     {
       id: "2",
-      prompt: "Upbeat pop song with guitar riffs",
-      status: "processing",
+      prompt: "Оптимистичная поп-песня с гитарными риффами",
+      status: "обрабатывается",
       service: "mureka", 
-      createdAt: "3 hours ago"
+      createdAt: "3 часа назад"
     },
     {
       id: "3",
-      prompt: "Jazz fusion instrumental piece",
-      status: "completed",
+      prompt: "Джаз-фьюжн инструментальная композиция",
+      status: "завершен",
       service: "suno",
-      createdAt: "5 hours ago"
+      createdAt: "5 часов назад"
     }
   ];
 
@@ -91,16 +94,16 @@ export default function Dashboard() {
     <div className="space-y-6 animate-fade-in">
       {/* Welcome Section */}
       <div className="bg-gradient-primary rounded-lg p-6 text-primary-foreground">
-        <h1 className="text-3xl font-bold mb-2">Welcome back!</h1>
+        <h1 className="text-3xl font-bold mb-2">Добро пожаловать!</h1>
         <p className="text-primary-foreground/80 mb-4">
-          Ready to create some amazing music today? Let's see what you've been working on.
+          Готовы создать потрясающую музыку сегодня? Давайте посмотрим, над чем вы работали.
         </p>
         <Button 
           variant="secondary" 
           className="bg-white/20 hover:bg-white/30 text-primary-foreground border-white/20"
         >
           <Zap className="mr-2 h-4 w-4" />
-          Generate New Track
+          Создать новый трек
         </Button>
       </div>
 
@@ -129,9 +132,9 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <FolderOpen className="mr-2 h-5 w-5" />
-              Recent Projects
+              Последние проекты
             </CardTitle>
-            <CardDescription>Your latest music projects</CardDescription>
+            <CardDescription>Ваши новейшие музыкальные проекты</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {recentProjects.map((project) => (
@@ -153,7 +156,7 @@ export default function Dashboard() {
               </div>
             ))}
             <Button variant="outline" className="w-full">
-              View All Projects
+              Посмотреть все проекты
             </Button>
           </CardContent>
         </Card>
@@ -163,9 +166,9 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Zap className="mr-2 h-5 w-5" />
-              Recent AI Generations
+              Последние ИИ генерации
             </CardTitle>
-            <CardDescription>Your latest AI-generated tracks</CardDescription>
+            <CardDescription>Ваши новейшие треки, созданные ИИ</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {recentGenerations.map((generation) => (
@@ -174,8 +177,8 @@ export default function Dashboard() {
                   <p className="text-sm">{generation.prompt}</p>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs px-2 py-1 rounded-full ${
-                      generation.status === 'completed' ? 'bg-success/10 text-success' :
-                      generation.status === 'processing' ? 'bg-warning/10 text-warning' :
+                      generation.status === 'завершен' ? 'bg-success/10 text-success' :
+                      generation.status === 'обрабатывается' ? 'bg-warning/10 text-warning' :
                       'bg-muted text-muted-foreground'
                     }`}>
                       {generation.status}
@@ -191,7 +194,7 @@ export default function Dashboard() {
             ))}
             <Button variant="outline" className="w-full">
               <Zap className="mr-2 h-4 w-4" />
-              Generate New Track
+              Создать новый трек
             </Button>
           </CardContent>
         </Card>
