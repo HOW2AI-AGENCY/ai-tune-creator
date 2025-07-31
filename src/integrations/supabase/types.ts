@@ -226,6 +226,47 @@ export type Database = {
         }
         Relationships: []
       }
+      project_notes: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          note_type: string
+          project_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          note_type?: string
+          project_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          note_type?: string
+          project_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_project_notes_project_id"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           artist_id: string
@@ -273,6 +314,50 @@ export type Database = {
           },
         ]
       }
+      reference_research: {
+        Row: {
+          ai_analysis: string | null
+          ai_model: string | null
+          ai_provider: string | null
+          analysis_data: Json | null
+          created_at: string
+          id: string
+          project_note_id: string
+          reference_artist: string
+          reference_title: string
+        }
+        Insert: {
+          ai_analysis?: string | null
+          ai_model?: string | null
+          ai_provider?: string | null
+          analysis_data?: Json | null
+          created_at?: string
+          id?: string
+          project_note_id: string
+          reference_artist: string
+          reference_title: string
+        }
+        Update: {
+          ai_analysis?: string | null
+          ai_model?: string | null
+          ai_provider?: string | null
+          analysis_data?: Json | null
+          created_at?: string
+          id?: string
+          project_note_id?: string
+          reference_artist?: string
+          reference_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_reference_research_note_id"
+            columns: ["project_note_id"]
+            isOneToOne: false
+            referencedRelation: "project_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       track_versions: {
         Row: {
           audio_url: string
@@ -315,6 +400,7 @@ export type Database = {
         Row: {
           audio_url: string | null
           created_at: string
+          current_version: number | null
           duration: number | null
           id: string
           lyrics: string | null
@@ -328,6 +414,7 @@ export type Database = {
         Insert: {
           audio_url?: string | null
           created_at?: string
+          current_version?: number | null
           duration?: number | null
           id?: string
           lyrics?: string | null
@@ -341,6 +428,7 @@ export type Database = {
         Update: {
           audio_url?: string | null
           created_at?: string
+          current_version?: number | null
           duration?: number | null
           id?: string
           lyrics?: string | null
