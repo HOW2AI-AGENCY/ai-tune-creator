@@ -223,11 +223,20 @@ ${prompt ? `Особые требования: ${prompt}` : ''}
   } catch (error) {
     console.error('Error in generate-artist-info function:', error);
     
+    // Get provider from request if available
+    let requestProvider = 'unknown';
+    try {
+      const { provider } = await req.clone().json();
+      requestProvider = provider || 'unknown';
+    } catch (e) {
+      // Ignore error, use default
+    }
+    
     // Return detailed error information for debugging
     const errorResponse = {
       error: error.message || 'An unexpected error occurred',
       timestamp: new Date().toISOString(),
-      provider: provider || 'unknown',
+      provider: requestProvider,
       ...(Deno.env.get('DENO_ENV') === 'development' && { stack: error.stack })
     };
 
