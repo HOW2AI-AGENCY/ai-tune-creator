@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Card,
@@ -142,19 +143,23 @@ export function ArtistDetailsDialog({ artist, open, onOpenChange }: ArtistDetail
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={artist.avatar_url} alt={artist.name} />
-                <AvatarFallback>{artist.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              {artist.name}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-4xl h-[90vh] p-0">
+          <div className="flex flex-col h-full">
+            <DialogHeader className="px-6 py-4 border-b">
+              <DialogTitle className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={artist.avatar_url} alt={artist.name} />
+                  <AvatarFallback>{artist.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                {artist.name}
+              </DialogTitle>
+              <DialogDescription>
+                Информация об артисте и его проектах
+              </DialogDescription>
+            </DialogHeader>
 
-          <ScrollArea className="flex-1 min-h-0">
-            <div className="space-y-6 pr-4">
+            <div className="flex-1 overflow-auto p-6">
+              <div className="space-y-6">
               {/* Основная информация */}
               <Card>
                 <CardHeader>
@@ -307,8 +312,9 @@ export function ArtistDetailsDialog({ artist, open, onOpenChange }: ArtistDetail
                   )}
                 </CardContent>
               </Card>
+              </div>
             </div>
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
 
