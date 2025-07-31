@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, projectId, style = 'artistic' } = await req.json()
+    const { prompt, projectId, style = 'artistic', type = 'cover' } = await req.json()
 
     if (!prompt) {
       return new Response(
@@ -38,8 +38,10 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: prompt,
-            image_size: 'square_hd',
+            prompt: type === 'banner' ? 
+              `Wide banner image: ${prompt}. Professional music cover art, cinematic style, 16:9 aspect ratio, high quality` : 
+              `Album cover art: ${prompt}. Square format, artistic, professional music cover design`,
+            image_size: type === 'banner' ? 'landscape_16_9' : 'square_hd',
             num_inference_steps: 4,
             num_images: 1,
             enable_safety_checker: true
@@ -63,7 +65,7 @@ serve(async (req) => {
               // Download and upload to Supabase storage
               const imageResponse = await fetch(imageUrl)
               const imageBlob = await imageResponse.blob()
-              const fileName = `${projectId}-cover-${Date.now()}.jpg`
+              const fileName = `${projectId}-${type}-${Date.now()}.jpg`
               
               const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('project-covers')
@@ -124,10 +126,12 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: prompt,
+            prompt: type === 'banner' ? 
+              `Wide banner image: ${prompt}. Professional music cover art, cinematic style, 16:9 aspect ratio, high quality` : 
+              `Album cover art: ${prompt}. Square format, artistic, professional music cover design`,
             modelId: 'e316348f-7773-490e-adcd-46757c738eb7', // Leonardo Kino XL
-            width: 1024,
-            height: 1024,
+            width: type === 'banner' ? 1792 : 1024,
+            height: type === 'banner' ? 1008 : 1024,
             num_images: 1,
             guidance_scale: 7,
             num_inference_steps: 10
@@ -171,7 +175,7 @@ serve(async (req) => {
 
                     const imageResponse = await fetch(imageUrl)
                     const imageBlob = await imageResponse.blob()
-                    const fileName = `${projectId}-cover-${Date.now()}.jpg`
+                    const fileName = `${projectId}-${type}-${Date.now()}.jpg`
                     
                     const { data: uploadData, error: uploadError } = await supabase.storage
                       .from('project-covers')

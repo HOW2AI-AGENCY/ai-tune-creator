@@ -20,12 +20,14 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
 import { CreateProjectWithAIDialog } from "@/components/projects/CreateProjectWithAIDialog";
 import { CoverUploadDialog } from "@/components/projects/CoverUploadDialog";
+import { BannerUploadDialog } from "@/components/projects/BannerUploadDialog";
 
 interface Project {
   id: string;
   title: string;
   description?: string;
   cover_url?: string;
+  banner_url?: string;
   type: string;
   status: string;
   created_at: string;
@@ -51,6 +53,7 @@ export default function Projects() {
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showCreateWithAI, setShowCreateWithAI] = useState(false);
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
+  const [bannerDialogOpen, setBannerDialogOpen] = useState(false);
 
   const fetchProjects = async () => {
     try {
@@ -230,10 +233,10 @@ export default function Projects() {
     <ScrollArea className="h-[calc(100vh-120px)]">
       <div className="space-y-6 animate-fade-in p-1">
       {selectedProject ? (
-        // Project Details View
-        <div className="space-y-6">
-          {/* Header with Back Button */}
-          <div className="flex items-center gap-4">
+        // Project Details View - Social Media Style
+        <div className="space-y-0">
+          {/* Back Button */}
+          <div className="mb-4">
             <Button 
               variant="outline" 
               onClick={handleBackToProjects}
@@ -242,136 +245,144 @@ export default function Projects() {
               <ArrowLeft className="h-4 w-4" />
               Назад к проектам
             </Button>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                {getTypeIcon(selectedProject.type)}
-                <h1 className="text-3xl font-bold">{selectedProject.title}</h1>
-              </div>
-              <Badge 
-                variant="outline" 
-                className={getStatusColor(selectedProject.status)}
-              >
-                {getStatusText(selectedProject.status)}
-              </Badge>
-            </div>
           </div>
 
-          {/* Обложка проекта */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Image className="h-5 w-5" />
-                  Обложка проекта
+          {/* Social Media Profile Style Layout */}
+          <Card className="overflow-hidden">
+            {/* Banner Section */}
+            <div className="relative">
+              {selectedProject.metadata?.banner_url ? (
+                <div className="relative group">
+                  <img
+                    src={selectedProject.metadata.banner_url}
+                    alt={`Баннер ${selectedProject.title}`}
+                    className="w-full h-48 md:h-64 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-white hover:bg-white/20 gap-2"
+                      onClick={() => setBannerDialogOpen(true)}
+                    >
+                      <Edit className="h-4 w-4" />
+                      Изменить баннер
+                    </Button>
+                  </div>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="gap-2"
-                  onClick={() => setCoverDialogOpen(true)}
+              ) : (
+                <div 
+                  className="w-full h-48 md:h-64 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 flex items-center justify-center cursor-pointer hover:from-primary/30 hover:via-secondary/30 hover:to-accent/30 transition-colors"
+                  onClick={() => setBannerDialogOpen(true)}
                 >
-                  <Camera className="h-4 w-4" />
-                  {selectedProject.cover_url ? 'Изменить' : 'Добавить'} обложку
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-center">
-                {selectedProject.cover_url ? (
-                  <div className="relative group">
+                  <div className="text-center">
+                    <Image className="h-12 w-12 mx-auto mb-2 text-muted-foreground/50" />
+                    <p className="text-muted-foreground">Нажмите для добавления баннера</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Avatar & Quick Actions */}
+              <div className="absolute -bottom-12 left-6 flex items-end gap-4">
+                {/* Project Avatar (Cover) */}
+                <div className="relative group">
+                  {selectedProject.cover_url ? (
                     <img
                       src={selectedProject.cover_url}
                       alt={`Обложка ${selectedProject.title}`}
-                      className="w-64 h-64 rounded-lg object-cover border"
+                      className="w-24 h-24 md:w-32 md:h-32 rounded-lg object-cover border-4 border-background shadow-lg"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-white hover:bg-white/20"
-                        onClick={() => setCoverDialogOpen(true)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Изменить
-                      </Button>
+                  ) : (
+                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-lg border-4 border-background bg-muted flex items-center justify-center shadow-lg">
+                      <Music className="h-8 w-8 text-muted-foreground/50" />
                     </div>
-                  </div>
-                ) : (
+                  )}
                   <div 
-                    className="w-64 h-64 rounded-lg border-2 border-dashed border-muted-foreground/25 flex flex-col items-center justify-center cursor-pointer hover:border-muted-foreground/50 transition-colors bg-muted/20"
+                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center cursor-pointer"
                     onClick={() => setCoverDialogOpen(true)}
                   >
-                    <Image className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <p className="text-muted-foreground text-sm text-center">
-                      Нажмите для добавления<br />обложки проекта
-                    </p>
+                    <Camera className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="absolute bottom-4 right-6 flex gap-2">
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  className="shadow-md gap-2"
+                  onClick={() => setBannerDialogOpen(true)}
+                >
+                  <Image className="h-4 w-4" />
+                  Баннер
+                </Button>
+              </div>
+            </div>
+
+            {/* Profile Info Section */}
+            <CardContent className="pt-16 pb-6">
+              <div className="space-y-4">
+                {/* Title & Status */}
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        {getTypeIcon(selectedProject.type)}
+                        <h1 className="text-2xl md:text-3xl font-bold">{selectedProject.title}</h1>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={selectedProject.artist.avatar_url} alt={selectedProject.artist.name} />
+                          <AvatarFallback className="text-xs">
+                            {selectedProject.artist.name.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-muted-foreground">@{selectedProject.artist.name}</span>
+                      </div>
+                      <Badge 
+                        variant="outline" 
+                        className={`${getStatusColor(selectedProject.status)} text-xs`}
+                      >
+                        {getStatusText(selectedProject.status)}
+                      </Badge>
+                      <Badge 
+                        variant="outline" 
+                        className={`${getTypeColor(selectedProject.type)} text-xs`}
+                      >
+                        {getTypeText(selectedProject.type)}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Edit className="h-4 w-4" />
+                      Редактировать
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {selectedProject.description && (
+                  <div>
+                    <p className="text-muted-foreground">{selectedProject.description}</p>
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Основная информация */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FolderOpen className="h-5 w-5" />
-                Информация о проекте
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={selectedProject.artist.avatar_url} alt={selectedProject.artist.name} />
-                  <AvatarFallback>
-                    {selectedProject.artist.name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h4 className="font-medium">Артист</h4>
-                  <p className="text-sm text-muted-foreground">{selectedProject.artist.name}</p>
+                {/* Stats */}
+                <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Music className="h-4 w-4" />
+                    <span><strong>{tracks.length}</strong> треков</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>Создан {formatDate(selectedProject.created_at)}</span>
+                  </div>
                 </div>
-              </div>
-
-              {selectedProject.description && (
-                <div>
-                  <h4 className="font-medium mb-2">Описание</h4>
-                  <p className="text-muted-foreground">{selectedProject.description}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-2">
-                  {getTypeIcon(selectedProject.type)}
-                  <span className="text-sm">
-                    <strong>Тип:</strong> {getTypeText(selectedProject.type)}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Music className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    <strong>Треков:</strong> {tracks.length}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    <strong>Создан:</strong> {formatDate(selectedProject.created_at)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Edit className="h-4 w-4" />
-                  Редактировать
-                </Button>
-                <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground">
-                  <Trash2 className="h-4 w-4" />
-                  Удалить
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -682,19 +693,37 @@ export default function Projects() {
         onProjectCreated={handleProjectCreated}
       />
 
-      <CoverUploadDialog
-        open={coverDialogOpen}
-        onOpenChange={setCoverDialogOpen}
-        projectId={selectedProject?.id || ''}
-        currentCoverUrl={selectedProject?.cover_url}
-        onCoverUpdated={(newCoverUrl) => {
-          fetchProjects();
-          toast({
-            title: "Успешно",
-            description: "Обложка проекта обновлена"
-          });
-        }}
-      />
+        <CoverUploadDialog
+          open={coverDialogOpen}
+          onOpenChange={setCoverDialogOpen}
+          projectId={selectedProject?.id || ""}
+          currentCoverUrl={selectedProject?.cover_url}
+          onCoverUpdated={(newCoverUrl) => {
+            if (selectedProject) {
+              setSelectedProject({ ...selectedProject, cover_url: newCoverUrl });
+              // Refresh projects list
+              fetchProjects();
+            }
+          }}
+        />
+
+        <BannerUploadDialog
+          open={bannerDialogOpen}
+          onOpenChange={setBannerDialogOpen}
+          projectId={selectedProject?.id || ""}
+          projectTitle={selectedProject?.title || ""}
+          onBannerUploaded={(bannerUrl) => {
+            if (selectedProject) {
+              setSelectedProject({ 
+                ...selectedProject, 
+                banner_url: bannerUrl,
+                metadata: { ...selectedProject.metadata, banner_url: bannerUrl }
+              });
+              // Refresh projects list
+              fetchProjects();
+            }
+          }}
+        />
       </div>
     </ScrollArea>
   );
