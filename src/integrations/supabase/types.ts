@@ -270,6 +270,7 @@ export type Database = {
       projects: {
         Row: {
           artist_id: string
+          cover_metadata: Json | null
           cover_url: string | null
           created_at: string
           description: string | null
@@ -282,6 +283,7 @@ export type Database = {
         }
         Insert: {
           artist_id: string
+          cover_metadata?: Json | null
           cover_url?: string | null
           created_at?: string
           description?: string | null
@@ -294,6 +296,7 @@ export type Database = {
         }
         Update: {
           artist_id?: string
+          cover_metadata?: Json | null
           cover_url?: string | null
           created_at?: string
           description?: string | null
