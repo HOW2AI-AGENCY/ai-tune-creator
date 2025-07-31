@@ -261,7 +261,15 @@ export function TrackGenerationDialog({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => copyToClipboard(generatedData.lyrics.lyrics)}
+                        onClick={() => copyToClipboard(
+                          generatedData.lyrics.lyrics || 
+                          (generatedData.lyrics.song ? 
+                            generatedData.lyrics.song.structure?.map((part: any) => 
+                              `${part.tag}\n${part.lyrics}\n\n`
+                            ).join('') 
+                            : JSON.stringify(generatedData.lyrics, null, 2)
+                          )
+                        )}
                       >
                         <FileText className="h-4 w-4 mr-2" />
                         Копировать
@@ -269,34 +277,39 @@ export function TrackGenerationDialog({
                     </CardHeader>
                     <CardContent>
                       <div className="whitespace-pre-wrap font-mono text-sm bg-muted/50 p-4 rounded-lg max-h-60 overflow-y-auto">
-                        {generatedData.lyrics.lyrics}
+                        {generatedData.lyrics.lyrics || (generatedData.lyrics.song ? 
+                          generatedData.lyrics.song.structure?.map((part: any, index: number) => 
+                            `${part.tag}\n${part.lyrics}\n\n`
+                          ).join('') 
+                          : JSON.stringify(generatedData.lyrics, null, 2)
+                        )}
                       </div>
                       
-                      {generatedData.lyrics.mood && (
+                      {(generatedData.lyrics.mood || generatedData.lyrics.song?.mood) && (
                         <div className="mt-4">
                           <p className="text-sm font-medium">Настроение:</p>
-                          <p className="text-sm text-muted-foreground">{generatedData.lyrics.mood}</p>
+                          <p className="text-sm text-muted-foreground">{generatedData.lyrics.mood || generatedData.lyrics.song?.mood}</p>
                         </div>
                       )}
                       
-                      {generatedData.lyrics.structure && (
+                      {(generatedData.lyrics.structure || generatedData.lyrics.song?.structure) && (
                         <div className="mt-2">
                           <p className="text-sm font-medium">Структура:</p>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {generatedData.lyrics.structure.map((part: string, index: number) => (
+                            {(generatedData.lyrics.structure || generatedData.lyrics.song?.structure?.map((part: any) => part.tag.replace(/[\[\]]/g, '')))?.map((part: string, index: number) => (
                               <Badge key={index} variant="outline" className="text-xs">
-                                {part}
+                                {typeof part === 'string' ? part : part}
                               </Badge>
                             ))}
                           </div>
                         </div>
                       )}
                       
-                      {generatedData.lyrics.suno_tags && (
+                      {(generatedData.lyrics.suno_tags || generatedData.lyrics.song?.tags) && (
                         <div className="mt-2">
                           <p className="text-sm font-medium">SUNO AI теги:</p>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {generatedData.lyrics.suno_tags.map((tag: string, index: number) => (
+                            {(generatedData.lyrics.suno_tags || generatedData.lyrics.song?.tags || []).map((tag: string, index: number) => (
                               <Badge key={index} variant="secondary" className="text-xs">
                                 {tag}
                               </Badge>
@@ -304,12 +317,12 @@ export function TrackGenerationDialog({
                           </div>
                         </div>
                       )}
-                      
-                      {generatedData.lyrics.themes && generatedData.lyrics.themes.length > 0 && (
+
+                      {(generatedData.lyrics.themes || generatedData.lyrics.song?.themes) && (
                         <div className="mt-2">
                           <p className="text-sm font-medium">Темы:</p>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {generatedData.lyrics.themes.map((theme: string, index: number) => (
+                            {(generatedData.lyrics.themes || generatedData.lyrics.song?.themes || []).map((theme: string, index: number) => (
                               <Badge key={index} variant="secondary" className="text-xs">
                                 {theme}
                               </Badge>
