@@ -11,7 +11,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus } from "lucide-react";
+import { Plus, Sparkles, Loader2 } from "lucide-react";
 
 const createArtistSchema = z.object({
   name: z.string().min(1, "Название артиста обязательно"),
@@ -19,6 +19,9 @@ const createArtistSchema = z.object({
   metadata: z.object({
     genre: z.string().optional(),
     location: z.string().optional(),
+    background: z.string().optional(),
+    style: z.string().optional(),
+    influences: z.array(z.string()).optional(),
   }).optional()
 });
 
@@ -32,6 +35,7 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
   const [open, setOpen] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const { uploadFile, uploading } = useFileUpload({
     bucket: 'avatars',
@@ -45,7 +49,10 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
       description: "",
       metadata: {
         genre: "",
-        location: ""
+        location: "",
+        background: "",
+        style: "",
+        influences: []
       }
     }
   });
@@ -60,6 +67,55 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
       reader.readAsDataURL(file);
     } else {
       setAvatarPreview("");
+    }
+  };
+
+  const handleGenerateArtistInfo = async () => {
+    const artistName = form.getValues('name');
+    if (!artistName.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Введите название артиста для генерации",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-artist-info', {
+        body: {
+          name: artistName,
+          context: "Российский музыкальный артист"
+        }
+      });
+
+      if (error) throw error;
+
+      const { artistInfo } = data;
+      
+      // Заполняем форму сгенерированными данными
+      form.setValue('description', artistInfo.description);
+      form.setValue('metadata.genre', artistInfo.genre);
+      form.setValue('metadata.location', artistInfo.location);
+      form.setValue('metadata.background', artistInfo.background);
+      form.setValue('metadata.style', artistInfo.style);
+      form.setValue('metadata.influences', artistInfo.influences);
+
+      toast({
+        title: "Успешно",
+        description: "Информация об артисте сгенерирована"
+      });
+
+    } catch (error: any) {
+      console.error('Generate artist info error:', error);
+      toast({
+        title: "Ошибка генерации",
+        description: error.message || "Не удалось сгенерировать информацию",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -147,9 +203,25 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Название артиста *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Введите название артиста" {...field} />
-                    </FormControl>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input placeholder="Введите название артиста" {...field} />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateArtistInfo}
+                        disabled={isGenerating || !field.value.trim()}
+                        className="shrink-0"
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -201,6 +273,64 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="metadata.background"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Предыстория</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Краткая предыстория артиста..."
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="metadata.style"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Музыкальный стиль</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Описание музыкального стиля..."
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="metadata.influences"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Влияния</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Влияния через запятую..."
+                        value={field.value?.join(', ') || ''}
+                        onChange={(e) => {
+                          const influences = e.target.value
+                            .split(',')
+                            .map(s => s.trim())
+                            .filter(Boolean);
+                          field.onChange(influences);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div>
                 <FormLabel>Аватар артиста</FormLabel>
