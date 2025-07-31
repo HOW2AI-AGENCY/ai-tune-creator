@@ -40,9 +40,13 @@ export default function Settings() {
     ai: {
       provider: "openai",
       model: "gpt-4o-mini",
-      customPrompt: "Ты опытный музыкальный продюсер и A&R. Помоги создать детальное описание артиста на основе его имени и контекста. Включи информацию о жанре, локации, предыстории, музыкальном стиле и влияниях.",
       maxTokens: 1000,
-      temperature: 0.7
+      temperature: 0.8,
+      customPrompts: {
+        artistGeneration: "Создай детальный профиль артиста, который будет полезен для дальнейшего создания лирики и маркетинговых материалов.",
+        lyricsGeneration: "Создай текст песни в стиле и тематике данного артиста.",
+        marketingMaterials: "Создай маркетинговые материалы для продвижения артиста и его музыки."
+      }
     }
   });
 
@@ -314,7 +318,7 @@ export default function Settings() {
                 Настройки ИИ генерации
               </CardTitle>
               <CardDescription>
-                Настройте параметры ИИ для генерации информации об артистах, лирики и маркетинговых материалов
+                Настройте параметры ИИ для генерации информации об артистах, изображений и контента
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -332,8 +336,7 @@ export default function Settings() {
                       <SelectContent>
                         <SelectItem value="openai">OpenAI</SelectItem>
                         <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                        <SelectItem value="google">Google (Gemini)</SelectItem>
-                        <SelectItem value="cohere">Cohere</SelectItem>
+                        <SelectItem value="deepseek">DeepSeek</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -350,28 +353,22 @@ export default function Settings() {
                       <SelectContent>
                         {settings.ai.provider === 'openai' && (
                           <>
-                            <SelectItem value="gpt-4o">GPT-4O</SelectItem>
-                            <SelectItem value="gpt-4o-mini">GPT-4O Mini</SelectItem>
+                            <SelectItem value="gpt-4o">GPT-4o (Самый мощный)</SelectItem>
+                            <SelectItem value="gpt-4o-mini">GPT-4o Mini (Быстрый)</SelectItem>
                             <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
                           </>
                         )}
                         {settings.ai.provider === 'anthropic' && (
                           <>
-                            <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
-                            <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                            <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
+                            <SelectItem value="claude-3-opus-20240229">Claude 3 Opus (Самый мощный)</SelectItem>
+                            <SelectItem value="claude-3-sonnet-20240229">Claude 3 Sonnet (Сбалансированный)</SelectItem>
+                            <SelectItem value="claude-3-haiku-20240307">Claude 3 Haiku (Быстрый)</SelectItem>
                           </>
                         )}
-                        {settings.ai.provider === 'google' && (
+                        {settings.ai.provider === 'deepseek' && (
                           <>
-                            <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
-                            <SelectItem value="gemini-pro-vision">Gemini Pro Vision</SelectItem>
-                          </>
-                        )}
-                        {settings.ai.provider === 'cohere' && (
-                          <>
-                            <SelectItem value="command">Command</SelectItem>
-                            <SelectItem value="command-light">Command Light</SelectItem>
+                            <SelectItem value="deepseek-chat">DeepSeek Chat</SelectItem>
+                            <SelectItem value="deepseek-coder">DeepSeek Coder</SelectItem>
                           </>
                         )}
                       </SelectContent>
@@ -415,8 +412,11 @@ export default function Settings() {
                     <Label htmlFor="customPrompt">Системный промпт</Label>
                     <Textarea
                       id="customPrompt"
-                      value={settings.ai.customPrompt}
-                      onChange={(e) => updateSetting('ai', 'customPrompt', e.target.value)}
+                      value={settings.ai.customPrompts?.artistGeneration || ''}
+                      onChange={(e) => updateSetting('ai', 'customPrompts', {
+                        ...settings.ai.customPrompts,
+                        artistGeneration: e.target.value
+                      })}
                       placeholder="Кастомизируйте поведение ИИ..."
                       className="min-h-[200px] resize-none"
                     />
@@ -436,7 +436,10 @@ export default function Settings() {
                         size="sm" 
                         className="w-full"
                         onClick={() => {
-                          updateSetting('ai', 'customPrompt', 'Ты опытный музыкальный продюсер и A&R. Помоги создать детальное описание артиста на основе его имени и контекста. Включи информацию о жанре, локации, предыстории, музыкальном стиле и влияниях.');
+                          updateSetting('ai', 'customPrompts', {
+                            ...settings.ai.customPrompts,
+                            artistGeneration: 'Ты опытный музыкальный продюсер и A&R. Помоги создать детальное описание артиста на основе его имени и контекста. Включи информацию о жанре, локации, предыстории, музыкальном стиле и влияниях.'
+                          });
                           updateSetting('ai', 'temperature', 0.7);
                         }}
                       >
@@ -447,7 +450,10 @@ export default function Settings() {
                         size="sm" 
                         className="w-full"
                         onClick={() => {
-                          updateSetting('ai', 'customPrompt', 'Ты талантливый автор песен и поэт. Создавай креативную и эмоциональную лирику на основе заданной темы, настроения и стиля.');
+                          updateSetting('ai', 'customPrompts', {
+                            ...settings.ai.customPrompts,
+                            lyricsGeneration: 'Ты талантливый автор песен и поэт. Создавай креативную и эмоциональную лирику на основе заданной темы, настроения и стиля.'
+                          });
                           updateSetting('ai', 'temperature', 0.8);
                         }}
                       >
@@ -458,7 +464,10 @@ export default function Settings() {
                         size="sm" 
                         className="w-full"
                         onClick={() => {
-                          updateSetting('ai', 'customPrompt', 'Ты креативный маркетолог в музыкальной индустрии. Создавай привлекательные маркетинговые материалы, описания релизов и промо-тексты.');
+                          updateSetting('ai', 'customPrompts', {
+                            ...settings.ai.customPrompts,
+                            marketingMaterials: 'Ты креативный маркетолог в музыкальной индустрии. Создавай привлекательные маркетинговые материалы, описания релизов и промо-тексты.'
+                          });
                           updateSetting('ai', 'temperature', 0.6);
                         }}
                       >

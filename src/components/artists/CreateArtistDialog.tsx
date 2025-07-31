@@ -28,11 +28,16 @@ const createArtistSchema = z.object({
 type CreateArtistForm = z.infer<typeof createArtistSchema>;
 
 interface CreateArtistDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onArtistCreated?: () => void;
+  editingArtist?: any;
 }
 
-export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps) {
-  const [open, setOpen] = useState(false);
+export function CreateArtistDialog({ open: controlledOpen, onOpenChange, onArtistCreated, editingArtist }: CreateArtistDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -45,14 +50,14 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
   const form = useForm<CreateArtistForm>({
     resolver: zodResolver(createArtistSchema),
     defaultValues: {
-      name: "",
-      description: "",
+      name: editingArtist?.name || "",
+      description: editingArtist?.description || "",
       metadata: {
-        genre: "",
-        location: "",
-        background: "",
-        style: "",
-        influences: []
+        genre: editingArtist?.metadata?.genre || "",
+        location: editingArtist?.metadata?.location || "",
+        background: editingArtist?.metadata?.background || "",
+        style: editingArtist?.metadata?.style || "",
+        influences: editingArtist?.metadata?.influences || []
       }
     }
   });
@@ -145,16 +150,31 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
         }
       }
 
-      // Create artist
-      const { error } = await supabase
-        .from('artists')
-        .insert({
-          user_id: user.id,
-          name: data.name,
-          description: data.description || null,
-          avatar_url: avatarUrl,
-          metadata: data.metadata || {}
-        });
+      // Create or update artist
+      let error;
+      if (editingArtist) {
+        const { error: updateError } = await supabase
+          .from('artists')
+          .update({
+            name: data.name,
+            description: data.description || null,
+            avatar_url: avatarUrl || editingArtist.avatar_url,
+            metadata: data.metadata || {}
+          })
+          .eq('id', editingArtist.id);
+        error = updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('artists')
+          .insert({
+            user_id: user.id,
+            name: data.name,
+            description: data.description || null,
+            avatar_url: avatarUrl,
+            metadata: data.metadata || {}
+          });
+        error = insertError;
+      }
 
       if (error) {
         throw error;
@@ -162,7 +182,7 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
 
       toast({
         title: "Успешно",
-        description: "Артист создан"
+        description: editingArtist ? "Артист обновлен" : "Артист создан"
       });
 
       // Reset form and close dialog
@@ -184,17 +204,19 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="shadow-glow">
-          <Plus className="mr-2 h-4 w-4" />
-          Новый артист
-        </Button>
-      </DialogTrigger>
+      {!editingArtist && (
+        <DialogTrigger asChild>
+          <Button className="shadow-glow">
+            <Plus className="mr-2 h-4 w-4" />
+            Новый артист
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Создать нового артиста</DialogTitle>
+          <DialogTitle>{editingArtist ? 'Редактировать артиста' : 'Создать нового артиста'}</DialogTitle>
           <DialogDescription>
-            Добавьте информацию о новом артисте
+            {editingArtist ? 'Обновите информацию об артисте' : 'Добавьте информацию о новом артисте'}
           </DialogDescription>
         </DialogHeader>
 
@@ -364,7 +386,7 @@ export function CreateArtistDialog({ onArtistCreated }: CreateArtistDialogProps)
                 disabled={uploading || form.formState.isSubmitting}
                 className="flex-1"
               >
-                {uploading || form.formState.isSubmitting ? "Создание..." : "Создать"}
+                {uploading || form.formState.isSubmitting ? (editingArtist ? "Обновление..." : "Создание...") : (editingArtist ? "Обновить" : "Создать")}
               </Button>
             </div>
           </form>

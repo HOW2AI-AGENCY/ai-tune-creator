@@ -1,4 +1,4 @@
-import { Plus, Search, MoreHorizontal, User, Music, Calendar, ArrowLeft, MapPin, Users, FolderOpen, Play, Clock } from "lucide-react";
+import { Plus, Search, MoreHorizontal, User, Music, Calendar, ArrowLeft, MapPin, Users, FolderOpen, Play, Clock, Upload, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,8 @@ import {
 import { useTranslation } from "@/hooks/useTranslation";
 import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
+import { ArtistBannerUploadDialog } from "@/components/artists/ArtistBannerUploadDialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +32,10 @@ export default function Artists() {
   const [projects, setProjects] = useState<any[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [showBannerUpload, setShowBannerUpload] = useState(false);
+  const [showEditArtist, setShowEditArtist] = useState(false);
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+  const [artistToDelete, setArtistToDelete] = useState<any>(null);
   
   const fetchArtists = async () => {
     try {
@@ -141,6 +147,78 @@ export default function Artists() {
     setShowCreateProject(false);
   };
 
+  const handleEditArtist = () => {
+    setShowEditArtist(true);
+  };
+
+  const handleDeleteArtist = (artist: any) => {
+    setArtistToDelete(artist);
+    setShowDeleteAlert(true);
+  };
+
+  const confirmDeleteArtist = async () => {
+    if (!artistToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('artists')
+        .delete()
+        .eq('id', artistToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Успешно",
+        description: "Артист удален"
+      });
+      
+      if (selectedArtist?.id === artistToDelete.id) {
+        setSelectedArtist(null);
+      }
+      
+      fetchArtists();
+    } catch (error: any) {
+      console.error('Error deleting artist:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить артиста",
+        variant: "destructive"
+      });
+    } finally {
+      setShowDeleteAlert(false);
+      setArtistToDelete(null);
+    }
+  };
+
+  const handleArtistUpdated = () => {
+    fetchArtists();
+    if (selectedArtist) {
+      // Refresh selected artist data
+      supabase
+        .from('artists')
+        .select('*')
+        .eq('id', selectedArtist.id)
+        .single()
+        .then(({ data }) => {
+          if (data) setSelectedArtist(data);
+        });
+    }
+    setShowEditArtist(false);
+  };
+
+  const handleBannerUploaded = (bannerUrl: string) => {
+    if (selectedArtist) {
+      const updatedArtist = {
+        ...selectedArtist,
+        metadata: {
+          ...selectedArtist.metadata,
+          banner_url: bannerUrl
+        }
+      };
+      setSelectedArtist(updatedArtist);
+    }
+  };
+
   const getInitials = (name: string) => {
     return name.split(' ').map(word => word[0]).join('').toUpperCase();
   };
@@ -197,16 +275,60 @@ export default function Artists() {
           </Button>
         </div>
 
-        {/* Заголовок артиста */}
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={selectedArtist.avatar_url} alt={selectedArtist.name} />
-            <AvatarFallback>{getInitials(selectedArtist.name)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-3xl font-bold">{selectedArtist.name}</h1>
-            <p className="text-muted-foreground">Информация об артисте и его проектах</p>
+        {/* Social media style profile header */}
+        <div className="relative">
+          {/* Banner section */}
+          <div 
+            className="h-48 sm:h-64 bg-gradient-to-r from-primary/20 to-primary/10 rounded-lg relative overflow-hidden group cursor-pointer"
+            style={metadata.banner_url ? {
+              backgroundImage: `url(${metadata.banner_url})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            } : {}}
+            onClick={() => setShowBannerUpload(true)}
+          >
+            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <Button variant="secondary" size="sm">
+                <Upload className="mr-2 h-4 w-4" />
+                {metadata.banner_url ? 'Изменить баннер' : 'Добавить баннер'}
+              </Button>
+            </div>
           </div>
+
+          {/* Artist avatar and info */}
+          <div className="relative -mt-16 ml-6 flex items-end gap-4">
+            <Avatar className="h-32 w-32 border-4 border-background">
+              <AvatarImage src={selectedArtist.avatar_url} alt={selectedArtist.name} />
+              <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                {getInitials(selectedArtist.name)}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div className="mb-4">
+              <h1 className="text-3xl font-bold">{selectedArtist.name}</h1>
+              <p className="text-muted-foreground">
+                {metadata.genre && `${metadata.genre} • `}
+                {projectCounts[selectedArtist.id] || 0} проектов
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" onClick={handleEditArtist} size="sm">
+            <Edit className="mr-2 h-4 w-4" />
+            Редактировать
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => handleDeleteArtist(selectedArtist)}
+            size="sm"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Удалить
+          </Button>
         </div>
 
         <div className="space-y-6">
@@ -364,13 +486,48 @@ export default function Artists() {
           </Card>
         </div>
 
-        {/* Диалог создания проекта */}
+        {/* Диалоги */}
         <CreateProjectDialog
           artist={selectedArtist}
           open={showCreateProject}
           onOpenChange={setShowCreateProject}
           onProjectCreated={handleProjectCreated}
         />
+
+        <ArtistBannerUploadDialog
+          open={showBannerUpload}
+          onOpenChange={setShowBannerUpload}
+          artistId={selectedArtist.id}
+          artistName={selectedArtist.name}
+          onBannerUploaded={handleBannerUploaded}
+        />
+
+        <CreateArtistDialog
+          open={showEditArtist}
+          onOpenChange={setShowEditArtist}
+          onArtistCreated={handleArtistUpdated}
+          editingArtist={selectedArtist}
+        />
+
+        <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Удалить артиста?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Это действие нельзя отменить. Артист "{artistToDelete?.name}" и все связанные с ним проекты будут удалены навсегда.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Отмена</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmDeleteArtist}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Удалить
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
