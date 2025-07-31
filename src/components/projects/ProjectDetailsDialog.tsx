@@ -28,8 +28,11 @@ import {
   Clock,
   Edit,
   Trash2,
-  Plus
+  Plus,
+  Image,
+  Camera
 } from "lucide-react";
+import { CoverUploadDialog } from "./CoverUploadDialog";
 
 interface Project {
   id: string;
@@ -63,6 +66,7 @@ export function ProjectDetailsDialog({
 }: ProjectDetailsDialogProps) {
   const [tracks, setTracks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const loadTracks = async () => {
@@ -164,6 +168,61 @@ export function ProjectDetailsDialog({
 
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-6">
+            {/* Обложка проекта */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Image className="h-5 w-5" />
+                    Обложка проекта
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2"
+                    onClick={() => setCoverDialogOpen(true)}
+                  >
+                    <Camera className="h-4 w-4" />
+                    {project.cover_url ? 'Изменить' : 'Добавить'} обложку
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center">
+                  {project.cover_url ? (
+                    <div className="relative group">
+                      <img
+                        src={project.cover_url}
+                        alt={`Обложка ${project.title}`}
+                        className="w-64 h-64 rounded-lg object-cover border"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-white hover:bg-white/20"
+                          onClick={() => setCoverDialogOpen(true)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Изменить
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      className="w-64 h-64 rounded-lg border-2 border-dashed border-muted-foreground/25 flex flex-col items-center justify-center cursor-pointer hover:border-muted-foreground/50 transition-colors bg-muted/20"
+                      onClick={() => setCoverDialogOpen(true)}
+                    >
+                      <Image className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <p className="text-muted-foreground text-sm text-center">
+                        Нажмите для добавления<br />обложки проекта
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Основная информация */}
             <Card>
               <CardHeader>
@@ -309,6 +368,23 @@ export function ProjectDetailsDialog({
             </Card>
           </div>
         </ScrollArea>
+
+        {/* Cover Upload Dialog */}
+        <CoverUploadDialog
+          open={coverDialogOpen}
+          onOpenChange={setCoverDialogOpen}
+          projectId={project.id}
+          currentCoverUrl={project.cover_url}
+          onCoverUpdated={(newCoverUrl) => {
+            if (onProjectUpdated) {
+              onProjectUpdated();
+            }
+            toast({
+              title: "Успешно",
+              description: "Обложка проекта обновлена"
+            });
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
