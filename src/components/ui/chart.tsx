@@ -74,6 +74,9 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
+  // Security Note: dangerouslySetInnerHTML is used here with controlled, sanitized CSS variables
+  // generated from the chart configuration. This is safe as the content is programmatically
+  // generated CSS custom properties, not user-provided HTML content.
   return (
     <style
       dangerouslySetInnerHTML={{
