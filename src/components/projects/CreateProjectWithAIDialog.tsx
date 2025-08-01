@@ -184,9 +184,21 @@ export function CreateProjectWithAIDialog({
         description: projectInfo.description || '',
         concept: projectInfo.concept || '',
         genre: projectInfo.genre || selectedArtist.metadata?.genre || '',
-        mood: projectInfo.mood || '',
-        target_audience: projectInfo.target_audience || 'Широкая аудитория',
-        suggested_tracks: projectInfo.suggested_tracks || []
+        mood: typeof projectInfo.mood === 'string' 
+          ? projectInfo.mood 
+          : typeof projectInfo.mood === 'object' 
+            ? `${projectInfo.mood.emotional_characteristics || ''} (${projectInfo.mood.key || ''}, ${projectInfo.mood.BPM || ''} BPM)`.trim()
+            : '',
+        target_audience: typeof projectInfo.target_audience === 'string' 
+          ? projectInfo.target_audience 
+          : typeof projectInfo.target_audience === 'object'
+            ? `${projectInfo.target_audience.demographics?.age_range || ''} ${projectInfo.target_audience.demographics?.location || ''}`.trim() || 'Широкая аудитория'
+            : 'Широкая аудитория',
+        suggested_tracks: Array.isArray(projectInfo.suggested_tracks)
+          ? projectInfo.suggested_tracks.map((track: any) => 
+              typeof track === 'string' ? track : track.title || track.name || 'Без названия'
+            )
+          : []
       };
 
       setGeneratedData(adaptedData);
