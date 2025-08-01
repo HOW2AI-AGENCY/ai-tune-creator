@@ -241,13 +241,14 @@ export function TrackGenerationDialog({
         .insert({
           user_id: user.id,
           track_id: trackId,
-          service: type,
+          service: 'openai',
           prompt: formData.stylePrompt,
           parameters: {
+            generation_type: type,
             genre_tags: formData.genreTags.split(',').map(tag => tag.trim()).filter(tag => tag),
             result: data,
             user_comment: comment,
-            model_used: 'gpt-4o-mini', // или другую модель из метаданных
+            model_used: 'gpt-4o-mini',
             temperature: 0.7,
             saved_at: new Date().toISOString()
           },
