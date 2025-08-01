@@ -233,6 +233,57 @@ export function useTrackGeneration({
     }
   };
 
+  const improveLyrics = async (lyrics: string, analysis: any, stylePrompt?: string, genreTags?: string[]) => {
+    try {
+      setGeneratingLyrics(true);
+      
+      console.log('Improving lyrics based on analysis:', { 
+        lyricsLength: lyrics.length, 
+        hasAnalysis: !!analysis,
+        stylePrompt, 
+        genreTags 
+      });
+
+      const { data, error } = await supabase.functions.invoke('improve-lyrics', {
+        body: {
+          lyrics,
+          analysis,
+          stylePrompt,
+          genreTags,
+          provider: settings.provider,
+          model: settings.model,
+          temperature: settings.temperature,
+          maxTokens: settings.maxTokens
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Не удалось улучшить лирику');
+      }
+
+      toast({
+        title: "Успешно",
+        description: `Лирика улучшена на основе ${data.data.applied_recommendations} рекомендаций`
+      });
+
+      return data.data.improved_lyrics;
+    } catch (error: any) {
+      console.error('Error improving lyrics:', error);
+      toast({
+        title: "Ошибка улучшения",
+        description: error.message || "Не удалось улучшить лирику",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setGeneratingLyrics(false);
+    }
+  };
+
   // TODO: Добавить retry логику при ошибках
   // FIXME: Оптимизировать повторные запросы при одинаковых параметрах
 
@@ -245,6 +296,7 @@ export function useTrackGeneration({
     generatingStylePrompt,
     generateDescription,
     analyzeLyrics,
-    analyzingLyrics
+    analyzingLyrics,
+    improveLyrics
   };
 }

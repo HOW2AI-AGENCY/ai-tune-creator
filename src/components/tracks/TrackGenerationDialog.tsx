@@ -50,15 +50,16 @@ export function TrackGenerationDialog({
 
   console.log('Current generatedData:', generatedData);
 
-  const { 
-    generateLyrics, 
+  const {
+    generateLyrics,
     generatingLyrics,
     generateConcept,
     generatingConcept,
     generateStylePrompt,
     generatingStylePrompt,
     analyzeLyrics,
-    analyzingLyrics
+    analyzingLyrics,
+    improveLyrics
   } = useTrackGeneration({
     onLyricsGenerated: (lyrics) => {
       console.log('Lyrics generated:', lyrics);
@@ -138,6 +139,39 @@ export function TrackGenerationDialog({
       }
     } catch (error) {
       console.error('Lyrics analysis failed:', error);
+    }
+  };
+
+  const handleImproveLyrics = async () => {
+    if (!generatedData.lyrics || !generatedData.analysis) {
+      toast({
+        title: "Ошибка",
+        description: "Необходимы лирика и анализ для улучшения",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const lyricsText = extractLyricsText(generatedData.lyrics);
+      const improved = await improveLyrics(
+        lyricsText,
+        generatedData.analysis,
+        formData.stylePrompt,
+        formData.genreTags.split(',').map(tag => tag.trim()).filter(tag => tag)
+      );
+      
+      if (improved) {
+        // Обновляем лирику новой улучшенной версией
+        setGeneratedData(prev => ({ 
+          ...prev, 
+          lyrics: { ...prev.lyrics, improved_text: improved },
+          analysis: null // Сбрасываем анализ, так как лирика изменилась
+        }));
+        onGenerated('lyrics', { ...generatedData.lyrics, improved_text: improved });
+      }
+    } catch (error) {
+      console.error('Lyrics improvement failed:', error);
     }
   };
 
@@ -325,7 +359,7 @@ export function TrackGenerationDialog({
                     </CardHeader>
                     <CardContent>
                       <div className="whitespace-pre-wrap font-mono text-sm bg-muted/50 p-4 rounded-lg max-h-60 overflow-y-auto">
-                        {extractLyricsText(generatedData.lyrics)}
+                        {generatedData.lyrics.improved_text || extractLyricsText(generatedData.lyrics)}
                       </div>
                       
                       {(generatedData.lyrics.mood || generatedData.lyrics.song?.mood) && (
@@ -383,12 +417,7 @@ export function TrackGenerationDialog({
                 <TabsContent value="analysis" className="space-y-4">
                   <LyricsAnalysisReport 
                     analysis={generatedData.analysis}
-                    onImproveClick={() => {
-                      toast({
-                        title: "В разработке",
-                        description: "Функция улучшения лирики будет добавлена в следующих версиях"
-                      });
-                    }}
+                    onImproveClick={handleImproveLyrics}
                   />
                 </TabsContent>
               )}
