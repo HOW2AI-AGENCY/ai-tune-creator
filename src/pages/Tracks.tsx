@@ -450,6 +450,7 @@ export default function Tracks() {
         onGenerated={handleGenerationResult}
         artistInfo={selectedTrack?.projects?.artists}
         projectInfo={selectedTrack?.projects}
+        trackId={selectedTrack?.id}
         existingTrackData={selectedTrack ? {
           stylePrompt: selectedTrack.style_prompt || "",
           genreTags: selectedTrack.genre_tags || [],
