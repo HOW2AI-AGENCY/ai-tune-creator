@@ -233,7 +233,13 @@ ${additionalContext ? `ДОПОЛНИТЕЛЬНЫЙ КОНТЕКСТ: ${addition
 
     let projectConcept: GeneratedProjectConcept;
     try {
-      projectConcept = JSON.parse(generatedContent);
+      // Remove markdown code blocks if present
+      const cleanContent = generatedContent
+        .replace(/```json\s*/g, '')
+        .replace(/```\s*/g, '')
+        .trim();
+      
+      projectConcept = JSON.parse(cleanContent);
     } catch (parseError) {
       console.error('Failed to parse generated content:', generatedContent);
       throw new Error('Invalid response format from AI');
