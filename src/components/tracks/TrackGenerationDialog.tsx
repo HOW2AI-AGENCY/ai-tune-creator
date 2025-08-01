@@ -223,10 +223,12 @@ export function TrackGenerationDialog({
   };
 
   const saveAiResult = async (type: 'lyrics' | 'concept' | 'analysis', data: any, comment?: string) => {
+    console.log('saveAiResult called with:', { type, user: !!user, trackId });
+    
     if (!user || !trackId) {
       toast({
         title: "Ошибка",
-        description: "Необходимо авторизоваться и выбрать трек",
+        description: `Необходимо авторизоваться и выбрать трек. User: ${!!user}, TrackId: ${!!trackId}`,
         variant: "destructive"
       });
       return;
