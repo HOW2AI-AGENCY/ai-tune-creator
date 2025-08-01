@@ -9,15 +9,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { useTrackGeneration } from "@/hooks/useTrackGeneration";
 import { LyricsAnalysisReport } from './LyricsAnalysisReport';
-import { Loader2, Sparkles, Music, FileText, Lightbulb, BarChart3, Copy } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { 
+  Loader2, 
+  Sparkles, 
+  Music, 
+  FileText, 
+  Lightbulb, 
+  BarChart3, 
+  Copy, 
+  Save, 
+  Database,
+  AlertCircle 
+} from "lucide-react";
 
 // T-059: Компонент для ИИ генерации треков
 interface TrackGenerationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onGenerated: (type: 'lyrics' | 'concept' | 'description', data: any) => void;
+  onGenerated: (type: 'lyrics' | 'concept' | 'description' | 'analysis', data: any) => void;
   artistInfo?: any;
   projectInfo?: any;
+  trackId?: string;
   existingTrackData?: {
     stylePrompt?: string;
     genreTags?: string[];
@@ -31,8 +45,10 @@ export function TrackGenerationDialog({
   onGenerated,
   artistInfo,
   projectInfo,
+  trackId,
   existingTrackData
 }: TrackGenerationDialogProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     stylePrompt: existingTrackData?.stylePrompt || "",
     genreTags: existingTrackData?.genreTags ? existingTrackData.genreTags.join(", ") : "",
@@ -47,6 +63,10 @@ export function TrackGenerationDialog({
     concept: null,
     analysis: null
   });
+
+  const [savingResult, setSavingResult] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveType, setSaveType] = useState<'lyrics' | 'concept' | 'analysis' | null>(null);
 
   console.log('Current generatedData:', generatedData);
 
@@ -168,6 +188,9 @@ export function TrackGenerationDialog({
           lyrics: { ...prev.lyrics, improved_text: improved },
           analysis: null // Сбрасываем анализ, так как лирика изменилась
         }));
+        
+        // Предлагаем обновить базу данных
+        promptUpdateTrackWithLyrics(improved);
         onGenerated('lyrics', { ...generatedData.lyrics, improved_text: improved });
       }
     } catch (error) {
@@ -197,6 +220,143 @@ export function TrackGenerationDialog({
       title: "Скопировано",
       description: "Текст скопирован в буфер обмена"
     });
+  };
+
+  const saveAiResult = async (type: 'lyrics' | 'concept' | 'analysis', data: any, comment?: string) => {
+    if (!user || !trackId) {
+      toast({
+        title: "Ошибка",
+        description: "Необходимо авторизоваться и выбрать трек",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSavingResult(true);
+    try {
+      const { error } = await supabase
+        .from('ai_generations')
+        .insert({
+          user_id: user.id,
+          track_id: trackId,
+          service: type,
+          prompt: formData.stylePrompt,
+          parameters: {
+            genre_tags: formData.genreTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+            result: data,
+            user_comment: comment,
+            model_used: 'gpt-4o-mini', // или другую модель из метаданных
+            temperature: 0.7,
+            saved_at: new Date().toISOString()
+          },
+          status: 'completed'
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Результат сохранен",
+        description: `${type === 'lyrics' ? 'Лирика' : type === 'concept' ? 'Концепция' : 'Анализ'} сохранена в историю ИИ`,
+      });
+
+      if (type !== 'analysis') {
+        onGenerated(type, data);
+      }
+    } catch (error: any) {
+      console.error('Error saving AI result:', error);
+      toast({
+        title: "Ошибка сохранения",
+        description: "Не удалось сохранить результат",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingResult(false);
+      setShowSaveDialog(false);
+      setSaveType(null);
+    }
+  };
+
+  const handleSaveClick = (type: 'lyrics' | 'concept' | 'analysis') => {
+    const data = type === 'lyrics' ? generatedData.lyrics : 
+                 type === 'concept' ? generatedData.concept : 
+                 generatedData.analysis;
+    saveAiResult(type, data);
+  };
+
+  const promptUpdateTrackWithLyrics = (improvedLyrics: string) => {
+    if (!trackId) return;
+    
+    const shouldUpdate = window.confirm(
+      'Хотите обновить трек в базе данных улучшенной лирикой?\n\n' +
+      'Это создаст новую версию трека с обновленным текстом.'
+    );
+    
+    if (shouldUpdate) {
+      updateTrackLyrics(improvedLyrics);
+    }
+  };
+
+  const updateTrackLyrics = async (newLyrics: string) => {
+    if (!user || !trackId) return;
+
+    try {
+      // Получаем текущий трек
+      const { data: track, error: fetchError } = await supabase
+        .from('tracks')
+        .select('*')
+        .eq('id', trackId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Создаем новую версию
+      const { error: versionError } = await supabase
+        .from('track_versions')
+        .insert({
+          track_id: trackId,
+          version_number: track.current_version + 1,
+          audio_url: track.audio_url || '',
+          change_description: 'Автоматическое обновление: улучшенная лирика от ИИ',
+          metadata: {
+            previous_lyrics: track.lyrics,
+            ai_improvement: true,
+            updated_by: user.id,
+            improvement_source: 'ai_analysis'
+          }
+        });
+
+      if (versionError) throw versionError;
+
+      // Обновляем основной трек
+      const { error: updateError } = await supabase
+        .from('tracks')
+        .update({
+          lyrics: newLyrics,
+          current_version: track.current_version + 1,
+          metadata: {
+            ...(track.metadata && typeof track.metadata === 'object' ? track.metadata : {}),
+            last_ai_improvement: new Date().toISOString(),
+            last_edited_by: user.id
+          }
+        })
+        .eq('id', trackId);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Трек обновлен",
+        description: `Лирика обновлена (версия ${track.current_version + 1})`,
+      });
+
+      // onGenerated('lyrics', { improved_text: newLyrics });
+    } catch (error: any) {
+      console.error('Error updating track:', error);
+      toast({
+        title: "Ошибка обновления",
+        description: "Не удалось обновить трек",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -355,6 +515,19 @@ export function TrackGenerationDialog({
                           <Copy className="h-4 w-4 mr-2" />
                           Копировать
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleSaveClick('lyrics')}
+                          disabled={savingResult}
+                        >
+                          {savingResult ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          Сохранить
+                        </Button>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -415,6 +588,21 @@ export function TrackGenerationDialog({
               {/* Результат анализа */}
               {generatedData.analysis && (
                 <TabsContent value="analysis" className="space-y-4">
+                  <div className="flex justify-end mb-4">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleSaveClick('analysis')}
+                      disabled={savingResult}
+                    >
+                      {savingResult ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      Сохранить анализ
+                    </Button>
+                  </div>
                   <LyricsAnalysisReport 
                     analysis={generatedData.analysis}
                     onImproveClick={handleImproveLyrics}
@@ -438,8 +626,21 @@ export function TrackGenerationDialog({
               {generatedData.concept && (
                 <TabsContent value="concept" className="space-y-4">
                   <Card>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between">
                       <CardTitle className="text-lg">Концепция трека</CardTitle>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSaveClick('concept')}
+                        disabled={savingResult}
+                      >
+                        {savingResult ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-2" />
+                        )}
+                        Сохранить
+                      </Button>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {(generatedData.concept.title_suggestions || generatedData.concept.TITLE_SUGGESTIONS) && (

@@ -20,6 +20,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
 import { CreateProjectWithAIDialog } from "@/components/projects/CreateProjectWithAIDialog";
 import { CreateTrackDialog } from "@/components/tracks/CreateTrackDialog";
+import { TrackDetailsDialog } from "@/components/tracks/TrackDetailsDialog";
 import { CoverUploadDialog } from "@/components/projects/CoverUploadDialog";
 import { BannerUploadDialog } from "@/components/projects/BannerUploadDialog";
 import { 
@@ -67,6 +68,8 @@ export default function Projects() {
   const [bannerDialogOpen, setBannerDialogOpen] = useState(false);
   const [createTrackDialogOpen, setCreateTrackDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<any | null>(null);
+  const [trackDetailsOpen, setTrackDetailsOpen] = useState(false);
 
   const fetchProjects = async () => {
     try {
@@ -331,6 +334,17 @@ export default function Projects() {
         description: "Не удалось обновить проект",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleTrackClick = (track: any) => {
+    setSelectedTrack(track);
+    setTrackDetailsOpen(true);
+  };
+
+  const handleTrackUpdated = () => {
+    if (selectedProject) {
+      loadTracks(selectedProject.id);
     }
   };
 
@@ -873,6 +887,19 @@ export default function Projects() {
             setCreateTrackDialogOpen(false);
           }}
           nextTrackNumber={(tracks.length || 0) + 1}
+        />
+
+        <TrackDetailsDialog
+          open={trackDetailsOpen}
+          onOpenChange={setTrackDetailsOpen}
+          track={selectedTrack ? {
+            ...selectedTrack,
+            project: {
+              title: selectedProject?.title,
+              artist: selectedProject?.artist
+            }
+          } : null}
+          onTrackUpdated={handleTrackUpdated}
         />
       </div>
     </ScrollArea>
