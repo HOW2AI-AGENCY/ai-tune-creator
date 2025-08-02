@@ -36,6 +36,7 @@ interface TrackEditDialogProps {
 export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: TrackEditDialogProps) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [loadingAIData, setLoadingAIData] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     track_number: 1,
@@ -61,8 +62,76 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
         genre_tags: track.genre_tags ? track.genre_tags.join(", ") : "",
         style_prompt: track.style_prompt || "",
       });
+      
+      // Загружаем данные ИИ для этого трека
+      loadAIGenerations(track.id);
     }
   }, [track]);
+
+  // Загружаем данные ИИ генерации для трека
+  const loadAIGenerations = async (trackId: string) => {
+    setLoadingAIData(true);
+    try {
+      const { data, error } = await supabase
+        .from('ai_generations')
+        .select('*')
+        .eq('track_id', trackId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        // Ищем последние версии каждого типа генерации
+        const latestGenerations: Record<string, any> = {};
+        
+        data.forEach(item => {
+          const parameters = item.parameters as any;
+          const generationType = parameters?.generation_type;
+          
+          if (generationType && !latestGenerations[generationType]) {
+            latestGenerations[generationType] = parameters.result;
+          }
+        });
+        
+        // Обновляем форму данными из ИИ, если поля пусты
+        setFormData(prev => ({
+          ...prev,
+          lyrics: prev.lyrics || extractLyricsFromAI(latestGenerations.lyrics) || "",
+          description: prev.description || extractDescriptionFromAI(latestGenerations.concept) || "",
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading AI generations:', error);
+    } finally {
+      setLoadingAIData(false);
+    }
+  };
+
+  // Извлекаем текст лирики из данных ИИ
+  const extractLyricsFromAI = (lyricsData: any): string => {
+    if (!lyricsData) return "";
+    
+    if (typeof lyricsData === 'string') return lyricsData;
+    
+    if (lyricsData?.improved_text) return lyricsData.improved_text;
+    
+    if (lyricsData?.song?.sections) {
+      return lyricsData.song.sections.map((section: any) => 
+        `${section.tag}\n${section.lyrics}`
+      ).join('\n\n');
+    }
+    
+    if (lyricsData?.lyrics) return lyricsData.lyrics;
+    
+    return "";
+  };
+
+  // Извлекаем описание из концепции ИИ
+  const extractDescriptionFromAI = (conceptData: any): string => {
+    if (!conceptData) return "";
+    
+    return conceptData?.DESCRIPTION || conceptData?.description || "";
+  };
 
   const handleSave = async () => {
     if (!track || !user || !formData.title.trim()) return;
@@ -175,30 +244,37 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="font-medium">Текущая версия:</p>
-                  <p className="text-muted-foreground">{track.current_version}</p>
+              {loadingAIData ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Загружаем данные ИИ...
                 </div>
-                <div>
-                  <p className="font-medium">Последнее обновление:</p>
-                  <p className="text-muted-foreground">
-                    {new Date(track.updated_at).toLocaleString('ru-RU')}
-                  </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="font-medium">Текущая версия:</p>
+                    <p className="text-muted-foreground">{track.current_version}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium">Последнее обновление:</p>
+                    <p className="text-muted-foreground">
+                      {new Date(track.updated_at).toLocaleString('ru-RU')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium">Количество редактирований:</p>
+                    <p className="text-muted-foreground">
+                      {track.metadata?.edit_count || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium">Текущая длительность:</p>
+                    <p className="text-muted-foreground">
+                      {track.duration ? formatDuration(track.duration) : 'Не указана'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">Количество редактирований:</p>
-                  <p className="text-muted-foreground">
-                    {track.metadata?.edit_count || 0}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-medium">Текущая длительность:</p>
-                  <p className="text-muted-foreground">
-                    {track.duration ? formatDuration(track.duration) : 'Не указана'}
-                  </p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 

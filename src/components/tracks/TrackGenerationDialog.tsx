@@ -21,8 +21,10 @@ import {
   Copy, 
   Save, 
   Database,
-  AlertCircle 
+  AlertCircle,
+  CheckCircle
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 // T-059: Компонент для ИИ генерации треков
 interface TrackGenerationDialogProps {
@@ -67,6 +69,47 @@ export function TrackGenerationDialog({
   const [savingResult, setSavingResult] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveType, setSaveType] = useState<'lyrics' | 'concept' | 'analysis' | null>(null);
+  
+  // Загружаем существующие данные ИИ при открытии диалога
+  React.useEffect(() => {
+    if (open && trackId) {
+      loadExistingAIData();
+    }
+  }, [open, trackId]);
+
+  const loadExistingAIData = async () => {
+    if (!trackId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('ai_generations')
+        .select('*')
+        .eq('track_id', trackId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const aiData: any = {
+          lyrics: null,
+          concept: null,
+          analysis: null
+        };
+        
+        data.forEach(item => {
+          const parameters = item.parameters as any;
+          const generationType = parameters?.generation_type;
+          if (generationType && parameters?.result) {
+            aiData[generationType] = parameters.result;
+          }
+        });
+        
+        setGeneratedData(aiData);
+      }
+    } catch (error) {
+      console.error('Error loading existing AI data:', error);
+    }
+  };
 
   console.log('Current generatedData:', generatedData);
 
@@ -451,33 +494,83 @@ export function TrackGenerationDialog({
 
           {/* Кнопки генерации */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button
-              onClick={handleGenerateLyrics}
-              disabled={generatingLyrics || !formData.stylePrompt.trim()}
-              className="h-12"
-            >
-              {generatingLyrics ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Music className="h-4 w-4 mr-2" />
+            <div className="space-y-2">
+              <Button
+                onClick={handleGenerateLyrics}
+                disabled={generatingLyrics || !formData.stylePrompt.trim()}
+                className="h-12 relative w-full"
+              >
+                {generatingLyrics ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span className="text-sm">Генерация лирики...</span>
+                  </>
+                ) : (
+                  <>
+                    <Music className="h-4 w-4 mr-2" />
+                    {existingTrackData?.lyrics ? 'Создать вариацию лирики' : 'Сгенерировать лирику'}
+                  </>
+                )}
+              </Button>
+              {generatingLyrics && (
+                <div className="space-y-1">
+                  <Progress value={70} className="h-1.5" />
+                  <p className="text-xs text-muted-foreground text-center">
+                    Создаем уникальную лирику...
+                  </p>
+                </div>
               )}
-              {existingTrackData?.lyrics ? 'Создать вариацию лирики' : 'Сгенерировать лирику'}
-            </Button>
+            </div>
 
-            <Button
-              onClick={handleGenerateConcept}
-              disabled={generatingConcept || !formData.stylePrompt.trim()}
-              variant="outline"
-              className="h-12"
-            >
-              {generatingConcept ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Lightbulb className="h-4 w-4 mr-2" />
+            <div className="space-y-2">
+              <Button
+                onClick={handleGenerateConcept}
+                disabled={generatingConcept || !formData.stylePrompt.trim()}
+                variant="outline"
+                className="h-12 relative w-full"
+              >
+                {generatingConcept ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span className="text-sm">Создание концепции...</span>
+                  </>
+                ) : (
+                  <>
+                    <Lightbulb className="h-4 w-4 mr-2" />
+                    Сгенерировать концепцию
+                  </>
+                )}
+              </Button>
+              {generatingConcept && (
+                <div className="space-y-1">
+                  <Progress value={60} className="h-1.5" />
+                  <p className="text-xs text-muted-foreground text-center">
+                    Разрабатываем концепцию трека...
+                  </p>
+                </div>
               )}
-              Сгенерировать концепцию
-            </Button>
+            </div>
           </div>
+
+          {/* Прогресс для анализа */}
+          {analyzingLyrics && (
+            <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                  <div>
+                    <p className="font-medium text-blue-900 dark:text-blue-100">
+                      Анализируем лирику
+                    </p>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Экспертная оценка от ИИ-команды...
+                    </p>
+                  </div>
+                </div>
+                <Progress value={85} className="h-2" />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Результаты генерации */}
           {(generatedData.lyrics || generatedData.concept || generatedData.analysis) && (
@@ -507,8 +600,17 @@ export function TrackGenerationDialog({
                           onClick={handleAnalyzeLyrics}
                           disabled={analyzingLyrics}
                         >
-                          <BarChart3 className="h-4 w-4 mr-2" />
-                          {analyzingLyrics ? 'Анализируем...' : 'Проанализировать'}
+                          {analyzingLyrics ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              Анализируем...
+                            </>
+                          ) : (
+                            <>
+                              <BarChart3 className="h-4 w-4 mr-2" />
+                              Проанализировать
+                            </>
+                          )}
                         </Button>
                         <Button
                           size="sm"
