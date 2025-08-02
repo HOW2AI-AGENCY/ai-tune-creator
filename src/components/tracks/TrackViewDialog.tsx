@@ -8,13 +8,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { LyricsViewer } from "@/components/lyrics/LyricsViewer";
 import { 
   Music, 
   Clock, 
   Hash, 
   FileText, 
   Brain,
-  Copy,
   Calendar,
   User,
   Loader2,
@@ -247,35 +247,11 @@ export function TrackViewDialog({ open, onOpenChange, track }: TrackViewDialogPr
 
             {/* Lyrics Tab */}
             <TabsContent value="lyrics" className="space-y-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Текст песни</CardTitle>
-                  {track.lyrics && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(track.lyrics!)}
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Копировать
-                    </Button>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  {track.lyrics ? (
-                    <ScrollArea className="h-96">
-                      <pre className="whitespace-pre-wrap text-sm bg-muted/50 p-4 rounded-lg">
-                        {track.lyrics}
-                      </pre>
-                    </ScrollArea>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Текст песни не добавлен</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <LyricsViewer 
+                lyrics={track.lyrics || ""} 
+                title={`${track.title} - Текст песни`}
+                showStructurePanel={true}
+              />
             </TabsContent>
 
             {/* AI History Tab */}

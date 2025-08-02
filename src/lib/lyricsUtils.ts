@@ -203,3 +203,93 @@ export function formatLyricsForExport(lyrics: string, format: 'plain' | 'markdow
       return lyrics;
   }
 }
+
+/**
+ * Parse lyrics structure for viewer component
+ */
+export function parseLyricsStructure(lyrics: string): {
+  structure: { id: string; type: string; title?: string }[];
+  sections: { id: string; type: string; title?: string; content: string }[];
+} {
+  const lines = lyrics.split('\n');
+  const structure: { id: string; type: string; title?: string }[] = [];
+  const sections: { id: string; type: string; title?: string; content: string }[] = [];
+  
+  let currentSection: { id: string; type: string; title?: string; content: string } | null = null;
+  let sectionCounter = 0;
+  
+  lines.forEach((line, index) => {
+    const trimmedLine = line.trim();
+    
+    // Check if line is a structure tag
+    const structureMatch = /^\[([^\]]+)\]$/.exec(trimmedLine);
+    
+    if (structureMatch) {
+      // Save previous section if exists
+      if (currentSection) {
+        sections.push(currentSection);
+      }
+      
+      const fullTag = structureMatch[1];
+      const type = parseStructureType(fullTag);
+      const sectionId = `section-${sectionCounter++}`;
+      
+      // Add to structure navigation
+      structure.push({
+        id: sectionId,
+        type,
+        title: fullTag !== type ? fullTag : undefined
+      });
+      
+      // Start new section
+      currentSection = {
+        id: sectionId,
+        type,
+        title: fullTag !== type ? fullTag : undefined,
+        content: ''
+      };
+    } else if (currentSection) {
+      // Add content to current section
+      if (currentSection.content && trimmedLine) {
+        currentSection.content += '\n' + line;
+      } else if (trimmedLine) {
+        currentSection.content = line;
+      } else if (currentSection.content) {
+        currentSection.content += '\n';
+      }
+    } else if (trimmedLine) {
+      // Create unnamed section for content without structure tags
+      const sectionId = `section-${sectionCounter++}`;
+      currentSection = {
+        id: sectionId,
+        type: 'unknown',
+        content: line
+      };
+    }
+  });
+  
+  // Add last section if exists
+  if (currentSection) {
+    sections.push(currentSection);
+  }
+  
+  return { structure, sections };
+}
+
+/**
+ * Parse structure type from tag
+ */
+function parseStructureType(tag: string): string {
+  const lowerTag = tag.toLowerCase();
+  
+  if (lowerTag.includes('verse') || lowerTag.includes('куплет')) return 'verse';
+  if (lowerTag.includes('chorus') || lowerTag.includes('припев')) return 'chorus';
+  if (lowerTag.includes('bridge') || lowerTag.includes('бридж')) return 'bridge';
+  if (lowerTag.includes('pre-chorus') || lowerTag.includes('пред-припев')) return 'pre-chorus';
+  if (lowerTag.includes('outro') || lowerTag.includes('концовка') || lowerTag.includes('финал')) return 'outro';
+  if (lowerTag.includes('intro') || lowerTag.includes('вступление')) return 'intro';
+  if (lowerTag.includes('hook') || lowerTag.includes('хук')) return 'hook';
+  if (lowerTag.includes('refrain') || lowerTag.includes('рефрен')) return 'refrain';
+  
+  return 'unknown';
+}
