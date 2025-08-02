@@ -181,4 +181,17 @@ All colors MUST be HSL.
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  /* Lyrics Editor Specific Styles */
+  .lyrics-editor {
+    /* Custom styles for lyrics editing */
+  }
+  
+  .lyrics-structure-tag {
+    @apply text-primary font-semibold bg-primary/10 px-1 rounded;
+  }
+  
+  .lyrics-line-number {
+    @apply text-muted-foreground text-xs select-none;
+  }
 }

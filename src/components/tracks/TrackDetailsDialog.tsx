@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TrackVersionsDialog } from "./TrackVersionsDialog";
 import { TrackGenerationDialog } from "./TrackGenerationDialog";
+import { LyricsEditor } from "@/components/lyrics/LyricsEditor";
 import { 
   Music, 
   Edit, 
@@ -421,11 +422,13 @@ export function TrackDetailsDialog({ open, onOpenChange, track, onTrackUpdated }
                   <CardContent>
                     {editing ? (
                       <div className="space-y-4">
-                        <Textarea
+                        <LyricsEditor
                           value={formData.lyrics}
-                          onChange={(e) => setFormData({ ...formData, lyrics: e.target.value })}
-                          rows={20}
-                          placeholder="Введите текст песни..."
+                          onChange={(lyrics) => setFormData({ ...formData, lyrics })}
+                          trackTitle={track.title}
+                          onSave={async () => { await handleSave(); }}
+                          autoSave={false}
+                          className="border rounded-md"
                         />
                         <Button onClick={handleSave} disabled={saving}>
                           {saving ? (

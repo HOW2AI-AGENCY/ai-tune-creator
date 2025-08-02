@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { LyricsEditor } from "@/components/lyrics/LyricsEditor";
 import { Save, Loader2, Clock, History } from "lucide-react";
 
 interface Track {
@@ -354,11 +355,12 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
 
             <div>
               <label className="text-sm font-medium">Текст песни</label>
-              <Textarea
+              <LyricsEditor
                 value={formData.lyrics}
-                onChange={(e) => setFormData({ ...formData, lyrics: e.target.value })}
-                placeholder="Введите текст песни..."
-                rows={8}
+                onChange={(lyrics) => setFormData({ ...formData, lyrics })}
+                trackTitle={track.title}
+                showSidebar={false}
+                className="border rounded-md"
               />
             </div>
 

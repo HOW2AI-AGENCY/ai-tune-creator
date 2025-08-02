@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TrackGenerationDialog } from "@/components/tracks/TrackGenerationDialog";
+import { LyricsEditor } from "@/components/lyrics/LyricsEditor";
 import { Save, Loader2, Sparkles, Music, Plus } from "lucide-react";
 
 interface CreateTrackDialogProps {
@@ -228,11 +229,12 @@ export function CreateTrackDialog({
 
               <div>
                 <label className="text-sm font-medium">Текст песни</label>
-                <Textarea
+                <LyricsEditor
                   value={formData.lyrics}
-                  onChange={(e) => setFormData({ ...formData, lyrics: e.target.value })}
-                  placeholder="Введите текст песни..."
-                  rows={12}
+                  onChange={(lyrics) => setFormData({ ...formData, lyrics })}
+                  trackTitle={formData.title || 'Новый трек'}
+                  showSidebar={false}
+                  className="border rounded-md"
                 />
               </div>
             </TabsContent>
