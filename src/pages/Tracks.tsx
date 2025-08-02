@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { TrackEditDialog } from "@/components/tracks/TrackEditDialog";
 import { TrackVersionsDialog } from "@/components/tracks/TrackVersionsDialog";
 import { TrackGenerationDialog } from "@/components/tracks/TrackGenerationDialog";
+import { TrackViewDialog } from "@/components/tracks/TrackViewDialog";
 import { 
   Plus, 
   Search, 
@@ -22,7 +23,8 @@ import {
   SortAsc,
   Play,
   Loader2,
-  FileText
+  FileText,
+  Eye
 } from "lucide-react";
 
 interface Track {
@@ -63,6 +65,7 @@ export default function Tracks() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [versionsDialogOpen, setVersionsDialogOpen] = useState(false);
   const [generationDialogOpen, setGenerationDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
 
   const loadTracks = async () => {
@@ -165,6 +168,11 @@ export default function Tracks() {
   const handleEditTrack = (track: Track) => {
     setSelectedTrack(track);
     setEditDialogOpen(true);
+  };
+
+  const handleViewTrack = (track: Track) => {
+    setSelectedTrack(track);
+    setViewDialogOpen(true);
   };
 
   const handleViewVersions = (track: Track) => {
@@ -400,11 +408,19 @@ export default function Tracks() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleEditTrack(track)}
+                    onClick={() => handleViewTrack(track)}
                     className="flex-1"
                   >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Редактировать
+                    <Eye className="h-4 w-4 mr-2" />
+                    Просмотр
+                  </Button>
+                  
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEditTrack(track)}
+                  >
+                    <Edit className="h-4 w-4" />
                   </Button>
                   
                   <Button
@@ -456,6 +472,12 @@ export default function Tracks() {
           genreTags: selectedTrack.genre_tags || [],
           lyrics: selectedTrack.lyrics || ""
         } : undefined}
+      />
+
+      <TrackViewDialog
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        track={selectedTrack}
       />
     </div>
   );
