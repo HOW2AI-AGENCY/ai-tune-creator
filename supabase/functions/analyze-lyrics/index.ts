@@ -274,7 +274,16 @@ ${body.lyrics}
 
     let analysisResult: AnalysisResult;
     try {
-      analysisResult = JSON.parse(data.choices[0].message.content);
+      let content = data.choices[0].message.content;
+      
+      // Remove markdown code blocks if present
+      if (content.includes('```json')) {
+        content = content.replace(/```json\s*/, '').replace(/```\s*$/, '');
+      } else if (content.includes('```')) {
+        content = content.replace(/```\s*/, '').replace(/```\s*$/, '');
+      }
+      
+      analysisResult = JSON.parse(content.trim());
     } catch (parseError) {
       console.error('Failed to parse analysis result:', data.choices[0].message.content);
       throw new Error('Failed to parse analysis result from AI');
