@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { parseLyricsStructure } from "@/lib/lyricsUtils";
-import { Music, Hash, Copy, Eye } from "lucide-react";
+import { Music, Hash, Copy, Eye, Edit } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface LyricsViewerProps {
@@ -13,13 +13,17 @@ interface LyricsViewerProps {
   title?: string;
   showStructurePanel?: boolean;
   className?: string;
+  onEdit?: () => void;
+  showEditButton?: boolean;
 }
 
 export function LyricsViewer({ 
   lyrics, 
   title, 
   showStructurePanel = true, 
-  className = "" 
+  className = "",
+  onEdit,
+  showEditButton = false
 }: LyricsViewerProps) {
   const { structure, sections } = useMemo(() => {
     return parseLyricsStructure(lyrics);
@@ -57,15 +61,15 @@ export function LyricsViewer({
 
   const getSectionColor = (type: string) => {
     const colorMap: { [key: string]: string } = {
-      'verse': 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800',
-      'chorus': 'bg-purple-50 border-purple-200 dark:bg-purple-950/30 dark:border-purple-800',
-      'bridge': 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800',
-      'pre-chorus': 'bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-800',
-      'outro': 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800',
-      'intro': 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-800',
-      'hook': 'bg-pink-50 border-pink-200 dark:bg-pink-950/30 dark:border-pink-800',
-      'refrain': 'bg-indigo-50 border-indigo-200 dark:bg-indigo-950/30 dark:border-indigo-800',
-      'unknown': 'bg-muted/50 border-border'
+      'verse': 'bg-primary/5 border-l-primary/20 border-primary/20',
+      'chorus': 'bg-secondary/10 border-l-secondary border-secondary/20',
+      'bridge': 'bg-accent/10 border-l-accent border-accent/20',
+      'pre-chorus': 'bg-muted/30 border-l-muted-foreground/40 border-muted-foreground/20',
+      'outro': 'bg-destructive/5 border-l-destructive/40 border-destructive/20',
+      'intro': 'bg-primary/10 border-l-primary/40 border-primary/20',
+      'hook': 'bg-secondary/5 border-l-secondary/40 border-secondary/20',
+      'refrain': 'bg-accent/5 border-l-accent/40 border-accent/20',
+      'unknown': 'bg-muted/20 border-l-border border-border'
     };
     return colorMap[type] || colorMap['unknown'];
   };
@@ -80,107 +84,152 @@ export function LyricsViewer({
   }
 
   return (
-    <div className={`grid ${showStructurePanel ? 'grid-cols-1 lg:grid-cols-4' : 'grid-cols-1'} gap-6 ${className}`}>
-      {/* Structure Panel */}
+    <div className={`w-full ${className}`}>
+      {/* Mobile Structure Navigation */}
       {showStructurePanel && structure.length > 1 && (
-        <div className="lg:col-span-1">
-          <Card className="sticky top-4">
-            <CardHeader>
+        <div className="block lg:hidden mb-4">
+          <Card>
+            <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Hash className="h-4 w-4" />
                 Структура песни
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {structure.map((section, index) => (
-                <Button
-                  key={index}
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start text-left h-auto p-2"
-                  onClick={() => scrollToSection(section.id)}
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    <Badge variant="secondary" className="text-xs">
-                      {formatSectionType(section.type)}
-                    </Badge>
-                    {section.title && (
-                      <span className="text-xs text-muted-foreground truncate">
-                        {section.title}
-                      </span>
-                    )}
-                  </div>
-                </Button>
-              ))}
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {structure.map((section, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs"
+                    onClick={() => scrollToSection(section.id)}
+                  >
+                    {formatSectionType(section.type)}
+                  </Button>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Lyrics Content */}
-      <div className={showStructurePanel && structure.length > 1 ? "lg:col-span-3" : "col-span-1"}>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Eye className="h-5 w-5" />
-              {title || "Текст песни"}
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => copyToClipboard(lyrics)}
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Копировать
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[600px] pr-4">
-              <div className="space-y-6">
-                {sections.map((section, index) => (
-                  <div key={index} id={`section-${section.id}`}>
-                    {section.type !== 'unknown' && (
-                      <div className="flex items-center gap-2 mb-3">
-                        <Badge variant="outline" className="font-medium">
-                          {formatSectionType(section.type)}
-                        </Badge>
-                        {section.title && (
-                          <span className="text-sm text-muted-foreground">
-                            {section.title}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className={`p-4 rounded-lg border-l-4 ${getSectionColor(section.type)}`}>
-                      <div className="space-y-2">
-                        {section.content.split('\n').map((line, lineIndex) => {
-                          const trimmedLine = line.trim();
-                          if (!trimmedLine) {
-                            return <div key={lineIndex} className="h-2" />;
-                          }
-                          
-                          return (
-                            <div 
-                              key={lineIndex} 
-                              className="text-sm leading-relaxed hover:bg-background/50 rounded px-2 py-1 transition-colors"
-                            >
-                              {trimmedLine}
-                            </div>
-                          );
-                        })}
-                      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Desktop Structure Panel */}
+        {showStructurePanel && structure.length > 1 && (
+          <div className="hidden lg:block lg:col-span-3">
+            <Card className="sticky top-4 h-fit">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Hash className="h-4 w-4" />
+                  Структура песни
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {structure.map((section, index) => (
+                  <Button
+                    key={index}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-left h-auto p-3 hover:bg-accent/50"
+                    onClick={() => scrollToSection(section.id)}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        {formatSectionType(section.type)}
+                      </Badge>
+                      {section.title && (
+                        <span className="text-xs text-muted-foreground truncate">
+                          {section.title}
+                        </span>
+                      )}
                     </div>
-                    
-                    {index < sections.length - 1 && (
-                      <Separator className="my-6" />
-                    )}
-                  </div>
+                  </Button>
                 ))}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Lyrics Content */}
+        <div className={`${showStructurePanel && structure.length > 1 ? "lg:col-span-9" : "lg:col-span-12"}`}>
+          <Card className="w-full">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0 pb-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Eye className="h-5 w-5 shrink-0" />
+                <span className="truncate">{title || "Текст песни"}</span>
+              </CardTitle>
+              <div className="flex gap-2">
+                {showEditButton && onEdit && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={onEdit}
+                    className="h-9"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Редактировать
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyToClipboard(lyrics)}
+                  className="h-9"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Копировать</span>
+                </Button>
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[500px] sm:h-[600px] lg:h-[700px]">
+                <div className="p-6 space-y-8">
+                  {sections.map((section, index) => (
+                    <div key={index} id={`section-${section.id}`} className="scroll-mt-6">
+                      {section.type !== 'unknown' && (
+                        <div className="flex items-center gap-2 mb-4">
+                          <Badge variant="outline" className="font-medium text-xs px-2 py-1">
+                            {formatSectionType(section.type)}
+                          </Badge>
+                          {section.title && (
+                            <span className="text-sm text-muted-foreground font-medium">
+                              {section.title}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className={`rounded-xl border-l-4 p-6 transition-all duration-200 hover:shadow-sm ${getSectionColor(section.type)}`}>
+                        <div className="space-y-3">
+                          {section.content.split('\n').map((line, lineIndex) => {
+                            const trimmedLine = line.trim();
+                            if (!trimmedLine) {
+                              return <div key={lineIndex} className="h-3" />;
+                            }
+                            
+                            return (
+                              <div 
+                                key={lineIndex} 
+                                className="text-base leading-7 tracking-wide hover:bg-background/80 rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer font-medium text-foreground/90"
+                              >
+                                {trimmedLine}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      
+                      {index < sections.length - 1 && (
+                        <Separator className="my-8 opacity-30" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
