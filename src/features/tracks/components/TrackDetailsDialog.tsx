@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TrackVersionsDialog } from "./TrackVersionsDialog";
 import { TrackGenerationDialog } from "./TrackGenerationDialog";
-import { LyricsEditor } from "@/components/lyrics/LyricsEditor";
+import { LyricsEditor } from "@/features/lyrics/components/LyricsEditor";
 import { 
   Music, 
   Edit, 

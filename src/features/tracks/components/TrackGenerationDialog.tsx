@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { useTrackGeneration } from "@/hooks/useTrackGeneration";
+import { useTrackGeneration } from "@/features/ai-generation/hooks/useTrackGeneration";
 import { LyricsAnalysisReport } from './LyricsAnalysisReport';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";

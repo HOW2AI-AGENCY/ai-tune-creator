@@ -30,7 +30,7 @@ import {
   Play,
   Clock
 } from "lucide-react";
-import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
+import { CreateProjectDialog } from "@/features/projects/components/CreateProjectDialog";
 
 interface Artist {
   id: string;

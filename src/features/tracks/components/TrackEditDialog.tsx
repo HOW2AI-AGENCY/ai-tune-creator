@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { LyricsEditor } from "@/components/lyrics/LyricsEditor";
+import { LyricsEditor } from "@/features/lyrics/components/LyricsEditor";
 import { Save, Loader2, Clock, History } from "lucide-react";
 
 interface Track {

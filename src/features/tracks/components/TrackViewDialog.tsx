@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
-import { LyricsViewer } from "@/components/lyrics/LyricsViewer";
+import { LyricsViewer } from "@/features/lyrics/components/LyricsViewer";
 import { 
   Music, 
   Clock, 

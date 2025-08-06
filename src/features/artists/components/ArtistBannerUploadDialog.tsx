@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, Wand2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useImageGeneration } from "@/hooks/useImageGeneration";
+import { useImageGeneration } from "@/features/ai-generation/hooks/useImageGeneration";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { supabase } from "@/integrations/supabase/client";
 

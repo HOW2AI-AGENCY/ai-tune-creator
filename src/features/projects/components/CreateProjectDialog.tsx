@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { useImageGeneration } from "@/hooks/useImageGeneration";
+import { useImageGeneration } from "@/features/ai-generation/hooks/useImageGeneration";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

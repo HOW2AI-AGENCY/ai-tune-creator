@@ -9,8 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { TrackGenerationDialog } from "@/components/tracks/TrackGenerationDialog";
-import { LyricsEditor } from "@/components/lyrics/LyricsEditor";
+import { TrackGenerationDialog } from "@/features/tracks/components/TrackGenerationDialog";
+import { LyricsEditor } from "@/features/lyrics/components/LyricsEditor";
 import { Save, Loader2, Sparkles, Music, Plus } from "lucide-react";
 
 interface CreateTrackDialogProps {
