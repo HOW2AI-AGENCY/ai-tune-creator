@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { List, ChevronRight } from 'lucide-react';
-import { type LyricsSection } from '@/lib/lyricsUtils';
+import { type LyricsSection } from '../utils/lyricsUtils';
 
 interface LyricsStructurePanelProps {
   sections: LyricsSection[];

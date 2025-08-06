@@ -17,12 +17,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/useTranslation";
-import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
-import { CreateProjectWithAIDialog } from "@/components/projects/CreateProjectWithAIDialog";
-import { CreateTrackDialog } from "@/components/tracks/CreateTrackDialog";
-import { TrackDetailsDialog } from "@/components/tracks/TrackDetailsDialog";
-import { CoverUploadDialog } from "@/components/projects/CoverUploadDialog";
-import { BannerUploadDialog } from "@/components/projects/BannerUploadDialog";
+import { CreateProjectDialog, CreateProjectWithAIDialog, CoverUploadDialog, BannerUploadDialog } from "@/features/projects";
+import { CreateTrackDialog, TrackDetailsDialog } from "@/features/tracks";
 import { 
   AlertDialog,
   AlertDialogAction,

@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { Download, Copy, FileText } from 'lucide-react';
-import { formatLyricsForExport } from '@/lib/lyricsUtils';
+import { formatLyricsForExport } from '../utils/lyricsUtils';
 
 interface LyricsExportDialogProps {
   open: boolean;

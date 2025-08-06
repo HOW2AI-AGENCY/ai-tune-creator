@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { SONG_STRUCTURE_TAGS } from '@/lib/lyricsUtils';
+import { SONG_STRUCTURE_TAGS } from '../utils/lyricsUtils';
 
 interface LyricsToolbarProps {
   onInsertStructure: (tag: string) => void;

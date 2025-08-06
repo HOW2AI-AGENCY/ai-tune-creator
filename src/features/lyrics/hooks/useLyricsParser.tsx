@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { parseLyrics, calculateLyricsMetrics, findRhymes, type LyricsSection, type LyricsMetrics } from '@/lib/lyricsUtils';
+import { parseLyrics, calculateLyricsMetrics, findRhymes, type LyricsSection, type LyricsMetrics } from '../utils/lyricsUtils';
 
 interface UseLyricsParserReturn {
   sections: LyricsSection[];

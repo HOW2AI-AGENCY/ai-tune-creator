@@ -13,9 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/useTranslation";
-import { CreateArtistDialog } from "@/components/artists/CreateArtistDialog";
-import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
-import { ArtistBannerUploadDialog } from "@/components/artists/ArtistBannerUploadDialog";
+import { CreateArtistDialog, ArtistBannerUploadDialog } from "@/features/artists";
+import { CreateProjectDialog } from "@/features/projects";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";

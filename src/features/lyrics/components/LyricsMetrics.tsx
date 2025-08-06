@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart3, Clock, Type, Hash, Music } from 'lucide-react';
-import { type LyricsMetrics } from '@/lib/lyricsUtils';
+import { type LyricsMetrics } from '../utils/lyricsUtils';
 
 interface LyricsMetricsProps {
   metrics: LyricsMetrics;

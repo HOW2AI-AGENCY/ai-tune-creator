@@ -7,10 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { TrackEditDialog } from "@/components/tracks/TrackEditDialog";
-import { TrackVersionsDialog } from "@/components/tracks/TrackVersionsDialog";
-import { TrackGenerationDialog } from "@/components/tracks/TrackGenerationDialog";
-import { TrackViewDialog } from "@/components/tracks/TrackViewDialog";
+import { TrackEditDialog, TrackVersionsDialog, TrackGenerationDialog, TrackViewDialog } from "@/features/tracks";
 import { 
   Plus, 
   Search, 
