@@ -40,12 +40,42 @@ export function useLyricsAutoSave(
     } catch (error) {
       console.error('Auto-save failed:', error);
       
+      // Retry once after 2 seconds
+      setTimeout(async () => {
+        if (!isSavingRef.current) {
+          try {
+            isSavingRef.current = true;
+            await onSave(lyricsToSave);
+            lastSavedLyricsRef.current = lyricsToSave;
+            toast({
+              title: "Автосохранение",
+              description: "Лирика сохранена (повторная попытка)",
+              duration: 1500,
+            });
+          } catch (retryError) {
+            console.error('Auto-save retry failed:', retryError);
+            if (onError) {
+              onError(retryError as Error);
+            } else {
+              toast({
+                title: "Ошибка автосохранения",
+                description: "Не удалось сохранить изменения после повторной попытки",
+                variant: "destructive",
+                duration: 5000,
+              });
+            }
+          } finally {
+            isSavingRef.current = false;
+          }
+        }
+      }, 2000);
+      
       if (onError) {
         onError(error as Error);
       } else {
         toast({
           title: "Ошибка автосохранения",
-          description: "Не удалось сохранить изменения",
+          description: "Повторная попытка через 2 секунды...",
           variant: "destructive",
           duration: 3000,
         });

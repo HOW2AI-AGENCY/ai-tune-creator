@@ -1,6 +1,7 @@
 // Lyrics feature exports
 export { LyricsEditor } from './components/LyricsEditor';
 export { LyricsViewer } from './components/LyricsViewer';
+export { LyricsVirtualizedViewer } from './components/LyricsVirtualizedViewer';
 export { LyricsMetrics } from './components/LyricsMetrics';
 export { LyricsStructurePanel } from './components/LyricsStructurePanel';
 export { LyricsToolbar } from './components/LyricsToolbar';

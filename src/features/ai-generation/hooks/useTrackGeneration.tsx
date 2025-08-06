@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAISettings } from '@/hooks/useAISettings';
@@ -30,7 +30,7 @@ export function useTrackGeneration({
   const { toast } = useToast();
   const { settings } = useAISettings();
 
-  const generateLyrics = async (params: GenerationParams) => {
+  const generateLyrics = useCallback(async (params: GenerationParams) => {
     try {
       setGeneratingLyrics(true);
       
@@ -77,7 +77,7 @@ export function useTrackGeneration({
     } finally {
       setGeneratingLyrics(false);
     }
-  };
+  }, [settings, onLyricsGenerated, toast]);
 
   const generateConcept = async (params: GenerationParams) => {
     try {

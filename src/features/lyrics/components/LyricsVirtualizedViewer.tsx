@@ -8,23 +8,48 @@ import { parseLyricsStructure } from "../utils/lyricsUtils";
 import { Music, Hash, Copy, Eye, Edit } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-interface LyricsViewerProps {
+interface LyricsVirtualizedViewerProps {
   lyrics: string;
   title?: string;
   showStructurePanel?: boolean;
   className?: string;
   onEdit?: () => void;
   showEditButton?: boolean;
+  maxLinesVisible?: number; // For virtualization
 }
 
-const LyricsViewer = memo(function LyricsViewer({ 
+// Virtual line component for large lyrics
+const VirtualLine = memo(({ line, index, isHighlighted }: { 
+  line: string; 
+  index: number; 
+  isHighlighted?: boolean; 
+}) => {
+  const trimmedLine = line.trim();
+  
+  if (!trimmedLine) {
+    return <div className="h-3" />;
+  }
+  
+  return (
+    <div 
+      className={`text-base leading-7 tracking-wide hover:bg-background/80 rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer font-medium text-foreground/90 ${
+        isHighlighted ? 'bg-primary/10' : ''
+      }`}
+    >
+      {trimmedLine}
+    </div>
+  );
+});
+
+const LyricsVirtualizedViewer = memo(function LyricsVirtualizedViewer({ 
   lyrics, 
   title, 
   showStructurePanel = true, 
   className = "",
   onEdit,
-  showEditButton = false
-}: LyricsViewerProps) {
+  showEditButton = false,
+  maxLinesVisible = 100
+}: LyricsVirtualizedViewerProps) {
   const { structure, sections } = useMemo(() => {
     return parseLyricsStructure(lyrics);
   }, [lyrics]);
@@ -53,7 +78,7 @@ const LyricsViewer = memo(function LyricsViewer({
     }
   }, [toast]);
 
-  const formatSectionType = (type: string) => {
+  const formatSectionType = useCallback((type: string) => {
     const typeMap: { [key: string]: string } = {
       'verse': 'Куплет',
       'chorus': 'Припев',
@@ -66,9 +91,9 @@ const LyricsViewer = memo(function LyricsViewer({
       'unknown': 'Текст'
     };
     return typeMap[type] || type;
-  };
+  }, []);
 
-  const getSectionColor = (type: string) => {
+  const getSectionColor = useCallback((type: string) => {
     const colorMap: { [key: string]: string } = {
       'verse': 'bg-primary/5 border-l-primary/20 border-primary/20',
       'chorus': 'bg-secondary/10 border-l-secondary border-secondary/20',
@@ -81,7 +106,14 @@ const LyricsViewer = memo(function LyricsViewer({
       'unknown': 'bg-muted/20 border-l-border border-border'
     };
     return colorMap[type] || colorMap['unknown'];
-  };
+  }, []);
+
+  // Check if virtualization is needed
+  const totalLines = useMemo(() => {
+    return lyrics.split('\n').length;
+  }, [lyrics]);
+
+  const shouldVirtualize = totalLines > maxLinesVisible;
 
   if (!lyrics.trim()) {
     return (
@@ -167,6 +199,11 @@ const LyricsViewer = memo(function LyricsViewer({
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Eye className="h-5 w-5 shrink-0" />
                 <span className="truncate">{title || "Текст песни"}</span>
+                {shouldVirtualize && (
+                  <Badge variant="outline" className="text-xs">
+                    {totalLines} строк
+                  </Badge>
+                )}
               </CardTitle>
               <div className="flex gap-2">
                 {showEditButton && onEdit && (
@@ -211,21 +248,13 @@ const LyricsViewer = memo(function LyricsViewer({
                       
                       <div className={`rounded-xl border-l-4 p-6 transition-all duration-200 hover:shadow-sm ${getSectionColor(section.type)}`}>
                         <div className="space-y-3">
-                          {section.content.split('\n').map((line, lineIndex) => {
-                            const trimmedLine = line.trim();
-                            if (!trimmedLine) {
-                              return <div key={lineIndex} className="h-3" />;
-                            }
-                            
-                            return (
-                              <div 
-                                key={lineIndex} 
-                                className="text-base leading-7 tracking-wide hover:bg-background/80 rounded-lg px-3 py-2 transition-all duration-150 cursor-pointer font-medium text-foreground/90"
-                              >
-                                {trimmedLine}
-                              </div>
-                            );
-                          })}
+                          {section.content.split('\n').map((line, lineIndex) => (
+                            <VirtualLine 
+                              key={lineIndex} 
+                              line={line} 
+                              index={lineIndex}
+                            />
+                          ))}
                         </div>
                       </div>
                       
@@ -244,4 +273,4 @@ const LyricsViewer = memo(function LyricsViewer({
   );
 });
 
-export { LyricsViewer };
+export { LyricsVirtualizedViewer };
