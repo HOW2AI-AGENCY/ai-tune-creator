@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useAuth } from "@/hooks/useAuth";
 import { CreateProjectDialog, CreateProjectWithAIDialog, CoverUploadDialog, BannerUploadDialog } from "@/features/projects";
 import { CreateTrackDialog, TrackDetailsDialog } from "@/features/tracks";
 import { 
@@ -52,6 +53,7 @@ interface Project {
 export default function Projects() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,7 +78,7 @@ export default function Projects() {
         .from('projects')
         .select(`
           *,
-          artists!inner(id, name, avatar_url)
+          artists(id, name, avatar_url)
         `)
         .order('created_at', { ascending: false });
 
@@ -112,8 +114,12 @@ export default function Projects() {
   };
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (user) {
+      fetchProjects();
+    } else {
+      setProjects([]);
+    }
+  }, [user]);
 
   const filteredProjects = projects.filter(project =>
     project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
