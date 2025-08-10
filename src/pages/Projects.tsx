@@ -350,6 +350,17 @@ export default function Projects() {
     }
   };
 
+  if (!user) {
+    return (
+      <Card className="m-6">
+        <CardHeader>
+          <CardTitle>Требуется вход</CardTitle>
+        </CardHeader>
+        <CardContent>Войдите, чтобы видеть свои проекты и треки.</CardContent>
+      </Card>
+    );
+  }
+
   return (
     <ScrollArea className="h-[calc(100vh-120px)]">
       <div className="space-y-6 animate-fade-in p-1">

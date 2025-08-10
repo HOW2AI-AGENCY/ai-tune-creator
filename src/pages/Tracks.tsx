@@ -212,6 +212,17 @@ export default function Tracks() {
     return genres;
   }, []);
 
+  if (!user) {
+    return (
+      <Card className="container mx-auto p-6">
+        <CardHeader>
+          <CardTitle>Требуется вход</CardTitle>
+        </CardHeader>
+        <CardContent>Войдите, чтобы видеть и управлять треками.</CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Заголовок */}
