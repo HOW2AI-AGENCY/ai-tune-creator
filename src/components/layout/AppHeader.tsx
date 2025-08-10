@@ -11,10 +11,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
@@ -80,7 +84,18 @@ export function AppHeader() {
                 </p>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={signOut} className="text-destructive">
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    await signOut();
+                    toast({ title: "Вы вышли", description: "Сессия завершена" });
+                    navigate("/auth");
+                  } catch (e: any) {
+                    toast({ title: "Ошибка выхода", description: e?.message || "Попробуйте снова", variant: "destructive" });
+                  }
+                }}
+                className="text-destructive"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign out
               </DropdownMenuItem>
