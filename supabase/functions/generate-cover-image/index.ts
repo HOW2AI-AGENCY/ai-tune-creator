@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
+// Basic in-memory rate limiter (per function instance)
+const RATE_LIMIT_WINDOW = 5 * 60 * 1000; // 5 minutes
+const RATE_LIMIT_MAX = 30; // 30 requests per window
+const rateMap = new Map<string, { count: number; reset: number }>();
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -13,16 +18,74 @@ serve(async (req) => {
   }
 
   try {
+    // Require authenticated user (Edge Functions have JWT verification enabled by default)
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const token = authHeader.replace('Bearer ', '')
+    const jwtPayload = token.split('.')[1]
+    const userId = jwtPayload ? JSON.parse(atob(jwtPayload)).sub as string : undefined
+
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Rate limiting per user
+    const now = Date.now()
+    const rl = rateMap.get(userId)
+    if (!rl || now > rl.reset) {
+      rateMap.set(userId, { count: 1, reset: now + RATE_LIMIT_WINDOW })
+    } else if (rl.count >= RATE_LIMIT_MAX) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again later.' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    } else {
+      rl.count++
+    }
+
     const { prompt, projectId, style = 'artistic', type = 'cover' } = await req.json()
 
-    if (!prompt) {
+    if (!prompt || typeof prompt !== 'string' || prompt.length > 500) {
       return new Response(
-        JSON.stringify({ error: 'Prompt is required' }),
+        JSON.stringify({ error: 'Invalid prompt' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
 
     console.log('Generating image with prompt:', prompt)
+
+    // Create authed client for ownership checks using the caller's JWT
+    const supabaseAuthed = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    )
+
+    // If a project is provided, ensure the user can access it (RLS will enforce ownership)
+    if (projectId) {
+      const { data: projectRow, error: projectError } = await supabaseAuthed
+        .from('projects')
+        .select('id')
+        .eq('id', projectId)
+        .maybeSingle()
+
+      if (projectError) {
+        console.error('Project ownership check error:', projectError)
+        return new Response(JSON.stringify({ error: 'Project access check failed' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      if (!projectRow) {
+        return new Response(JSON.stringify({ error: 'Forbidden: no access to project' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
 
     // Try FALAI first
     const falaiApiKey = Deno.env.get('FALAI_API_KEY')
@@ -57,17 +120,17 @@ serve(async (req) => {
             
             // Save to storage if projectId provided
             if (projectId && imageUrl) {
-              const supabase = createClient(
+              const supabaseAdmin = createClient(
                 Deno.env.get('SUPABASE_URL') ?? '',
                 Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
               )
 
-              // Download and upload to Supabase storage
+              // Download and upload to Supabase storage under a namespaced path
               const imageResponse = await fetch(imageUrl)
               const imageBlob = await imageResponse.blob()
-              const fileName = `${projectId}-${type}-${Date.now()}.jpg`
+              const fileName = `projects/${projectId}/${type}-${Date.now()}.jpg`
               
-              const { data: uploadData, error: uploadError } = await supabase.storage
+              const { error: uploadError } = await supabaseAdmin.storage
                 .from('project-covers')
                 .upload(fileName, imageBlob, {
                   contentType: 'image/jpeg',
@@ -75,18 +138,20 @@ serve(async (req) => {
                 })
 
               if (!uploadError) {
-                const { data: urlData } = supabase.storage
+                // Prefer signed URL (works even if bucket becomes private later)
+                const { data: signed, error: signErr } = await supabaseAdmin.storage
                   .from('project-covers')
-                  .getPublicUrl(fileName)
+                  .createSignedUrl(fileName, 60 * 60) // 1 hour
                 
+                const finalUrl = signErr ? imageUrl : signed?.signedUrl
                 return new Response(
                   JSON.stringify({ 
-                    imageUrl: urlData.publicUrl,
+                    imageUrl: finalUrl,
                     metadata: { 
                       provider: 'falai', 
                       model: 'flux-schnell',
                       prompt: prompt,
-                      fileName: fileName
+                      filePath: fileName
                     }
                   }),
                   { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -168,16 +233,16 @@ serve(async (req) => {
                   
                   // Save to storage if projectId provided
                   if (projectId && imageUrl) {
-                    const supabase = createClient(
+                    const supabaseAdmin = createClient(
                       Deno.env.get('SUPABASE_URL') ?? '',
                       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
                     )
 
                     const imageResponse = await fetch(imageUrl)
                     const imageBlob = await imageResponse.blob()
-                    const fileName = `${projectId}-${type}-${Date.now()}.jpg`
+                    const fileName = `projects/${projectId}/${type}-${Date.now()}.jpg`
                     
-                    const { data: uploadData, error: uploadError } = await supabase.storage
+                    const { error: uploadError } = await supabaseAdmin.storage
                       .from('project-covers')
                       .upload(fileName, imageBlob, {
                         contentType: 'image/jpeg',
@@ -185,18 +250,19 @@ serve(async (req) => {
                       })
 
                     if (!uploadError) {
-                      const { data: urlData } = supabase.storage
+                      const { data: signed, error: signErr } = await supabaseAdmin.storage
                         .from('project-covers')
-                        .getPublicUrl(fileName)
+                        .createSignedUrl(fileName, 60 * 60)
                       
+                      const finalUrl = signErr ? imageUrl : signed?.signedUrl
                       return new Response(
                         JSON.stringify({ 
-                          imageUrl: urlData.publicUrl,
+                          imageUrl: finalUrl,
                           metadata: { 
                             provider: 'leonardo', 
                             model: 'kino-xl',
                             prompt: prompt,
-                            fileName: fileName
+                            filePath: fileName
                           }
                         }),
                         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

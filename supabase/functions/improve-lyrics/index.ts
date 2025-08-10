@@ -3,6 +3,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
+// Basic in-memory rate limiter (per function instance)
+const RATE_LIMIT_WINDOW = 5 * 60 * 1000; // 5 minutes
+const RATE_LIMIT_MAX = 60; // 60 requests per window
+const rateMap = new Map<string, { count: number; reset: number }>();
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -13,6 +18,26 @@ serve(async (req) => {
   
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Extract user id from verified JWT for rate limiting
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const token = authHeader.replace('Bearer ', '');
+  const jwtPayload = token.split('.')[1];
+  const userId = jwtPayload ? JSON.parse(atob(jwtPayload)).sub as string : 'anonymous';
+
+  // Rate limit per user
+  const now = Date.now();
+  const rl = rateMap.get(userId);
+  if (!rl || now > rl.reset) {
+    rateMap.set(userId, { count: 1, reset: now + RATE_LIMIT_WINDOW });
+  } else if (rl.count >= RATE_LIMIT_MAX) {
+    return new Response(JSON.stringify({ success: false, error: 'Rate limit exceeded' }), {
+      status: 429,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } else {
+    rl.count++;
   }
 
   try {
