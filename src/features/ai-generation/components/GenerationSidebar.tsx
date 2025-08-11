@@ -23,6 +23,12 @@ interface GenerationSidebarProps {
   setSelectedProjectId?: (id?: string) => void;
   selectedArtistId?: string;
   setSelectedArtistId?: (id?: string) => void;
+  trackOptions?: Option[];
+  versionOptions?: number[];
+  selectedTrackId?: string;
+  setSelectedTrackId?: (id?: string) => void;
+  selectedVersion?: number;
+  setSelectedVersion?: (v?: number) => void;
 }
 
 export function GenerationSidebar({

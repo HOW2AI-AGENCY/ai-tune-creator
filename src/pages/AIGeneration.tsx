@@ -19,11 +19,14 @@ export default function AIGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [selectedArtistId, setSelectedArtistId] = useState<string>("");
+  const [selectedTrackId, setSelectedTrackId] = useState<string>("");
+  const [selectedVersion, setSelectedVersion] = useState<number | undefined>(undefined);
 
   // Data
   const [projects, setProjects] = useState<Option[]>([]);
   const [artists, setArtists] = useState<Option[]>([]);
   const [generations, setGenerations] = useState<GenerationItem[]>([]);
+  const [tracks, setTracks] = useState<{ id: string; name: string; projectId: string; currentVersion: number; trackNumber: number }[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -121,6 +124,38 @@ export default function AIGeneration() {
     fetchGenerations();
   }, [user]);
 
+  // Load tracks for generation context
+  useEffect(() => {
+    if (!user) {
+      setTracks([]);
+      setSelectedTrackId("");
+      setSelectedVersion(undefined);
+      return;
+    }
+    let query = supabase
+      .from("tracks")
+      .select("id, title, track_number, current_version, project_id, projects(title, artists(name))")
+      .order("updated_at", { ascending: false });
+    if (selectedProjectId) {
+      query = query.eq("project_id", selectedProjectId);
+    }
+    query.then(({ data, error }) => {
+      if (error) return;
+      const items = (data || []).map((t: any) => ({
+        id: t.id,
+        name: `${t.title}${t.track_number ? ` · #${t.track_number}` : ""}${t.projects?.title ? ` (${t.projects.title})` : ""}`,
+        projectId: t.project_id,
+        currentVersion: t.current_version || 1,
+        trackNumber: t.track_number || 0,
+      }));
+      setTracks(items);
+      if (selectedTrackId && !items.some((i: any) => i.id === selectedTrackId)) {
+        setSelectedTrackId("");
+        setSelectedVersion(undefined);
+      }
+    });
+  }, [user, selectedProjectId]);
+
   const filteredGenerations = useMemo(() => {
     return generations.filter(g => {
       if (selectedProjectId) {
@@ -134,19 +169,46 @@ export default function AIGeneration() {
     });
   }, [generations, selectedProjectId, selectedArtistId]);
 
+  const trackOptions = useMemo(() => {
+    const list = selectedProjectId ? tracks.filter(t => t.projectId === selectedProjectId) : tracks;
+    return list.map(t => ({ id: t.id, name: t.name }));
+  }, [tracks, selectedProjectId]);
+
+  const versionOptions = useMemo(() => {
+    const t = tracks.find(x => x.id === selectedTrackId);
+    if (!t) return [] as number[];
+    return Array.from({ length: t.currentVersion }, (_, i) => t.currentVersion - i);
+  }, [tracks, selectedTrackId]);
+
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     if (!user) {
       toast({ title: "Требуется вход", description: "Войдите, чтобы генерировать треки", variant: "destructive" });
       return;
     }
-    // Placeholder: integration will be added for Suno/Mureka edge functions
+    if (!selectedProjectId || !selectedTrackId || !selectedVersion) {
+      toast({ title: "Укажите проект, трек и версию", description: "Выберите проект, трек и версию для генерации", variant: "destructive" });
+      return;
+    }
     setIsGenerating(true);
-    setTimeout(() => {
-      setIsGenerating(false);
-      toast({ title: "Запрос отправлен", description: "Генерация будет отображаться в ленте" });
+    try {
+      const { error } = await supabase
+        .from("ai_generations")
+        .insert({
+          prompt,
+          service: selectedService,
+          status: "queued",
+          track_id: selectedTrackId,
+        } as any);
+      if (error) throw error;
+      toast({ title: "Запрос на генерацию добавлен", description: `Версия: v${selectedVersion}` });
       setPrompt("");
-    }, 1200);
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: "Ошибка генерации", description: e.message || "Не удалось отправить запрос", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
