@@ -112,6 +112,7 @@ export default function AIGeneration() {
             title: meta.title,
             projectName: meta.projectName,
             artistName: meta.artistName,
+            trackId: r.track_id || undefined,
           });
         });
       });
@@ -211,6 +212,31 @@ export default function AIGeneration() {
     }
   };
 
+  const handleQuickGenerate = async (opts: { trackId: string; nextVersion: number; prompt: string; service: MusicService }) => {
+    if (!user) {
+      toast({ title: "Требуется вход", description: "Войдите, чтобы генерировать треки", variant: "destructive" });
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const { error } = await supabase
+        .from("ai_generations")
+        .insert({
+          prompt: opts.prompt,
+          service: opts.service,
+          status: "queued",
+          track_id: opts.trackId,
+        } as any);
+      if (error) throw error;
+      toast({ title: "Запрос на генерацию добавлен", description: `Версия: v${opts.nextVersion}` });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: "Ошибка генерации", description: e.message || "Не удалось отправить запрос", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <header className="flex items-center justify-between">
@@ -233,6 +259,12 @@ export default function AIGeneration() {
           setSelectedProjectId={setSelectedProjectId}
           selectedArtistId={selectedArtistId}
           setSelectedArtistId={setSelectedArtistId}
+          trackOptions={trackOptions}
+          versionOptions={versionOptions}
+          selectedTrackId={selectedTrackId}
+          setSelectedTrackId={setSelectedTrackId}
+          selectedVersion={selectedVersion}
+          setSelectedVersion={setSelectedVersion}
         />
 
         <main className="flex-1">
@@ -246,7 +278,7 @@ export default function AIGeneration() {
               </CardContent>
             </Card>
           ) : (
-            <GenerationFeed generations={filteredGenerations} />
+            <GenerationFeed generations={filteredGenerations} onQuickGenerate={handleQuickGenerate} />
           )}
         </main>
       </div>

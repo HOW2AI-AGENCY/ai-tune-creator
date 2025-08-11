@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Download, Play, RefreshCw, Layers, Music2 } from "lucide-react";
+import { Download, Play, RefreshCw, Layers, Music2, Sparkles } from "lucide-react";
 
 export type GenerationStatus = 'completed' | 'processing' | 'failed';
 
@@ -21,6 +21,7 @@ export interface GenerationItem {
   projectName?: string;
   artistName?: string;
   title?: string;
+  trackId?: string; // исходный трек, если доступен
 }
 
 function getStatusColor(status: GenerationStatus) {
@@ -57,9 +58,10 @@ function formatDuration(seconds: number) {
 
 interface GenerationFeedProps {
   generations: GenerationItem[];
+  onQuickGenerate?: (opts: { trackId: string; nextVersion: number; prompt: string; service: 'suno' | 'mureka' }) => void;
 }
 
-export function GenerationFeed({ generations }: GenerationFeedProps) {
+export function GenerationFeed({ generations, onQuickGenerate }: GenerationFeedProps) {
   // Группируем по groupId (версии одного трека)
   const groups = generations.reduce<Record<string, GenerationItem[]>>((acc, item) => {
     acc[item.groupId] = acc[item.groupId] || [];
@@ -137,6 +139,21 @@ export function GenerationFeed({ generations }: GenerationFeedProps) {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
+                      {onQuickGenerate && gen.trackId && (
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            onQuickGenerate({
+                              trackId: gen.trackId!,
+                              nextVersion: gen.version + 1,
+                              prompt: gen.prompt,
+                              service: gen.service,
+                            })
+                          }
+                        >
+                          <Sparkles className="h-4 w-4 mr-1" /> Сгенерировать трек
+                        </Button>
+                      )}
                       {gen.status === 'completed' && (
                         <>
                           <Button variant="outline" size="sm">

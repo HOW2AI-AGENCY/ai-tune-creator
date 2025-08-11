@@ -44,7 +44,16 @@ export function GenerationSidebar({
   setSelectedProjectId,
   selectedArtistId,
   setSelectedArtistId,
+  trackOptions = [],
+  versionOptions = [],
+  selectedTrackId,
+  setSelectedTrackId,
+  selectedVersion,
+  setSelectedVersion,
 }: GenerationSidebarProps) {
+  const nextVersion = (versionOptions && versionOptions.length > 0)
+    ? Math.max(...versionOptions) + 1
+    : 1;
   return (
     <aside className="w-full md:w-80 shrink-0 space-y-4">
       {/* Генерация */}
@@ -67,6 +76,46 @@ export function GenerationSidebar({
               <SelectContent>
                 <SelectItem value="suno">Suno AI — полные песни</SelectItem>
                 <SelectItem value="mureka">Mureka — креативные композиции</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Трек</Label>
+            <Select value={selectedTrackId} onValueChange={(v) => setSelectedTrackId?.(v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите трек" />
+              </SelectTrigger>
+              <SelectContent>
+                {trackOptions.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Версия</Label>
+            <Select
+              value={selectedVersion ? String(selectedVersion) : undefined}
+              onValueChange={(v) => {
+                if (v === "new") {
+                  setSelectedVersion?.(nextVersion);
+                } else {
+                  const num = Number(v);
+                  if (!Number.isNaN(num)) setSelectedVersion?.(num);
+                }
+              }}
+              disabled={!selectedTrackId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите версию" />
+              </SelectTrigger>
+              <SelectContent>
+                {versionOptions.map((v) => (
+                  <SelectItem key={v} value={String(v)}>v{v}</SelectItem>
+                ))}
+                <SelectItem value="new">Новая версия (v{nextVersion})</SelectItem>
               </SelectContent>
             </Select>
           </div>
