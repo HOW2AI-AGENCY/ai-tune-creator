@@ -102,12 +102,12 @@ export function GenerationSidebar({
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Проект</Label>
-            <Select value={selectedProjectId} onValueChange={(v) => setSelectedProjectId?.(v)}>
+            <Select value={selectedProjectId} onValueChange={(v) => setSelectedProjectId?.(v === "all" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Все проекты" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Все проекты</SelectItem>
+                <SelectItem value="all">Все проекты</SelectItem>
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
@@ -117,12 +117,12 @@ export function GenerationSidebar({
 
           <div className="space-y-2">
             <Label>Артист</Label>
-            <Select value={selectedArtistId} onValueChange={(v) => setSelectedArtistId?.(v)}>
+            <Select value={selectedArtistId} onValueChange={(v) => setSelectedArtistId?.(v === "all" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Все артисты" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Все артисты</SelectItem>
+                <SelectItem value="all">Все артисты</SelectItem>
                 {artists.map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                 ))}
