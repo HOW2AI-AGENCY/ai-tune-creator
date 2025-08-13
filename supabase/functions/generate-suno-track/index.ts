@@ -20,6 +20,11 @@ interface GenerationRequest {
   make_instrumental?: boolean;
   wait_audio?: boolean;
   model?: string; // chirp-v3-5 or chirp-v3-0
+  mode?: 'quick' | 'custom';
+  custom_lyrics?: string;
+  voice_style?: string;
+  language?: string;
+  tempo?: string;
 }
 
 interface SunoResponse {
@@ -92,20 +97,32 @@ serve(async (req) => {
       model = "chirp-v3-5",
       trackId = null,
       projectId = null,
-      artistId = null
+      artistId = null,
+      mode = "quick",
+      custom_lyrics = "",
+      voice_style = "",
+      language = "ru",
+      tempo = ""
     } = requestBody;
 
-    // Валидация обязательных полей
-    if (!prompt || prompt.trim().length === 0) {
+    // Валидация обязательных полей в зависимости от режима
+    if (mode === 'custom' && custom_lyrics && custom_lyrics.trim().length > 0) {
+      // В кастомном режиме с пользовательской лирикой prompt может быть пустым
+    } else if (!prompt || prompt.trim().length === 0) {
       throw new Error('Prompt is required and cannot be empty');
     }
 
     console.log('Generating Suno track with params:', { 
-      prompt: prompt.substring(0, 100) + '...', 
+      prompt: prompt ? prompt.substring(0, 100) + '...' : '[using custom lyrics]',
       style, 
       title,
       model,
-      make_instrumental
+      make_instrumental,
+      mode,
+      custom_lyrics: custom_lyrics ? custom_lyrics.substring(0, 50) + '...' : '',
+      voice_style,
+      language,
+      tempo
     });
 
     // Получаем Suno API ключ
@@ -117,8 +134,15 @@ serve(async (req) => {
     }
 
     // Подготавливаем данные согласно официальной документации SunoAPI.org
-    const sunoRequest = {
-      prompt: prompt,
+    let requestPrompt = prompt;
+    
+    // В кастомном режиме используем пользовательскую лирику если есть
+    if (mode === 'custom' && custom_lyrics && custom_lyrics.trim().length > 0) {
+      requestPrompt = custom_lyrics;
+    }
+    
+    const sunoRequest: any = {
+      prompt: requestPrompt || prompt,
       style: style || 'Pop, Electronic',
       title: title || `AI Generated ${new Date().toLocaleDateString('ru-RU')}`,
       customMode: true, // Используем Custom Mode для контроля
@@ -126,6 +150,19 @@ serve(async (req) => {
       model: model.replace('chirp-v', 'V').replace('-', '_'), // chirp-v3-5 -> V3_5
       callBackUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/suno-callback` // Наш callback endpoint
     };
+
+    // Добавляем дополнительные параметры для кастомного режима
+    if (mode === 'custom') {
+      if (voice_style && voice_style !== 'none' && voice_style.trim().length > 0) {
+        sunoRequest.voiceStyle = voice_style;
+      }
+      if (tempo && tempo !== 'none' && tempo.trim().length > 0) {
+        sunoRequest.tempo = tempo;
+      }
+      if (language && language !== 'auto') {
+        sunoRequest.language = language;
+      }
+    }
 
     console.log('Making request to Suno API:', sunoApiUrl);
     
@@ -208,6 +245,11 @@ serve(async (req) => {
           custom_mode: sunoRequest.customMode,
           make_instrumental,
           title: generatedTrack.title,
+          mode,
+          custom_lyrics: mode === 'custom' ? custom_lyrics : null,
+          voice_style: sunoRequest.voiceStyle || null,
+          language: sunoRequest.language || null,
+          tempo: sunoRequest.tempo || null,
           suno_request: sunoRequest,
           suno_response: sunoData
         },
@@ -235,7 +277,12 @@ serve(async (req) => {
             suno_response: sunoData,
             generation_id: generation?.id,
             model: sunoRequest.model,
-            custom_mode: sunoRequest.customMode
+            custom_mode: sunoRequest.customMode,
+            mode,
+            custom_lyrics: mode === 'custom' ? custom_lyrics : null,
+            voice_style: sunoRequest.voiceStyle || null,
+            language: sunoRequest.language || null,
+            tempo: sunoRequest.tempo || null
           },
           updated_at: new Date().toISOString()
         })
@@ -255,7 +302,7 @@ serve(async (req) => {
         .from('tracks')
         .insert({
           title: generatedTrack.title || title || 'AI Generated Track',
-          lyrics: generatedTrack.lyric || prompt,
+          lyrics: generatedTrack.lyric || (mode === 'custom' && custom_lyrics ? custom_lyrics : prompt),
           description: generatedTrack.gpt_description_prompt || prompt,
           audio_url: generatedTrack.audio_url,
           genre_tags: tags.split(', ').filter(Boolean),
@@ -268,7 +315,12 @@ serve(async (req) => {
             suno_response: sunoData,
             generation_id: generation?.id,
             model: sunoRequest.model,
-            custom_mode: sunoRequest.customMode
+            custom_mode: sunoRequest.customMode,
+            mode,
+            custom_lyrics: mode === 'custom' ? custom_lyrics : null,
+            voice_style: sunoRequest.voiceStyle || null,
+            language: sunoRequest.language || null,
+            tempo: sunoRequest.tempo || null
           }
         })
         .select()
