@@ -74,6 +74,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      throw new Error('Invalid JSON in request body');
+    }
+
     const { 
       prompt,
       style = "",
@@ -85,7 +93,12 @@ serve(async (req) => {
       trackId = null,
       projectId = null,
       artistId = null
-    } = await req.json();
+    } = requestBody;
+
+    // Валидация обязательных полей
+    if (!prompt || prompt.trim().length === 0) {
+      throw new Error('Prompt is required and cannot be empty');
+    }
 
     console.log('Generating Suno track with params:', { 
       prompt: prompt.substring(0, 100) + '...', 
@@ -103,32 +116,51 @@ serve(async (req) => {
       throw new Error('SUNOAPI_ORG_KEY not configured');
     }
 
-    // Подготавливаем данные для Suno API
-    const sunoRequest: GenerationRequest = {
-      prompt,
-      style,
-      title,
-      tags,
-      make_instrumental,
-      wait_audio,
-      model
+    // Подготавливаем данные для неофициального SunoAPI.org
+    const sunoRequest = {
+      prompt: prompt,
+      style: style,
+      title: title || `AI Generated ${new Date().toLocaleDateString('ru-RU')}`,
+      tags: tags,
+      make_instrumental: make_instrumental,
+      wait_audio: wait_audio,
+      model_version: model, // Возможно, API ожидает model_version вместо model
+      custom_mode: false,
+      instrumental: make_instrumental
     };
 
     console.log('Making request to Suno API:', sunoApiUrl);
     
     // Вызов неофициального SunoAPI.org для создания трека
-    const sunoResponse = await fetch(`${sunoApiUrl}/generate`, {
+    console.log('Making request with body:', JSON.stringify(sunoRequest, null, 2));
+    
+    // Попробуем разные возможные эндпоинты
+    const possibleEndpoints = ['/generate', '/api/generate', '/v1/generate', '/api/custom_generate'];
+    const endpoint = possibleEndpoints[0]; // Начнем с первого
+    
+    console.log('Trying endpoint:', `${sunoApiUrl}${endpoint}`);
+    
+    const sunoResponse = await fetch(`${sunoApiUrl}${endpoint}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify(sunoRequest),
     });
 
+    console.log('Suno API Response status:', sunoResponse.status);
+    console.log('Suno API Response headers:', Object.fromEntries(sunoResponse.headers.entries()));
+
     if (!sunoResponse.ok) {
       const errorText = await sunoResponse.text();
-      console.error('Suno API Error:', errorText);
+      console.error('Suno API Error Response:', errorText);
+      console.error('Request URL:', `${sunoApiUrl}/generate`);
+      console.error('Request Headers:', {
+        'Authorization': `Bearer ${sunoApiKey}`,
+        'Content-Type': 'application/json',
+      });
       throw new Error(`Suno API error: ${sunoResponse.status} ${errorText}`);
     }
 
@@ -262,11 +294,19 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('Error in generate-suno-track function:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    
     return new Response(JSON.stringify({ 
       success: false,
       error: error.message,
       service: 'suno',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      debug: {
+        errorType: error.name,
+        errorStack: error.stack?.slice(0, 500) // Первые 500 символов stack trace
+      }
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
