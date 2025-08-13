@@ -80,5 +80,21 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"
-  }
+  },
+  "description": "> Современная платформа для создания музыки с помощью искусственного интеллекта",
+  "main": "eslint.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HOW2AI-AGENCY/ai-tune-creator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/HOW2AI-AGENCY/ai-tune-creator/issues"
+  },
+  "homepage": "https://github.com/HOW2AI-AGENCY/ai-tune-creator#readme"
 }
