@@ -238,47 +238,57 @@ export default function AIGeneration() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Sparkles className="h-7 w-7 text-primary" /> ИИ Генерация
+    <div className="w-full h-full flex flex-col">
+      <header className="flex items-center justify-between p-4 sm:p-6 border-b">
+        <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+          <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 text-primary" /> 
+          <span className="hidden sm:inline">ИИ Генерация</span>
+          <span className="sm:hidden">ИИ</span>
         </h1>
       </header>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        <GenerationSidebar
-          prompt={prompt}
-          setPrompt={setPrompt}
-          selectedService={selectedService}
-          setSelectedService={setSelectedService}
-          onGenerate={handleGenerate}
-          isGenerating={isGenerating}
-          projects={projects}
-          artists={artists}
-          selectedProjectId={selectedProjectId}
-          setSelectedProjectId={setSelectedProjectId}
-          selectedArtistId={selectedArtistId}
-          setSelectedArtistId={setSelectedArtistId}
-          trackOptions={trackOptions}
-          versionOptions={versionOptions}
-          selectedTrackId={selectedTrackId}
-          setSelectedTrackId={setSelectedTrackId}
-          selectedVersion={selectedVersion}
-          setSelectedVersion={setSelectedVersion}
-        />
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+        <div className="w-full lg:w-80 xl:w-96 border-b lg:border-b-0 lg:border-r bg-card">
+          <GenerationSidebar
+            prompt={prompt}
+            setPrompt={setPrompt}
+            selectedService={selectedService}
+            setSelectedService={setSelectedService}
+            onGenerate={handleGenerate}
+            isGenerating={isGenerating}
+            projects={projects}
+            artists={artists}
+            selectedProjectId={selectedProjectId}
+            setSelectedProjectId={setSelectedProjectId}
+            selectedArtistId={selectedArtistId}
+            setSelectedArtistId={setSelectedArtistId}
+            trackOptions={trackOptions}
+            versionOptions={versionOptions}
+            selectedTrackId={selectedTrackId}
+            setSelectedTrackId={setSelectedTrackId}
+            selectedVersion={selectedVersion}
+            setSelectedVersion={setSelectedVersion}
+          />
+        </div>
 
-        <main className="flex-1">
+        <main className="flex-1 overflow-auto">
           {!user ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Войдите, чтобы видеть свои генерации</CardTitle>
-              </CardHeader>
-              <CardContent>
-                После входа здесь появится лента ваших генераций, сгруппированных по версиям трека.
-              </CardContent>
-            </Card>
+            <div className="p-4 sm:p-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg sm:text-xl">Войдите, чтобы видеть свои генерации</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm sm:text-base text-muted-foreground">
+                    После входа здесь появится лента ваших генераций, сгруппированных по версиям трека.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
-            <GenerationFeed generations={filteredGenerations} onQuickGenerate={handleQuickGenerate} />
+            <div className="p-4 sm:p-6">
+              <GenerationFeed generations={filteredGenerations} onQuickGenerate={handleQuickGenerate} />
+            </div>
           )}
         </main>
       </div>
