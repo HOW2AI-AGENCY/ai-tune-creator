@@ -112,18 +112,21 @@ serve(async (req) => {
       throw new Error('Prompt is required and cannot be empty');
     }
 
-    console.log('Generating Suno track with params:', { 
-      prompt: prompt ? prompt.substring(0, 100) + '...' : '[using custom lyrics]',
-      style, 
-      title,
+    console.log('=== SUNO EDGE FUNCTION DEBUG ===');
+    console.log('Raw request body received:', JSON.stringify(requestBody, null, 2));
+    console.log('Parsed parameters:', { 
+      prompt: prompt ? `"${prompt}"` : '[empty]',
+      style: style ? `"${style}"` : '[empty]',
+      title: title ? `"${title}"` : '[empty]',
       model,
       make_instrumental,
       mode,
-      custom_lyrics: custom_lyrics ? custom_lyrics.substring(0, 50) + '...' : '',
-      voice_style,
-      language,
-      tempo
+      custom_lyrics: custom_lyrics ? `"${custom_lyrics.substring(0, 50)}..."` : '[empty]',
+      voice_style: voice_style ? `"${voice_style}"` : '[empty]',
+      language: language ? `"${language}"` : '[empty]',
+      tempo: tempo ? `"${tempo}"` : '[empty]'
     });
+    console.log('=== END DEBUG ===');
 
     // Получаем Suno API ключ
     const sunoApiKey = Deno.env.get('SUNOAPI_ORG_KEY');
@@ -366,19 +369,22 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error('Error in generate-suno-track function:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Error name:', error.name);
+    console.error('=== ERROR IN GENERATE-SUNO-TRACK ===');
+    console.error('Error occurred:', error);
+    console.error('Error type:', error.constructor.name);
     console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('=== END ERROR DEBUG ===');
     
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message,
+      error: error.message || 'Unknown error occurred',
       service: 'suno',
       timestamp: new Date().toISOString(),
       debug: {
-        errorType: error.name,
-        errorStack: error.stack?.slice(0, 500) // Первые 500 символов stack trace
+        errorType: error.constructor.name,
+        errorMessage: error.message,
+        errorStack: error.stack?.slice(0, 500)
       }
     }), {
       status: 500,

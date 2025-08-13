@@ -272,11 +272,20 @@ export function TrackGenerationSidebar({
               <Textarea
                 placeholder="Опишите желаемый трек или используйте готовый пресет выше..."
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                onChange={(e) => {
+                  setPrompt(e.target.value);
+                  // Если пользователь изменил текст, сбрасываем выбранный пресет
+                  if (selectedPresetId) {
+                    setSelectedPresetId("");
+                  }
+                }}
                 className="min-h-[80px] text-sm resize-none"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Выберите пресет выше или опишите свой трек
+                {selectedPresetId ? 
+                  `Выбран пресет: ${quickPresets.find(p => p.id === selectedPresetId)?.name}` : 
+                  "Выберите пресет выше или опишите свой трек"
+                }
               </p>
             </CardContent>
           </Card>
