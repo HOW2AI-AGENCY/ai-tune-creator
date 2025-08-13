@@ -17,9 +17,9 @@ export default function AIGeneration() {
   const [prompt, setPrompt] = useState("");
   const [selectedService, setSelectedService] = useState<MusicService>("suno");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [selectedArtistId, setSelectedArtistId] = useState<string>("");
-  const [selectedTrackId, setSelectedTrackId] = useState<string>("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+  const [selectedArtistId, setSelectedArtistId] = useState<string>("all");
+  const [selectedTrackId, setSelectedTrackId] = useState<string>("none");
   const [selectedVersion, setSelectedVersion] = useState<number | undefined>(undefined);
 
   // Data

@@ -37,10 +37,10 @@ export function TrackGenerationSidebar({
 }: TrackGenerationSidebarProps) {
   const [prompt, setPrompt] = useState("");
   const [selectedService, setSelectedService] = useState<'suno' | 'mureka'>('suno');
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [selectedArtistId, setSelectedArtistId] = useState<string>("");
-  const [selectedGenre, setSelectedGenre] = useState<string>("");
-  const [selectedMood, setSelectedMood] = useState<string>("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("none");
+  const [selectedArtistId, setSelectedArtistId] = useState<string>("none");
+  const [selectedGenre, setSelectedGenre] = useState<string>("none");
+  const [selectedMood, setSelectedMood] = useState<string>("none");
   const { toast } = useToast();
 
   const genres = [
@@ -64,14 +64,14 @@ export function TrackGenerationSidebar({
     }
 
     const genreTags = [];
-    if (selectedGenre) genreTags.push(selectedGenre);
-    if (selectedMood) genreTags.push(selectedMood);
+    if (selectedGenre && selectedGenre !== "none") genreTags.push(selectedGenre);
+    if (selectedMood && selectedMood !== "none") genreTags.push(selectedMood);
 
     onGenerate({
       prompt,
       service: selectedService,
-      projectId: selectedProjectId || undefined,
-      artistId: selectedArtistId || undefined,
+      projectId: selectedProjectId !== "none" ? selectedProjectId : undefined,
+      artistId: selectedArtistId !== "none" ? selectedArtistId : undefined,
       genreTags
     });
   };
@@ -144,6 +144,7 @@ export function TrackGenerationSidebar({
                 <SelectValue placeholder="Выберите жанр" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">Выберите жанр</SelectItem>
                 {genres.map(genre => (
                   <SelectItem key={genre} value={genre.toLowerCase()}>
                     {genre}
@@ -160,6 +161,7 @@ export function TrackGenerationSidebar({
                 <SelectValue placeholder="Выберите настроение" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">Выберите настроение</SelectItem>
                 {moods.map(mood => (
                   <SelectItem key={mood} value={mood.toLowerCase()}>
                     {mood}
