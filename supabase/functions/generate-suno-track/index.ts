@@ -96,11 +96,11 @@ serve(async (req) => {
     });
 
     // Получаем Suno API ключ
-    const sunoApiKey = Deno.env.get('SUNO_API_KEY');
-    const sunoApiUrl = Deno.env.get('SUNO_API_URL') || 'https://api.suno.ai';
+    const sunoApiKey = Deno.env.get('SUNOAPI_ORG_KEY');
+    const sunoApiUrl = Deno.env.get('SUNO_API_URL') || 'https://api.sunoapi.org';
 
     if (!sunoApiKey) {
-      throw new Error('SUNO_API_KEY not configured');
+      throw new Error('SUNOAPI_ORG_KEY not configured');
     }
 
     // Подготавливаем данные для Suno API
@@ -116,7 +116,7 @@ serve(async (req) => {
 
     console.log('Making request to Suno API:', sunoApiUrl);
     
-    // Вызов Suno API для создания трека
+    // Вызов неофициального SunoAPI.org для создания трека
     const sunoResponse = await fetch(`${sunoApiUrl}/generate`, {
       method: 'POST',
       headers: {
