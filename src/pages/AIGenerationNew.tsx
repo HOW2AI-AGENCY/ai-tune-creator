@@ -21,6 +21,7 @@ import {
   Eye,
   Sparkles
 } from "lucide-react";
+import { GenerationParams } from "@/features/ai-generation/types";
 
 interface Track {
   id: string;
@@ -59,14 +60,8 @@ interface Option {
   name: string;
 }
 
-interface GenerationParams {
-  prompt: string;
-  service: 'suno' | 'mureka';
-  projectId?: string;
-  artistId?: string;
-  stylePrompt?: string;
-  genreTags?: string[];
-}
+// Удаляем локальный интерфейс - используем из types
+// interface GenerationParams удален
 
 export default function AIGenerationNew() {
   const { user } = useAuth();
@@ -279,18 +274,35 @@ export default function AIGenerationNew() {
         style: params.stylePrompt || "",
         projectId: params.projectId,
         artistId: params.artistId,
-        title: `AI Generated ${new Date().toLocaleDateString('ru-RU')}`
+        title: `AI Generated ${new Date().toLocaleDateString('ru-RU')}`,
+        mode: params.mode || 'quick'
       };
+
+      // Добавляем кастомную лирику если есть
+      if (params.customLyrics && params.mode === 'custom') {
+        requestBody.custom_lyrics = params.customLyrics;
+      }
 
       // Специфичные параметры для Suno
       if (params.service === 'suno') {
         requestBody = {
           ...requestBody,
           tags: params.genreTags?.join(', ') || "energetic, creative, viral",
-          make_instrumental: false,
+          make_instrumental: params.instrumental || false,
           wait_audio: true,
-          model: "chirp-v3-5"
+          model: "chirp-v3-5",
+          language: params.language || "ru"
         };
+
+        // Добавляем дополнительные параметры для кастомного режима
+        if (params.mode === 'custom') {
+          if (params.voiceStyle && params.voiceStyle !== 'none') {
+            requestBody.voice_style = params.voiceStyle;
+          }
+          if (params.tempo && params.tempo !== 'none') {
+            requestBody.tempo = params.tempo;
+          }
+        }
       }
 
       // Специфичные параметры для Mureka
@@ -299,10 +311,11 @@ export default function AIGenerationNew() {
           ...requestBody,
           genre: params.genreTags?.[0] || "electronic",
           mood: params.genreTags?.[1] || "energetic",
-          duration: 30, // 30 секунд для быстрого тестирования
-          tempo: "medium",
+          duration: params.duration || 120,
+          tempo: params.tempo || "medium",
           key: "C",
-          instruments: []
+          instruments: [],
+          instrumental: params.instrumental || false
         };
       }
 
