@@ -16,6 +16,7 @@ import Tracks from "./pages/Tracks";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import TrackDetailsDemo from "./pages/TrackDetailsDemo";
 
 /**
  * Optimized QueryClient configuration для AI Music Platform
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/generate" element={<AppLayout><AIGenerationNew /></AppLayout>} />
               <Route path="/generate-old" element={<AppLayout><AIGeneration /></AppLayout>} />
               <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
+              <Route path="/demo/track-details" element={<AppLayout><TrackDetailsDemo /></AppLayout>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             </BrowserRouter>

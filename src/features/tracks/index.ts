@@ -6,3 +6,8 @@ export { TrackGenerationDialog } from './components/TrackGenerationDialog';
 export { TrackVersionsDialog } from './components/TrackVersionsDialog';
 export { TrackViewDialog } from './components/TrackViewDialog';
 export { LyricsAnalysisReport } from './components/LyricsAnalysisReport';
+
+// New interactive components
+export { TrackDetailsView } from './components/TrackDetailsView';
+export { LyricsSection } from './components/LyricsSection';
+export { TagPalette } from './components/TagPalette';
