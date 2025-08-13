@@ -28,7 +28,7 @@ import { openDB, IDBPDatabase } from 'idb';
  */
 interface CacheEntry<T = any> {
   readonly key: string;
-  readonly data: T;
+  readonly data: T | string;
   readonly ttl: number;              // Time to live (ms)
   readonly createdAt: number;        // Creation timestamp
   readonly lastAccessed: number;     // Last access timestamp
@@ -120,7 +120,7 @@ export class CacheManager {
   private async initialize(): Promise<void> {
     try {
       this.db = await openDB('ai-music-cache', 2, {
-        upgrade(db, oldVersion) {
+        upgrade(db, oldVersion, newVersion, transaction) {
           // Migration logic для schema evolution
           if (oldVersion < 1) {
             const store = db.createObjectStore('cache', { keyPath: 'key' });
@@ -131,7 +131,12 @@ export class CacheManager {
           
           if (oldVersion < 2) {
             // Version 2: Add compression support
-            const store = db.transaction.objectStore('cache');
+            // Use existing upgrade transaction instead of creating new one
+            if (!db.objectStoreNames.contains('cache')) {
+              console.warn('[CacheManager] Cache store not found during migration to v2');
+              return;
+            }
+            const store = transaction.objectStore('cache');
             store.createIndex('compressed', 'compressed');
             store.createIndex('size', 'size');
           }
@@ -190,9 +195,11 @@ export class CacheManager {
       }
       
       // Decompress if needed
-      let data = entry.data;
+      let data: T;
       if (entry.compressed) {
-        data = this.decompress(data);
+        data = this.decompress<T>(entry.data as string);
+      } else {
+        data = entry.data as T;
       }
       
       // Update access metadata
@@ -200,6 +207,7 @@ export class CacheManager {
         ...entry,
         lastAccessed: Date.now(),
         accessCount: entry.accessCount + 1,
+        size: this.estimateSize(data), // Recalculate size on access
       };
       
       // OPTIMIZATION: Promote to hot cache if frequently accessed
@@ -244,7 +252,9 @@ export class CacheManager {
     
     try {
       // DECISION: Choose storage tier
-      const shouldUseHotCache = options.priority === 'hot' || size < 1024;
+      // SECURITY: Prevent localStorage quota exceeded errors
+      const maxLocalStorageSize = 2 * 1024 * 1024; // 2MB limit for localStorage
+      const shouldUseHotCache = options.priority === 'hot' && size < 1024 && size < maxLocalStorageSize;
       
       if (shouldUseHotCache) {
         // Store in localStorage for fast access
@@ -312,10 +322,49 @@ export class CacheManager {
   private setInHotCache<T>(key: string, data: T, ttl: number): void {
     try {
       const entry = { data, ttl };
-      localStorage.setItem(`cache:hot:${key}`, JSON.stringify(entry));
+      const serialized = JSON.stringify(entry);
+      const size = serialized.length * 2; // Rough estimate in bytes
+      const maxLocalStorageSize = 2 * 1024 * 1024; // 2MB limit
+      
+      // SECURITY: Prevent quota exceeded errors
+      if (size > maxLocalStorageSize) {
+        console.warn(`[CacheManager] Skipping hot cache for key "${key}": size ${this.formatSize(size)} exceeds localStorage limit`);
+        return;
+      }
+      
+      localStorage.setItem(`cache:hot:${key}`, serialized);
     } catch (error) {
-      // GRACEFUL_DEGRADATION: localStorage might be full
+      // GRACEFUL_DEGRADATION: localStorage might be full or quota exceeded
       console.warn('[CacheManager] Hot cache set failed:', error);
+      
+      // Try to clear some space and retry once
+      if (error.message?.includes('quota') || error.message?.includes('QuotaExceededError')) {
+        this.clearHotCache();
+      }
+    }
+  }
+  
+  /**
+   * Clear all hot cache entries from localStorage
+   */
+  private clearHotCache(): void {
+    try {
+      const keysToRemove: string[] = [];
+      
+      // Find all cache keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('cache:hot:')) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      // Remove cache entries
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      console.log(`[CacheManager] Cleared ${keysToRemove.length} hot cache entries`);
+    } catch (error) {
+      console.warn('[CacheManager] Hot cache clear failed:', error);
     }
   }
   
@@ -563,10 +612,14 @@ export class CacheManager {
   }
   
   async setGlobalState(state: any): Promise<void> {
+    const size = this.estimateSize(state);
+    const maxLocalStorageSize = 2 * 1024 * 1024; // 2MB limit
+    
     await this.set('global:app-state', state, {
       ttl: 24 * 60 * 60 * 1000, // 24 hours
       tags: ['global', 'critical'],
-      priority: 'warm',
+      // SECURITY: Use 'cold' priority for large state to avoid localStorage quota issues
+      priority: size > maxLocalStorageSize ? 'cold' : 'warm',
     });
   }
   
@@ -601,7 +654,7 @@ export class CacheManager {
     return JSON.stringify(data);
   }
   
-  private decompress(data: string): any {
+  private decompress<T>(data: string): T {
     // TODO: Implement actual decompression
     return JSON.parse(data);
   }
