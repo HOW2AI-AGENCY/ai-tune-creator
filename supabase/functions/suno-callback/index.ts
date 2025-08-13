@@ -1,0 +1,242 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface SunoCallbackData {
+  code: number;
+  msg: string;
+  data: {
+    callbackType: string;
+    task_id: string;
+    data: SunoTrackData[];
+  };
+}
+
+interface SunoTrackData {
+  id: string;
+  audio_url: string;
+  source_audio_url?: string;
+  title: string;
+  duration: number;
+  model_name: string;
+  createTime: string;
+  lyric?: string;
+  image_url?: string;
+  video_url?: string;
+  style?: string;
+  tags?: string;
+  prompt?: string;
+}
+
+// Edge Function для обработки колбэков от SunoAPI
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ 
+      error: 'Method not allowed. Expected POST.' 
+    }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // Используем service role для записи
+    );
+
+    let callbackData: SunoCallbackData;
+    try {
+      callbackData = await req.json();
+    } catch (parseError) {
+      console.error('Failed to parse callback body:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid JSON in callback body' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Suno callback received:', JSON.stringify(callbackData, null, 2));
+
+    // Валидация основных полей
+    if (!callbackData.data || !callbackData.data.task_id) {
+      console.error('Invalid callback: missing task_id');
+      return new Response(JSON.stringify({ 
+        error: 'Invalid callback: missing task_id' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { code, msg, data } = callbackData;
+    const { callbackType, task_id, data: tracks } = data;
+
+    // Ищем соответствующую запись ai_generations по task_id
+    const { data: generation, error: findError } = await supabase
+      .from('ai_generations')
+      .select('id, track_id, user_id, metadata')
+      .eq('service', 'suno')
+      .contains('metadata', { suno_task_id: task_id })
+      .single();
+
+    if (findError || !generation) {
+      console.error('Generation not found for task_id:', task_id, findError);
+      // Всё равно возвращаем 200, чтобы не вызывать повторные колбэки
+      return new Response(JSON.stringify({ 
+        status: 'received',
+        warning: `Generation not found for task_id: ${task_id}`
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Обрабатываем успешную генерацию
+    if (code === 200 && callbackType === 'complete' && tracks && tracks.length > 0) {
+      const track = tracks[0]; // Берем первый трек
+      
+      console.log('Processing completed track:', track.id);
+
+      // Обновляем статус генерации
+      const { error: updateGenError } = await supabase
+        .from('ai_generations')
+        .update({
+          status: 'completed',
+          result_url: track.audio_url,
+          metadata: {
+            ...generation.metadata,
+            suno_track_data: track,
+            completed_at: new Date().toISOString(),
+            callback_received: true
+          }
+        })
+        .eq('id', generation.id);
+
+      if (updateGenError) {
+        console.error('Error updating generation:', updateGenError);
+      } else {
+        console.log('Generation updated successfully:', generation.id);
+      }
+
+      // Обновляем или создаем трек с реальными данными
+      if (generation.track_id) {
+        // Обновляем существующий трек
+        const { error: updateTrackError } = await supabase
+          .from('tracks')
+          .update({
+            title: track.title,
+            audio_url: track.audio_url,
+            duration: track.duration,
+            lyrics: track.lyric || null,
+            metadata: {
+              ...generation.metadata,
+              suno_track_id: track.id,
+              suno_model: track.model_name,
+              suno_track_data: track,
+              completed_at: new Date().toISOString()
+            },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', generation.track_id);
+
+        if (updateTrackError) {
+          console.error('Error updating track:', updateTrackError);
+        } else {
+          console.log('Track updated successfully:', generation.track_id);
+        }
+      } else {
+        // Создаем новый трек
+        const { data: newTrack, error: createTrackError } = await supabase
+          .from('tracks')
+          .insert({
+            title: track.title,
+            audio_url: track.audio_url,
+            duration: track.duration,
+            lyrics: track.lyric || track.prompt || '',
+            description: track.prompt || `Generated with ${track.model_name}`,
+            genre_tags: track.tags ? track.tags.split(', ').filter(Boolean) : [],
+            style_prompt: track.style || '',
+            metadata: {
+              suno_task_id: task_id,
+              suno_track_id: track.id,
+              suno_model: track.model_name,
+              suno_track_data: track,
+              generation_id: generation.id,
+              completed_at: new Date().toISOString()
+            }
+          })
+          .select()
+          .single();
+
+        if (createTrackError) {
+          console.error('Error creating track:', createTrackError);
+        } else {
+          console.log('Track created successfully:', newTrack.id);
+          
+          // Обновляем generation с track_id
+          await supabase
+            .from('ai_generations')
+            .update({ track_id: newTrack.id })
+            .eq('id', generation.id);
+        }
+      }
+
+    } else if (code !== 200) {
+      // Обрабатываем ошибку генерации
+      console.error('Generation failed:', msg);
+      
+      const { error: updateError } = await supabase
+        .from('ai_generations')
+        .update({
+          status: 'failed',
+          metadata: {
+            ...generation.metadata,
+            error_message: msg,
+            failed_at: new Date().toISOString(),
+            callback_received: true
+          }
+        })
+        .eq('id', generation.id);
+
+      if (updateError) {
+        console.error('Error updating failed generation:', updateError);
+      }
+    }
+
+    // Всегда возвращаем 200 для успешной обработки колбэка
+    return new Response(JSON.stringify({ 
+      status: 'received',
+      task_id: task_id,
+      processed_at: new Date().toISOString()
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error: any) {
+    console.error('Error processing Suno callback:', error);
+    
+    // Возвращаем 200 даже при ошибке, чтобы избежать повторных колбэков
+    return new Response(JSON.stringify({ 
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }), {
+      status: 200, // 200 чтобы избежать ретраев
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});

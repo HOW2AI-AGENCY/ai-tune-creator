@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
 import { LyricsDrawer } from "@/features/ai-generation/components/LyricsDrawer";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
+import { useSunoStatusPolling } from "@/features/ai-generation/hooks/useSunoStatusPolling";
 import { 
   Search, 
   Play, 
@@ -86,6 +87,37 @@ export default function AIGenerationNew() {
   const [isLyricsDrawerOpen, setIsLyricsDrawerOpen] = useState(false);
   const [trackLikes, setTrackLikes] = useState<Record<string, boolean>>({});
   const [trackViews, setTrackViews] = useState<Record<string, number>>({});
+  
+  // Состояние для polling генерации
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [generatingMessage, setGeneratingMessage] = useState<string>('');
+
+  // Хук для polling статуса Suno генерации
+  const { data: pollingData, isPolling } = useSunoStatusPolling({
+    taskId: currentTaskId || undefined,
+    enabled: !!currentTaskId,
+    onComplete: (data) => {
+      console.log('Generation completed:', data);
+      setCurrentTaskId(null);
+      setGeneratingMessage('');
+      setIsGenerating(false); // Завершаем состояние генерации
+      
+      // Обновляем список генераций
+      fetchGenerations();
+      
+      // Если есть готовый трек, начинаем воспроизведение
+      if (data.track && data.track.audio_url) {
+        setSelectedTrack(data.track);
+        setIsPlayerOpen(true);
+      }
+    },
+    onError: (error) => {
+      console.error('Generation error:', error);
+      setCurrentTaskId(null);
+      setGeneratingMessage('');
+      setIsGenerating(false); // Завершаем состояние генерации при ошибке
+    }
+  });
 
 
   useEffect(() => {
@@ -231,6 +263,7 @@ export default function AIGenerationNew() {
   // Обработчики
   const handleGenerate = async (params: GenerationParams) => {
     setIsGenerating(true);
+    setCurrentTaskId(null); // Сбрасываем предыдущий task ID
     try {
       toast({
         title: "🎵 Генерация запущена",
@@ -288,23 +321,32 @@ export default function AIGenerationNew() {
         throw new Error(data.error || 'Не удалось сгенерировать трек');
       }
 
-      // Показываем результат
-      const track = data.data.track;
-      const audioUrl = data.data.audio_url;
+      // Показываем результат с task ID
+      const taskId = data.data.task_id;
+      const status = data.data.status;
       
-      toast({
-        title: "✅ Трек создан!",
-        description: `${data.data.title || track?.title || 'Новый трек'} готов к прослушиванию`
-      });
+      if (taskId && status === 'processing') {
+        // Начинаем polling для асинхронной генерации
+        setCurrentTaskId(taskId);
+        setGeneratingMessage(`Генерируется трек... Task ID: ${taskId}`);
+        
+        toast({
+          title: "🎵 Генерация запущена",
+          description: "Трек генерируется, ожидайте завершения..."
+        });
+      } else if (data.data.track && data.data.track.audio_url) {
+        // Если трек уже готов (unlikely для Suno)
+        toast({
+          title: "✅ Трек создан!",
+          description: `${data.data.title || data.data.track?.title || 'Новый трек'} готов к прослушиванию`
+        });
 
-      // Если есть аудио, сразу начинаем воспроизведение
-      if (audioUrl && track) {
-        setSelectedTrack(track);
+        setSelectedTrack(data.data.track);
         setIsPlayerOpen(true);
+        
+        // Обновляем данные
+        await fetchGenerations();
       }
-      
-      // Обновляем данные
-      await fetchGenerations();
       
     } catch (error: any) {
       console.error('Generation error:', error);
@@ -314,7 +356,10 @@ export default function AIGenerationNew() {
         variant: "destructive"
       });
     } finally {
-      setIsGenerating(false);
+      // Не сбрасываем isGenerating сразу, если начался polling
+      if (!currentTaskId) {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -395,7 +440,7 @@ export default function AIGenerationNew() {
         projects={projects}
         artists={artists}
         onGenerate={handleGenerate}
-        isGenerating={isGenerating}
+        isGenerating={isGenerating || isPolling}
       />
 
       {/* Основная область контента */}
@@ -409,7 +454,11 @@ export default function AIGenerationNew() {
                 ИИ Генерация музыки
               </h1>
               <p className="text-sm text-muted-foreground">
-                Сгенерированные треки с аудио
+                {generatingMessage ? (
+                  <span className="text-primary">{generatingMessage}</span>
+                ) : (
+                  "Сгенерированные треки с аудио"
+                )}
               </p>
             </div>
             <Badge variant="secondary" className="px-3 py-1">
