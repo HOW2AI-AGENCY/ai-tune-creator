@@ -232,26 +232,85 @@ export default function AIGenerationNew() {
   const handleGenerate = async (params: GenerationParams) => {
     setIsGenerating(true);
     try {
-      // TODO: Интеграция с существующей логикой генерации
       toast({
-        title: "Генерация запущена",
-        description: `Создается трек с помощью ${params.service}`
+        title: "🎵 Генерация запущена",
+        description: `Создается трек с помощью ${params.service === 'suno' ? 'Suno AI' : 'Mureka'}`
       });
+
+      // Определяем Edge Function в зависимости от сервиса
+      const functionName = params.service === 'suno' ? 'generate-suno-track' : 'generate-mureka-track';
       
-      // Здесь можно вызвать useTrackGeneration или напрямую Edge Functions
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Имитация
+      // Подготавливаем параметры для конкретного сервиса
+      let requestBody: any = {
+        prompt: params.prompt,
+        style: params.stylePrompt || "",
+        projectId: params.projectId,
+        artistId: params.artistId,
+        title: `AI Generated ${new Date().toLocaleDateString('ru-RU')}`
+      };
+
+      // Специфичные параметры для Suno
+      if (params.service === 'suno') {
+        requestBody = {
+          ...requestBody,
+          tags: params.genreTags?.join(', ') || "energetic, creative, viral",
+          make_instrumental: false,
+          wait_audio: true,
+          model: "chirp-v3-5"
+        };
+      }
+
+      // Специфичные параметры для Mureka
+      if (params.service === 'mureka') {
+        requestBody = {
+          ...requestBody,
+          genre: params.genreTags?.[0] || "electronic",
+          mood: params.genreTags?.[1] || "energetic",
+          duration: 30, // 30 секунд для быстрого тестирования
+          tempo: "medium",
+          key: "C",
+          instruments: []
+        };
+      }
+
+      console.log(`Calling ${functionName} with params:`, requestBody);
+
+      // Вызываем соответствующую Edge Function
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: requestBody
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Не удалось сгенерировать трек');
+      }
+
+      // Показываем результат
+      const track = data.data.track;
+      const audioUrl = data.data.audio_url;
       
       toast({
-        title: "Успех",
-        description: "Трек успешно сгенерирован!"
+        title: "✅ Трек создан!",
+        description: `${data.data.title || track?.title || 'Новый трек'} готов к прослушиванию`
       });
+
+      // Если есть аудио, сразу начинаем воспроизведение
+      if (audioUrl && track) {
+        setSelectedTrack(track);
+        setIsPlayerOpen(true);
+      }
       
       // Обновляем данные
       await fetchGenerations();
+      
     } catch (error: any) {
+      console.error('Generation error:', error);
       toast({
-        title: "Ошибка генерации",
-        description: error.message,
+        title: "❌ Ошибка генерации",
+        description: error.message || `Не удалось создать трек с помощью ${params.service}`,
         variant: "destructive"
       });
     } finally {
