@@ -249,10 +249,10 @@ export default function AIGenerationNew() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="flex">
         {/* Sidebar */}
-        <div className="w-64 bg-slate-900 p-4 space-y-6 h-screen overflow-y-auto">
+        <div className="w-64 bg-card border-r border-border p-4 space-y-6 h-screen overflow-y-auto">
           <div className="flex items-center gap-2 mb-6">
             <Filter className="h-5 w-5" />
             <span className="font-medium">Filter</span>
@@ -277,7 +277,7 @@ export default function AIGenerationNew() {
                         setSelectedMoods(selectedMoods.filter(m => m !== mood.id));
                       }
                     }}
-                    className="border-slate-600 data-[state=checked]:bg-green-500"
+                    className="border-border data-[state=checked]:bg-primary"
                   />
                   <label htmlFor={mood.id} className="text-sm cursor-pointer">
                     {mood.label}
@@ -306,7 +306,7 @@ export default function AIGenerationNew() {
                         setSelectedInstruments(selectedInstruments.filter(i => i !== instrument.id));
                       }
                     }}
-                    className="border-slate-600 data-[state=checked]:bg-green-500"
+                    className="border-border data-[state=checked]:bg-primary"
                   />
                   <label htmlFor={instrument.id} className="text-sm cursor-pointer">
                     {instrument.label}
@@ -335,7 +335,7 @@ export default function AIGenerationNew() {
                         setSelectedGenres(selectedGenres.filter(g => g !== genre.id));
                       }
                     }}
-                    className="border-slate-600 data-[state=checked]:bg-green-500"
+                    className="border-border data-[state=checked]:bg-primary"
                   />
                   <label htmlFor={genre.id} className="text-sm cursor-pointer">
                     {genre.label}
@@ -349,24 +349,24 @@ export default function AIGenerationNew() {
         {/* Main Content */}
         <div className="flex-1">
           {/* Header */}
-          <div className="p-4 border-b border-slate-800">
+          <div className="p-4 border-b border-border">
             <div className="flex items-center justify-between">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search Music or Background"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-slate-800 border-slate-700 text-white placeholder-slate-400"
+                  className="pl-10 bg-input border-border"
                 />
               </div>
               
               <div className="flex items-center gap-4 ml-4">
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-32 bg-slate-800 border-slate-700">
+                  <SelectTrigger className="w-32 bg-background border-border">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-popover border-border">
                     <SelectItem value="popular">Popular</SelectItem>
                     <SelectItem value="newest">Newest</SelectItem>
                     <SelectItem value="relevant">Relevant</SelectItem>
@@ -375,10 +375,10 @@ export default function AIGenerationNew() {
                 </Select>
 
                 <Select value={duration} onValueChange={setDuration}>
-                  <SelectTrigger className="w-32 bg-slate-800 border-slate-700">
+                  <SelectTrigger className="w-32 bg-background border-border">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-popover border-border">
                     <SelectItem value="all">Duration</SelectItem>
                     <SelectItem value="short">Short</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
@@ -387,10 +387,10 @@ export default function AIGenerationNew() {
                 </Select>
 
                 <Select value={vocalType} onValueChange={setVocalType}>
-                  <SelectTrigger className="w-48 bg-slate-800 border-slate-700">
+                  <SelectTrigger className="w-48 bg-background border-border">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-popover border-border">
                     <SelectItem value="all">Vocal & Instrumental</SelectItem>
                     <SelectItem value="vocal">Vocal Only</SelectItem>
                     <SelectItem value="instrumental">Instrumental Only</SelectItem>
@@ -406,32 +406,32 @@ export default function AIGenerationNew() {
               {filteredGenerations.map((generation) => (
                 <Card 
                   key={generation.id} 
-                  className="bg-slate-800 border-slate-700 hover:bg-slate-750 transition-colors cursor-pointer group"
+                  className="bg-card border-border hover:bg-accent/50 transition-colors cursor-pointer group"
                   onClick={() => generation.track && handleTrackClick(generation.track)}
                 >
                   <CardContent className="p-0 relative">
                     {/* Cover Image Placeholder */}
-                    <div className="aspect-square bg-gradient-to-br from-slate-700 to-slate-800 relative overflow-hidden">
+                    <div className="aspect-square bg-gradient-to-br from-muted to-accent relative overflow-hidden">
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Music className="h-12 w-12 text-slate-500" />
+                        <Music className="h-12 w-12 text-muted-foreground" />
                       </div>
                       
                       {/* Overlay Controls */}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <div className="flex items-center gap-2">
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-white/20">
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-accent">
                             <Download className="h-4 w-4" />
                           </Button>
                           <Button 
                             size="sm" 
-                            className="h-10 w-10 rounded-full bg-green-500 hover:bg-green-600 p-0"
+                            className="h-10 w-10 rounded-full bg-primary hover:bg-primary/90 p-0"
                           >
                             <Play className="h-5 w-5 ml-0.5" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-white/20">
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-accent">
                             <Heart className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-white/20">
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-accent">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </div>
@@ -440,7 +440,7 @@ export default function AIGenerationNew() {
                       {/* Duration Badge */}
                       {generation.track?.duration && (
                         <div className="absolute bottom-2 right-2">
-                          <Badge variant="secondary" className="bg-black/70 text-white text-xs">
+                          <Badge variant="secondary" className="bg-background/80 text-foreground text-xs">
                             <Clock className="h-3 w-3 mr-1" />
                             {formatDuration(generation.track.duration)}
                           </Badge>
@@ -453,7 +453,7 @@ export default function AIGenerationNew() {
                       <h3 className="font-medium text-sm truncate">
                         {generation.track?.title || generation.prompt.slice(0, 30) + "..."}
                       </h3>
-                      <p className="text-xs text-slate-400 truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {generation.track?.project?.artist?.name || "Unknown Artist"}
                       </p>
                       
@@ -461,7 +461,7 @@ export default function AIGenerationNew() {
                       <div className="flex items-center justify-between">
                         <Badge 
                           variant="outline" 
-                          className="text-xs border-slate-600 text-slate-300"
+                          className="text-xs border-border text-foreground"
                         >
                           {generation.service}
                         </Badge>
@@ -469,7 +469,7 @@ export default function AIGenerationNew() {
                         {generation.track?.genre_tags && generation.track.genre_tags.length > 0 && (
                           <Badge 
                             variant="secondary" 
-                            className="text-xs bg-slate-700 text-slate-300"
+                            className="text-xs bg-muted text-muted-foreground"
                           >
                             {generation.track.genre_tags[0]}
                           </Badge>
@@ -483,11 +483,11 @@ export default function AIGenerationNew() {
 
             {filteredGenerations.length === 0 && (
               <div className="text-center py-12">
-                <Music className="h-16 w-16 mx-auto mb-4 text-slate-600" />
-                <h3 className="text-lg font-medium text-slate-400 mb-2">
+                <Music className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
                   Генерации не найдены
                 </h3>
-                <p className="text-slate-500">
+                <p className="text-muted-foreground">
                   Попробуйте изменить фильтры или создать новую генерацию
                 </p>
               </div>
@@ -498,7 +498,7 @@ export default function AIGenerationNew() {
               <div className="text-center mt-8">
                 <Button 
                   variant="outline" 
-                  className="border-green-500 text-green-500 hover:bg-green-500 hover:text-white"
+                  className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                 >
                   View More
                 </Button>
