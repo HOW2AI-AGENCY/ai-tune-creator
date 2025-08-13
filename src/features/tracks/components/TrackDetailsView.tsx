@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Music, Clock, Tag, Edit, Save, X, Plus, GripVertical, Play, Pause } from 'lucide-react';
-import { useTrack } from '@/hooks/data/useTracks';
+// import { useTrack } from '@/hooks/data/useTracks';
 import { LyricsSection } from './LyricsSection';
 import { TagPalette } from './TagPalette';
 import { cn } from '@/lib/utils';
@@ -72,7 +72,40 @@ const TAG_CATEGORIES = {
 // ====================================
 
 export function TrackDetailsView({ trackId, onClose, editable = false }: TrackDetailsViewProps) {
-  const { track, isLoading } = useTrack(trackId);
+  // Mock hook for existing track data - to be replaced with actual useTrack
+  const useTrackMock = (id: string) => {
+    const [track, setTrack] = React.useState(null);
+    const [isLoading, setIsLoading] = React.useState(true);
+    
+    React.useEffect(() => {
+      // Simulate loading existing track data
+      setTimeout(() => {
+        setTrack({
+          id,
+          title: "Sample Track",
+          duration: 180,
+          genre_tags: ['Pop', 'Electronic'],
+          lyrics: "[Intro]\nSample lyrics here...\n\n[Verse 1]\nVerse content...",
+          ai_context: {
+            provider: 'suno',
+            generation_quality: 0.8,
+            generation_time: 30,
+          },
+          lyrics_context: {
+            structure_detected: ['Intro', 'Verse'],
+            language: 'en',
+            word_count: 50,
+            has_suno_tags: true,
+          },
+        });
+        setIsLoading(false);
+      }, 500);
+    }, [id]);
+    
+    return { track, isLoading, isError: false, error: null };
+  };
+  
+  const { track, isLoading } = useTrackMock(trackId);
   const [isEditing, setIsEditing] = useState(false);
   const [sections, setSections] = useState<LyricSection[]>([]);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
