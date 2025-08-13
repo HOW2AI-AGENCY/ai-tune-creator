@@ -137,9 +137,28 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
   const handleSave = async () => {
     if (!track || !user || !formData.title.trim()) return;
 
+    // Check if there are actual changes
+    const hasChanges = 
+      track.title !== formData.title ||
+      track.lyrics !== formData.lyrics ||
+      track.duration !== (formData.duration ? parseInt(formData.duration) : null) ||
+      track.track_number !== formData.track_number ||
+      track.description !== formData.description ||
+      JSON.stringify(track.genre_tags || []) !== JSON.stringify(formData.genre_tags ? formData.genre_tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []) ||
+      track.style_prompt !== formData.style_prompt;
+
+    if (!hasChanges) {
+      toast({
+        title: "Нет изменений",
+        description: "Вы не внесли никаких изменений в трек",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
     try {
-      // Create new version in track_versions table
+      // Create new version in track_versions table only if there are changes
       const { error: versionError } = await supabase
         .from('track_versions')
         .insert({
@@ -157,6 +176,9 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
               lyrics_changed: track.lyrics !== formData.lyrics,
               duration_changed: track.duration !== (formData.duration ? parseInt(formData.duration) : null),
               track_number_changed: track.track_number !== formData.track_number,
+              description_changed: track.description !== formData.description,
+              genre_tags_changed: JSON.stringify(track.genre_tags || []) !== JSON.stringify(formData.genre_tags ? formData.genre_tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []),
+              style_prompt_changed: track.style_prompt !== formData.style_prompt,
             }
           }
         });
