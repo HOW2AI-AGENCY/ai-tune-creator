@@ -77,6 +77,7 @@ export function TrackDetailsDialog({ open, onOpenChange, track, onTrackUpdated }
             <div className="px-2">
               <TrackDetailsView
                 trackId={track.id}
+                trackData={track}
                 editable={true}
                 onClose={() => onOpenChange(false)}
               />

@@ -56,7 +56,8 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <AppDataProvider>
+      {/* Temporarily disable AppDataProvider to fix IndexedDB issues */}
+      {/* <AppDataProvider> */}
         <TranslationProvider>
           <TooltipProvider>
             <Toaster />
@@ -77,7 +78,7 @@ const App = () => (
             </BrowserRouter>
           </TooltipProvider>
         </TranslationProvider>
-      </AppDataProvider>
+      {/* </AppDataProvider> */}
     </AuthProvider>
   </QueryClientProvider>
 );

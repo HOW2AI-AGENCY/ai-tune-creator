@@ -28,11 +28,6 @@ import { cn } from '@/lib/utils';
 // 🎯 TYPE DEFINITIONS
 // ====================================
 
-interface TrackDetailsViewProps {
-  trackId: string;
-  onClose?: () => void;
-  editable?: boolean;
-}
 
 interface LyricSection {
   id: string;
@@ -71,41 +66,53 @@ const TAG_CATEGORIES = {
 // 🎼 MAIN COMPONENT
 // ====================================
 
-export function TrackDetailsView({ trackId, onClose, editable = false }: TrackDetailsViewProps) {
-  // Mock hook for existing track data - to be replaced with actual useTrack
-  const useTrackMock = (id: string) => {
-    const [track, setTrack] = React.useState(null);
-    const [isLoading, setIsLoading] = React.useState(true);
-    
-    React.useEffect(() => {
-      // Simulate loading existing track data
-      setTimeout(() => {
-        setTrack({
-          id,
-          title: "Sample Track",
-          duration: 180,
-          genre_tags: ['Pop', 'Electronic'],
-          lyrics: "[Intro]\nSample lyrics here...\n\n[Verse 1]\nVerse content...",
-          ai_context: {
-            provider: 'suno',
-            generation_quality: 0.8,
-            generation_time: 30,
-          },
-          lyrics_context: {
-            structure_detected: ['Intro', 'Verse'],
-            language: 'en',
-            word_count: 50,
-            has_suno_tags: true,
-          },
-        });
-        setIsLoading(false);
-      }, 500);
-    }, [id]);
-    
-    return { track, isLoading, isError: false, error: null };
+// Add a prop to accept track data directly
+interface TrackDetailsViewProps {
+  trackId?: string;
+  trackData?: any; // Accept track data from parent
+  onClose?: () => void;
+  editable?: boolean;
+}
+
+export function TrackDetailsView({ trackId, trackData, onClose, editable = false }: TrackDetailsViewProps) {
+  // Use provided track data or fallback to mock
+  const track = trackData || {
+    id: trackId || 'mock',
+    title: "Sample Track",
+    duration: 180,
+    genre_tags: ['Pop', 'Electronic'],
+    lyrics: `[Intro] [Soft Piano] [BPM: 75]
+Whispers in the starlight...
+
+[Verse 1] [Female Vocal] [Gentle]
+Walking through the midnight streets alone
+City lights are fading one by one
+Dreams are calling from beyond the stone
+Tell me that the night has just begun
+
+[Pre-Chorus] [Build Up] [Harmonies]
+Close your eyes and feel the magic start
+Every wish lives in your beating heart
+
+[Chorus] [Powerful] [Catchy Hook] [TikTok Ready]
+We're dancing in starlight dreams tonight
+Nothing can stop us when we shine so bright
+Starlight dreams, starlight dreams
+Everything's better than it seems`,
+    ai_context: {
+      provider: 'suno',
+      generation_quality: 0.8,
+      generation_time: 30,
+    },
+    lyrics_context: {
+      structure_detected: ['Intro', 'Verse', 'Pre-Chorus', 'Chorus'],
+      language: 'en',
+      word_count: 85,
+      has_suno_tags: true,
+    },
   };
   
-  const { track, isLoading } = useTrackMock(trackId);
+  const isLoading = false;
   const [isEditing, setIsEditing] = useState(false);
   const [sections, setSections] = useState<LyricSection[]>([]);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
