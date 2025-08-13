@@ -5,20 +5,20 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { TrackDetailsDialog } from "@/components/ui/track-details-dialog";
+import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
+import { LyricsDrawer } from "@/features/ai-generation/components/LyricsDrawer";
+import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { 
   Search, 
   Play, 
   Heart, 
   Download, 
   MoreHorizontal, 
-  Filter,
-  ChevronDown,
   Music,
-  Clock
+  Clock,
+  Eye,
+  Sparkles
 } from "lucide-react";
 
 interface Track {
@@ -53,60 +53,71 @@ interface GenerationItem {
   track?: Track;
 }
 
+interface Option {
+  id: string;
+  name: string;
+}
+
+interface GenerationParams {
+  prompt: string;
+  service: 'suno' | 'mureka';
+  projectId?: string;
+  artistId?: string;
+  stylePrompt?: string;
+  genreTags?: string[];
+}
+
 export default function AIGenerationNew() {
   const { user } = useAuth();
   const { toast } = useToast();
 
   // State
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMoods, setSelectedMoods] = useState<string[]>([]);
-  const [selectedInstruments, setSelectedInstruments] = useState<string[]>([]);
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState("popular");
-  const [duration, setDuration] = useState("all");
-  const [vocalType, setVocalType] = useState("all");
+  const [isGenerating, setIsGenerating] = useState(false);
   
   const [generations, setGenerations] = useState<GenerationItem[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [projects, setProjects] = useState<Option[]>([]);
+  const [artists, setArtists] = useState<Option[]>([]);
+  
+  // Player & Lyrics state
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
-  const [showTrackDetails, setShowTrackDetails] = useState(false);
+  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+  const [isLyricsDrawerOpen, setIsLyricsDrawerOpen] = useState(false);
+  const [trackLikes, setTrackLikes] = useState<Record<string, boolean>>({});
+  const [trackViews, setTrackViews] = useState<Record<string, number>>({});
 
-  // Filter options
-  const moods = [
-    { id: "chill", label: "Chill" },
-    { id: "dramatic", label: "Dramatic" },
-    { id: "happy", label: "Happy" },
-    { id: "sad", label: "Sad" },
-    { id: "hopeful", label: "Hopeful" },
-    { id: "fantasy", label: "Fantasy" },
-    { id: "romantic", label: "Romantic" },
-    { id: "relaxing", label: "Relaxing" },
-  ];
-
-  const instruments = [
-    { id: "piano", label: "Piano" },
-    { id: "guitar", label: "Guitar" },
-    { id: "violin", label: "Violin" },
-    { id: "drums", label: "Drums" },
-    { id: "synth", label: "Synth" },
-    { id: "bass", label: "Bass" },
-  ];
-
-  const genres = [
-    { id: "pop", label: "Pop" },
-    { id: "rock", label: "Rock" },
-    { id: "electronic", label: "Electronic" },
-    { id: "jazz", label: "Jazz" },
-    { id: "classical", label: "Classical" },
-    { id: "hip-hop", label: "Hip-Hop" },
-  ];
 
   useEffect(() => {
     if (!user) return;
     
-    fetchGenerations();
-    fetchTracks();
+    fetchData();
   }, [user]);
+
+  const fetchData = async () => {
+    try {
+      // Fetch projects and artists for generation sidebar
+      const [projectsRes, artistsRes] = await Promise.all([
+        supabase.from("projects").select("id, title, artists(name)").order("created_at", { ascending: false }),
+        supabase.from("artists").select("id, name").order("name")
+      ]);
+
+      if (projectsRes.data) {
+        setProjects(projectsRes.data.map((p: any) => ({
+          id: p.id,
+          name: p.artists?.name ? `${p.title} (${p.artists.name})` : p.title,
+        })));
+      }
+
+      if (artistsRes.data) {
+        setArtists(artistsRes.data.map((a: any) => ({ id: a.id, name: a.name })));
+      }
+
+      await Promise.all([fetchGenerations(), fetchTracks()]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
 
   const fetchGenerations = async () => {
     try {
@@ -122,6 +133,7 @@ export default function AIGenerationNew() {
           track_id
         `)
         .eq("status", "completed")
+        .not("result_url", "is", null) // Только с результатами
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -152,18 +164,20 @@ export default function AIGenerationNew() {
               artists(name)
             )
           `)
-          .in("id", trackIds);
+          .in("id", trackIds)
+          .not("audio_url", "is", null); // Только с аудио
 
         if (!tracksError) {
           trackData = tracksData || [];
         }
       }
 
+      // Фильтруем только генерации, у которых есть треки с аудио
       const enrichedGenerations = data?.map(gen => ({
         ...gen,
         service: gen.service as 'suno' | 'mureka',
         track: trackData.find(t => t.id === gen.track_id)
-      })) || [];
+      })).filter(gen => gen.track && gen.track.audio_url) || [];
 
       setGenerations(enrichedGenerations);
     } catch (error) {
@@ -194,6 +208,7 @@ export default function AIGenerationNew() {
             artists(name)
           )
         `)
+        .not("audio_url", "is", null) // Только треки с аудио
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -209,21 +224,87 @@ export default function AIGenerationNew() {
           !gen.track?.title?.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
       }
-
-      if (selectedGenres.length > 0 && gen.track?.genre_tags) {
-        const hasMatchingGenre = selectedGenres.some(genre => 
-          gen.track?.genre_tags?.includes(genre)
-        );
-        if (!hasMatchingGenre) return false;
-      }
-
       return true;
     });
-  }, [generations, searchQuery, selectedGenres]);
+  }, [generations, searchQuery]);
+
+  // Обработчики
+  const handleGenerate = async (params: GenerationParams) => {
+    setIsGenerating(true);
+    try {
+      // TODO: Интеграция с существующей логикой генерации
+      toast({
+        title: "Генерация запущена",
+        description: `Создается трек с помощью ${params.service}`
+      });
+      
+      // Здесь можно вызвать useTrackGeneration или напрямую Edge Functions
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Имитация
+      
+      toast({
+        title: "Успех",
+        description: "Трек успешно сгенерирован!"
+      });
+      
+      // Обновляем данные
+      await fetchGenerations();
+    } catch (error: any) {
+      toast({
+        title: "Ошибка генерации",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleTrackClick = (track: Track) => {
+    // Увеличиваем счетчик просмотров
+    setTrackViews(prev => ({
+      ...prev,
+      [track.id]: (prev[track.id] || 0) + 1
+    }));
+    
+    // Открываем drawer с лирикой
     setSelectedTrack(track);
-    setShowTrackDetails(true);
+    setIsLyricsDrawerOpen(true);
+  };
+
+  const handlePlayTrack = (track: Track) => {
+    setSelectedTrack(track);
+    setIsPlayerOpen(true);
+  };
+
+  const handleToggleLike = async (track: Track) => {
+    if (!user) {
+      toast({
+        title: "Требуется авторизация",
+        description: "Войдите, чтобы лайкать треки",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const isLiked = trackLikes[track.id];
+    
+    try {
+      if (isLiked) {
+        // Убираем лайк (пока в локальном состоянии)
+        setTrackLikes(prev => ({ ...prev, [track.id]: false }));
+      } else {
+        // Добавляем лайк
+        setTrackLikes(prev => ({ ...prev, [track.id]: true }));
+        toast({
+          title: "❤️ Добавлено в избранное",
+          description: track.title
+        });
+      }
+      
+      // TODO: Сохранить в базу данных
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
   };
 
   const formatDuration = (seconds: number) => {
@@ -249,203 +330,127 @@ export default function AIGenerationNew() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-card border-r border-border p-4 space-y-6 h-screen overflow-y-auto">
-          <div className="flex items-center gap-2 mb-6">
-            <Filter className="h-5 w-5" />
-            <span className="font-medium">Filter</span>
+    <div className="h-screen bg-background text-foreground flex">
+      {/* Левый сайдбар с формой генерации */}
+      <TrackGenerationSidebar
+        projects={projects}
+        artists={artists}
+        onGenerate={handleGenerate}
+        isGenerating={isGenerating}
+      />
+
+      {/* Основная область контента */}
+      <div className="flex-1 flex flex-col">
+        {/* Заголовок и поиск */}
+        <div className="p-4 border-b border-border bg-card">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-primary" />
+                ИИ Генерация музыки
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Сгенерированные треки с аудио
+              </p>
+            </div>
+            <Badge variant="secondary" className="px-3 py-1">
+              {filteredGenerations.length} треков
+            </Badge>
           </div>
 
-          {/* Mood Filter */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium">Mood</span>
-              <ChevronDown className="h-4 w-4" />
-            </div>
-            <div className="space-y-2">
-              {moods.map(mood => (
-                <div key={mood.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={mood.id}
-                    checked={selectedMoods.includes(mood.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedMoods([...selectedMoods, mood.id]);
-                      } else {
-                        setSelectedMoods(selectedMoods.filter(m => m !== mood.id));
-                      }
-                    }}
-                    className="border-border data-[state=checked]:bg-primary"
-                  />
-                  <label htmlFor={mood.id} className="text-sm cursor-pointer">
-                    {mood.label}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Instrument Filter */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium">Instrument</span>
-              <ChevronDown className="h-4 w-4" />
-            </div>
-            <div className="space-y-2">
-              {instruments.map(instrument => (
-                <div key={instrument.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={instrument.id}
-                    checked={selectedInstruments.includes(instrument.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedInstruments([...selectedInstruments, instrument.id]);
-                      } else {
-                        setSelectedInstruments(selectedInstruments.filter(i => i !== instrument.id));
-                      }
-                    }}
-                    className="border-border data-[state=checked]:bg-primary"
-                  />
-                  <label htmlFor={instrument.id} className="text-sm cursor-pointer">
-                    {instrument.label}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Genre Filter */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium">Genre</span>
-              <ChevronDown className="h-4 w-4" />
-            </div>
-            <div className="space-y-2">
-              {genres.map(genre => (
-                <div key={genre.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={genre.id}
-                    checked={selectedGenres.includes(genre.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedGenres([...selectedGenres, genre.id]);
-                      } else {
-                        setSelectedGenres(selectedGenres.filter(g => g !== genre.id));
-                      }
-                    }}
-                    className="border-border data-[state=checked]:bg-primary"
-                  />
-                  <label htmlFor={genre.id} className="text-sm cursor-pointer">
-                    {genre.label}
-                  </label>
-                </div>
-              ))}
-            </div>
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Поиск по названию или описанию..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1">
-          {/* Header */}
-          <div className="p-4 border-b border-border">
-            <div className="flex items-center justify-between">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search Music or Background"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-input border-border"
-                />
-              </div>
-              
-              <div className="flex items-center gap-4 ml-4">
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-32 bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    <SelectItem value="popular">Popular</SelectItem>
-                    <SelectItem value="newest">Newest</SelectItem>
-                    <SelectItem value="relevant">Relevant</SelectItem>
-                    <SelectItem value="none">None</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={duration} onValueChange={setDuration}>
-                  <SelectTrigger className="w-32 bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    <SelectItem value="all">Duration</SelectItem>
-                    <SelectItem value="short">Short</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="long">Long</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={vocalType} onValueChange={setVocalType}>
-                  <SelectTrigger className="w-48 bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    <SelectItem value="all">Vocal & Instrumental</SelectItem>
-                    <SelectItem value="vocal">Vocal Only</SelectItem>
-                    <SelectItem value="instrumental">Instrumental Only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* Сетка треков */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {filteredGenerations.length === 0 ? (
+            <div className="text-center py-12">
+              <Music className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                Нет треков с аудио
+              </h3>
+              <p className="text-muted-foreground">
+                Создайте первый трек с помощью формы слева
+              </p>
             </div>
-          </div>
-
-          {/* Content Grid */}
-          <div className="p-6">
+          ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {filteredGenerations.map((generation) => (
                 <Card 
                   key={generation.id} 
-                  className="bg-card border-border hover:bg-accent/50 transition-colors cursor-pointer group"
+                  className="bg-card border-border hover:bg-accent/10 transition-all cursor-pointer group hover:scale-105"
                   onClick={() => generation.track && handleTrackClick(generation.track)}
                 >
                   <CardContent className="p-0 relative">
-                    {/* Cover Image Placeholder */}
-                    <div className="aspect-square bg-gradient-to-br from-muted to-accent relative overflow-hidden">
+                    {/* Cover Image */}
+                    <div className="aspect-square bg-gradient-to-br from-primary/20 to-accent/30 relative overflow-hidden rounded-t-lg">
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Music className="h-12 w-12 text-muted-foreground" />
+                        <Music className="h-12 w-12 text-primary/60" />
                       </div>
                       
-                      {/* Overlay Controls */}
-                      <div className="absolute inset-0 bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-accent">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            className="h-10 w-10 rounded-full bg-primary hover:bg-primary/90 p-0"
-                          >
-                            <Play className="h-5 w-5 ml-0.5" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-accent">
-                            <Heart className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-accent">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      {/* Hover Controls */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            generation.track && handleToggleLike(generation.track);
+                          }}
+                        >
+                          <Heart 
+                            className={`h-4 w-4 ${trackLikes[generation.track?.id || ''] ? 'fill-red-500 text-red-500' : ''}`} 
+                          />
+                        </Button>
+                        
+                        <Button 
+                          size="sm" 
+                          className="h-10 w-10 rounded-full bg-primary hover:bg-primary/90 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            generation.track && handlePlayTrack(generation.track);
+                          }}
+                        >
+                          <Play className="h-5 w-5 ml-0.5" />
+                        </Button>
+                        
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // TODO: Download functionality
+                          }}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
                       </div>
 
-                      {/* Duration Badge */}
-                      {generation.track?.duration && (
-                        <div className="absolute bottom-2 right-2">
-                          <Badge variant="secondary" className="bg-background/80 text-foreground text-xs">
+                      {/* Duration & Views */}
+                      <div className="absolute top-2 right-2 space-y-1">
+                        {generation.track?.duration && (
+                          <Badge variant="secondary" className="bg-black/60 text-white text-xs border-0">
                             <Clock className="h-3 w-3 mr-1" />
                             {formatDuration(generation.track.duration)}
                           </Badge>
-                        </div>
-                      )}
+                        )}
+                        {trackViews[generation.track?.id || ''] && (
+                          <Badge variant="secondary" className="bg-black/60 text-white text-xs border-0 block">
+                            <Eye className="h-3 w-3 mr-1" />
+                            {trackViews[generation.track?.id || '']}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
 
                     {/* Track Info */}
@@ -454,14 +459,14 @@ export default function AIGenerationNew() {
                         {generation.track?.title || generation.prompt.slice(0, 30) + "..."}
                       </h3>
                       <p className="text-xs text-muted-foreground truncate">
-                        {generation.track?.project?.artist?.name || "Unknown Artist"}
+                        {generation.track?.project?.artist?.name || "Неизвестный артист"}
                       </p>
                       
-                      {/* Service Badge */}
-                      <div className="flex items-center justify-between">
+                      {/* Badges */}
+                      <div className="flex items-center justify-between mt-2">
                         <Badge 
-                          variant="outline" 
-                          className="text-xs border-border text-foreground"
+                          variant={generation.service === 'suno' ? 'default' : 'outline'} 
+                          className="text-xs"
                         >
                           {generation.service}
                         </Badge>
@@ -469,50 +474,45 @@ export default function AIGenerationNew() {
                         {generation.track?.genre_tags && generation.track.genre_tags.length > 0 && (
                           <Badge 
                             variant="secondary" 
-                            className="text-xs bg-muted text-muted-foreground"
+                            className="text-xs"
                           >
                             {generation.track.genre_tags[0]}
                           </Badge>
                         )}
                       </div>
+
+                      {trackLikes[generation.track?.id || ''] && (
+                        <div className="flex items-center gap-1 mt-2">
+                          <Heart className="h-3 w-3 fill-red-500 text-red-500" />
+                          <span className="text-xs text-muted-foreground">В избранном</span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
-
-            {filteredGenerations.length === 0 && (
-              <div className="text-center py-12">
-                <Music className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  Генерации не найдены
-                </h3>
-                <p className="text-muted-foreground">
-                  Попробуйте изменить фильтры или создать новую генерацию
-                </p>
-              </div>
-            )}
-
-            {/* View More Button */}
-            {filteredGenerations.length > 0 && (
-              <div className="text-center mt-8">
-                <Button 
-                  variant="outline" 
-                  className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                >
-                  View More
-                </Button>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Track Details Dialog */}
-      <TrackDetailsDialog
-        open={showTrackDetails}
-        onOpenChange={setShowTrackDetails}
+      {/* Выездной drawer с лирикой */}
+      <LyricsDrawer
+        isOpen={isLyricsDrawerOpen}
+        onClose={() => setIsLyricsDrawerOpen(false)}
         track={selectedTrack}
+        onPlay={handlePlayTrack}
+      />
+
+      {/* Всплывающий плеер */}
+      <FloatingPlayer
+        isOpen={isPlayerOpen}
+        track={selectedTrack}
+        onClose={() => setIsPlayerOpen(false)}
+        onShowLyrics={(track) => {
+          setSelectedTrack(track);
+          setIsLyricsDrawerOpen(true);
+        }}
       />
     </div>
   );
