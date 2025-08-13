@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.01.031] - 2025-01-13
+
+### 🚀 Major Features Added
+- **Suno AI Integration** - Full integration with Suno AI API for complete music track generation
+- **Mureka AI Integration** - Added Mureka API support for creative compositions with polling mechanism
+- **Real Music Generation** - Users can now generate actual music tracks, not just lyrics
+- **New Generation Interface** - Complete Suno AI-style interface with modern music streaming design
+
+### 🎨 New UI Components
+- **TrackGenerationSidebar** - Left sidebar form with service selection (Suno/Mureka), context, and genre/mood options
+- **LyricsDrawer** - Right-side slide-out drawer displaying track lyrics with SUNO.AI tag parsing
+- **FloatingPlayer** - Bottom floating music player with HTML5 controls, volume, and seek functionality
+- **Track Grid** - Modern card-based grid showing only tracks with audio (real generated music)
+
+### ⚡ New Edge Functions
+- `generate-suno-track` - Creates full tracks via Suno API (chirp-v3-5 model)
+- `generate-mureka-track` - Generates creative compositions via Mureka with async polling support
+- Enhanced rate limiting: Suno (5 req/10min), Mureka (10 req/15min)
+
+### 🎵 Enhanced Music Features
+- **SUNO.AI Tag Parsing** - Visual parsing of structure tags with emojis: 🎵[Intro], 📝[Verse], 🎤[Chorus]
+- **Direct Music Playback** - Automatic player launch when track generation completes
+- **One-Click Generation** - Simplified workflow from description to playable track
+- **Context-Aware Generation** - Optional project, artist, genre, and mood context integration
+
+### 🛠 Technical Improvements
+- Fixed all Select.Item empty string errors preventing interface crashes
+- Improved error handling for AI generation failures
+- Enhanced database integration for storing generated tracks
+- Better UX feedback with toast notifications and loading states
+
+### 🔧 Bug Fixes
+- Resolved "blue screen of death" caused by Select.Item validation errors
+- Fixed user_settings 406 errors (normal behavior, but cleaned up logging)
+- Corrected navigation routing between old and new generation pages
+
+### 📝 Documentation Updates
+- Updated CLAUDE.md with new AI integration architecture
+- Added comprehensive component documentation
+- Documented new generation workflows (both simplified and classic)
+- Enhanced environment variable documentation
+
 ## [Unreleased]
 
 ### Added
