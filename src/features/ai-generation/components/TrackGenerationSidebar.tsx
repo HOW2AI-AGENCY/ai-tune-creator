@@ -99,7 +99,7 @@ export function TrackGenerationSidebar({
                 <SelectValue placeholder="Выберите проект" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Без проекта</SelectItem>
+                <SelectItem value="none">Без проекта</SelectItem>
                 {projects.map(project => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}
@@ -116,7 +116,7 @@ export function TrackGenerationSidebar({
                 <SelectValue placeholder="Выберите артиста" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Без артиста</SelectItem>
+                <SelectItem value="none">Без артиста</SelectItem>
                 {artists.map(artist => (
                   <SelectItem key={artist.id} value={artist.id}>
                     {artist.name}
