@@ -13,6 +13,7 @@ import { QuickPresetsGrid } from "./QuickPresetsGrid";
 import { CustomModePanel } from "./CustomModePanel";
 import { GenerationParametersPreview } from "./GenerationParametersPreview";
 import { ErrorHandler } from "./ErrorHandler";
+import { AIServiceStatusPanel } from "./AIServiceStatusPanel";
 import { quickPresets } from "../data/presets";
 import { GenerationParams, Option, QuickPreset } from "../types";
 
@@ -189,6 +190,9 @@ export function TrackGenerationSidebar({
           <Sparkles className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Генерация трека</h2>
         </div>
+
+        {/* Статус AI сервисов */}
+        <AIServiceStatusPanel compact={true} />
 
       {/* Контекст */}
       <Card>
