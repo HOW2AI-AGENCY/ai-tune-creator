@@ -87,6 +87,14 @@ export default function AIGenerationNew() {
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [generatingMessage, setGeneratingMessage] = useState<string>('');
   
+  // Состояние для обработки ошибок
+  const [generationError, setGenerationError] = useState<{
+    type: 'network' | 'api' | 'validation' | 'unknown';
+    message: string;
+    details?: string;
+    code?: string;
+  } | null>(null);
+  
   // Хук для генерации с прогрессом
   const { generateTrack, isGenerating: hookIsGenerating, generationProgress } = useTrackGenerationWithProgress();
 
@@ -234,11 +242,22 @@ export default function AIGenerationNew() {
   // Обработчики
   const handleGenerate = async (params: GenerationParams) => {
     try {
+      setGenerationError(null);
       await generateTrack(params);
       await fetchGenerations();
     } catch (error: any) {
       console.error('Generation error:', error);
+      setGenerationError({
+        type: error.name === 'TypeError' ? 'network' : 'api',
+        message: error.message || 'Произошла ошибка при генерации трека',
+        details: error.details,
+        code: error.code
+      });
     }
+  };
+
+  const handleErrorDismiss = () => {
+    setGenerationError(null);
   };
 
   const handleTrackClick = (track: Track) => {
@@ -320,6 +339,8 @@ export default function AIGenerationNew() {
         onGenerate={handleGenerate}
         isGenerating={hookIsGenerating}
         generationProgress={generationProgress}
+        error={generationError}
+        onErrorDismiss={handleErrorDismiss}
       />
 
       {/* Основная область контента */}

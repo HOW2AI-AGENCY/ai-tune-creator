@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import OperationLoader from "@/components/ui/operation-loader";
 import { QuickPresetsGrid } from "./QuickPresetsGrid";
 import { CustomModePanel } from "./CustomModePanel";
+import { GenerationParametersPreview } from "./GenerationParametersPreview";
+import { ErrorHandler } from "./ErrorHandler";
 import { quickPresets } from "../data/presets";
 import { GenerationParams, Option, QuickPreset } from "../types";
 
@@ -29,6 +31,13 @@ interface TrackGenerationSidebarProps {
       status: 'pending' | 'running' | 'done' | 'error';
     }>;
   };
+  error?: {
+    type: 'network' | 'api' | 'validation' | 'unknown';
+    message: string;
+    details?: string;
+    code?: string;
+  } | null;
+  onErrorDismiss?: () => void;
 }
 
 export function TrackGenerationSidebar({ 
@@ -36,7 +45,9 @@ export function TrackGenerationSidebar({
   artists, 
   onGenerate, 
   isGenerating,
-  generationProgress
+  generationProgress,
+  error,
+  onErrorDismiss
 }: TrackGenerationSidebarProps) {
   // Основные состояния
   const [mode, setMode] = useState<'quick' | 'custom'>('quick');
@@ -59,6 +70,10 @@ export function TrackGenerationSidebar({
   const [language, setLanguage] = useState("ru");
   const [stylePrompt, setStylePrompt] = useState("");
   
+  // Состояния для preview и UX
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewParams, setPreviewParams] = useState<GenerationParams | null>(null);
+  
   const { toast } = useToast();
 
   const genres = [
@@ -79,7 +94,7 @@ export function TrackGenerationSidebar({
     setSelectedMood(preset.mood);
   };
 
-  const handleGenerate = () => {
+  const validateAndShowPreview = () => {
     // Валидация в зависимости от режима
     if (mode === 'quick' && !prompt.trim()) {
       toast({
@@ -119,7 +134,25 @@ export function TrackGenerationSidebar({
       stylePrompt: stylePrompt || undefined
     };
 
-    onGenerate(params);
+    setPreviewParams(params);
+    setShowPreview(true);
+  };
+
+  const handleConfirmGeneration = () => {
+    if (previewParams) {
+      onGenerate(previewParams);
+      setShowPreview(false);
+      setPreviewParams(null);
+    }
+  };
+
+  const handleEditPreview = () => {
+    setShowPreview(false);
+  };
+
+  const handleCancelPreview = () => {
+    setShowPreview(false);
+    setPreviewParams(null);
   };
 
   return (
@@ -134,6 +167,17 @@ export function TrackGenerationSidebar({
             steps={generationProgress.steps}
             size="sm"
             colorClass="bg-primary/80"
+          />
+        </div>
+      )}
+
+      {/* Показываем ошибки */}
+      {error && onErrorDismiss && (
+        <div className="p-4 border-b border-border">
+          <ErrorHandler
+            error={error}
+            onRetry={validateAndShowPreview}
+            onDismiss={onErrorDismiss}
           />
         </div>
       )}
@@ -386,8 +430,20 @@ export function TrackGenerationSidebar({
         </TabsContent>
       </Tabs>
 
+      {/* Предварительный просмотр параметров */}
+      {showPreview && previewParams && (
+        <GenerationParametersPreview
+          params={previewParams}
+          onEdit={handleEditPreview}
+          onConfirm={handleConfirmGeneration}
+          onCancel={handleCancelPreview}
+        />
+      )}
+
+      {/* Кнопка генерации */}
+      {!showPreview && (
         <Button 
-          onClick={handleGenerate}
+          onClick={validateAndShowPreview}
           disabled={isGenerating}
           className="w-full"
           size="lg"
@@ -400,10 +456,11 @@ export function TrackGenerationSidebar({
           ) : (
             <>
               <Sparkles className="h-4 w-4 mr-2" />
-              {mode === 'quick' ? 'Создать трек' : 'Создать с кастомными настройками'}
+              {mode === 'quick' ? 'Предварительный просмотр' : 'Просмотр настроек'}
             </>
           )}
         </Button>
+      )}
       </div>
     </div>
   );
