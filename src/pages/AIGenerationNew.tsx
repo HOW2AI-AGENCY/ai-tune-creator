@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ResizableSidebar } from "@/components/ui/resizable-sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -333,15 +334,23 @@ export default function AIGenerationNew() {
   return (
     <div className="h-screen bg-background text-foreground flex">
       {/* Левый сайдбар с формой генерации */}
-      <TrackGenerationSidebar
-        projects={projects}
-        artists={artists}
-        onGenerate={handleGenerate}
-        isGenerating={hookIsGenerating}
-        generationProgress={generationProgress}
-        error={generationError}
-        onErrorDismiss={handleErrorDismiss}
-      />
+      <ResizableSidebar
+        defaultWidth={380}
+        minWidth={320}
+        maxWidth={600}
+        collapsible={true}
+        position="left"
+      >
+        <TrackGenerationSidebar
+          projects={projects}
+          artists={artists}
+          onGenerate={handleGenerate}
+          isGenerating={hookIsGenerating}
+          generationProgress={generationProgress}
+          error={generationError}
+          onErrorDismiss={handleErrorDismiss}
+        />
+      </ResizableSidebar>
 
       {/* Основная область контента */}
       <div className="flex-1 flex flex-col">
