@@ -29,7 +29,7 @@ const queryClient = new QueryClient({
     queries: {
       // OPTIMIZATION: Longer stale times для reduced DB queries
       staleTime: 5 * 60 * 1000,      // 5 minutes stale time
-      cacheTime: 30 * 60 * 1000,     // 30 minutes cache time
+      gcTime: 30 * 60 * 1000,     // 30 minutes cache time
       refetchOnWindowFocus: false,    // Don't refetch on tab focus
       refetchOnReconnect: true,       // Refetch on network reconnection
       retry: 2,                       // Reasonable retry count

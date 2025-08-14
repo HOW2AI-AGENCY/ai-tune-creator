@@ -111,7 +111,7 @@ export const artistsQueryKeys = {
  */
 const artistsQueryConfig = {
   staleTime: 5 * 60 * 1000,         // 5 minutes - data считается fresh
-  cacheTime: 30 * 60 * 1000,        // 30 minutes - keep in memory
+  gcTime: 30 * 60 * 1000,        // 30 minutes - keep in memory
   refetchOnWindowFocus: false,       // Don't refetch on tab focus
   refetchOnReconnect: true,          // Refetch on network reconnection
   retry: 2,                          // Retry failed requests 2 times
@@ -166,16 +166,16 @@ export function useArtists() {
         description: artist.description,
         avatar_url: artist.avatar_url,
         profile: {
-          goals: artist.metadata?.profile?.goals || '',
-          mission: artist.metadata?.profile?.mission || '',
-          style: artist.metadata?.profile?.style || '',
-          creative_brief: artist.metadata?.profile?.creative_brief || '',
-          musical_preferences: artist.metadata?.profile?.musical_preferences || [],
-          target_audience: artist.metadata?.profile?.target_audience || '',
-          brand_voice: artist.metadata?.profile?.brand_voice || '',
-          influences: artist.metadata?.profile?.influences || [],
+          goals: (artist.metadata as any)?.profile?.goals || '',
+          mission: (artist.metadata as any)?.profile?.mission || '',
+          style: (artist.metadata as any)?.profile?.style || '',
+          creative_brief: (artist.metadata as any)?.profile?.creative_brief || '',
+          musical_preferences: (artist.metadata as any)?.profile?.musical_preferences || [],
+          target_audience: (artist.metadata as any)?.profile?.target_audience || '',
+          brand_voice: (artist.metadata as any)?.profile?.brand_voice || '',
+          influences: (artist.metadata as any)?.profile?.influences || [],
         },
-        ai_context: artist.metadata?.ai_context,
+        ai_context: (artist.metadata as any)?.ai_context,
         _cached_at: Date.now(),
         _cache_ttl: 30 * 60 * 1000, // 30 minutes
       }));
@@ -206,19 +206,7 @@ export function useArtists() {
       return undefined;
     },
     
-    // ERROR HANDLING: Sync errors с global state
-    onError: (error: Error) => {
-      console.error('[useArtists] Query failed:', error);
-      dispatch({ type: 'ARTISTS_ERROR', payload: error.message });
-    },
     
-    // LOADING STATE: Sync с global state
-    onSettled: () => {
-      if (state.artists.loading) {
-        // Clear loading state if query settled
-        dispatch({ type: 'ARTISTS_SUCCESS', payload: state.artists.items });
-      }
-    },
   });
   
   return {
@@ -268,7 +256,7 @@ export function useArtist(artistId: string) {
       // ENHANCEMENT: Add computed metrics
       const enhanced: EnhancedArtist = {
         ...data,
-        profile: data.metadata?.profile || {
+        profile: (data.metadata as any)?.profile || {
           goals: '',
           mission: '',
           style: '',
@@ -281,10 +269,10 @@ export function useArtist(artistId: string) {
         metrics: {
           tracks_count: data.tracks?.length || 0,
           projects_count: data.projects?.length || 0,
-          total_streams: data.metadata?.metrics?.total_streams || 0,
-          avg_track_rating: data.metadata?.metrics?.avg_track_rating || 0,
+          total_streams: (data.metadata as any)?.metrics?.total_streams || 0,
+          avg_track_rating: (data.metadata as any)?.metrics?.avg_track_rating || 0,
         },
-        ai_context: data.metadata?.ai_context,
+        ai_context: (data.metadata as any)?.ai_context,
         _cached_at: Date.now(),
       };
       
@@ -395,13 +383,13 @@ export function useCreateArtist() {
               .from('artists')
               .update({
                 metadata: {
-                  ...artistData.metadata,
+                  ...(artistData.metadata as any),
                   profile: {
                     ...payload.profile,
                     ...aiData.data.profile,
                   },
                   ai_context: {
-                    ...artistData.metadata?.ai_context,
+                    ...(artistData.metadata as any)?.ai_context,
                     generation_quality_score: aiData.data.quality_score || 0.8,
                   },
                 },
@@ -424,7 +412,7 @@ export function useCreateArtist() {
         name: artistData.name,
         description: artistData.description,
         avatar_url: artistData.avatar_url,
-        profile: artistData.metadata?.profile || {
+        profile: (artistData.metadata as any)?.profile || {
           goals: '',
           mission: '',
           style: '',
@@ -434,7 +422,7 @@ export function useCreateArtist() {
           brand_voice: '',
           influences: [],
         },
-        ai_context: artistData.metadata?.ai_context,
+        ai_context: (artistData.metadata as any)?.ai_context,
         _cached_at: Date.now(),
       };
       
@@ -452,15 +440,15 @@ export function useCreateArtist() {
         name: payload.name,
         description: payload.description,
         avatar_url: payload.avatar_url,
-        profile: payload.profile || {
-          goals: '',
-          mission: '',
-          style: '',
-          creative_brief: '',
-          musical_preferences: [],
-          target_audience: '',
-          brand_voice: '',
-          influences: [],
+        profile: {
+          goals: payload.profile?.goals || '',
+          mission: payload.profile?.mission || '',
+          style: payload.profile?.style || '',
+          creative_brief: payload.profile?.creative_brief || '',
+          musical_preferences: payload.profile?.musical_preferences || [],
+          target_audience: payload.profile?.target_audience || '',
+          brand_voice: payload.profile?.brand_voice || '',
+          influences: payload.profile?.influences || [],
         },
         _cached_at: Date.now(),
       };

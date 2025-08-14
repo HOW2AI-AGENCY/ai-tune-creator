@@ -568,7 +568,7 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
       // TRANSFORM: Convert metadata to profile structure
       const transformedData: AppArtist[] = (data || []).map(artist => ({
         ...artist,
-        profile: artist.metadata?.profile || {},
+        profile: (artist.metadata as any)?.profile || {},
       }));
       
       dispatch({ type: 'ARTISTS_SUCCESS', payload: transformedData });

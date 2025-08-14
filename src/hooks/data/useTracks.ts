@@ -155,7 +155,7 @@ export const tracksQueryKeys = {
  */
 const tracksQueryConfig = {
   staleTime: 3 * 60 * 1000,         // 3 minutes - audio content changes frequently
-  cacheTime: 15 * 60 * 1000,        // 15 minutes cache для audio URLs
+  gcTime: 15 * 60 * 1000,        // 15 minutes cache для audio URLs
   refetchOnWindowFocus: false,       // Avoid refetching audio metadata
   refetchOnReconnect: true,
   retry: 1,                          // Less retries for large audio data
@@ -244,14 +244,14 @@ export function useTracks(options?: {
         duration: track.duration,
         genre_tags: track.genre_tags || [],
         
-        metadata: track.metadata?.metadata || {},
-        ai_context: track.metadata?.ai_context,
-        lyrics_context: track.metadata?.lyrics_context,
-        versions: track.metadata?.versions,
-        collaboration: track.metadata?.collaboration,
+        metadata: (track.metadata as any)?.metadata || {},
+        ai_context: (track.metadata as any)?.ai_context,
+        lyrics_context: (track.metadata as any)?.lyrics_context,
+        versions: (track.metadata as any)?.versions,
+        collaboration: (track.metadata as any)?.collaboration,
         
         _cached_at: Date.now(),
-        _cache_ttl: tracksQueryConfig.cacheTime,
+        _cache_ttl: tracksQueryConfig.gcTime,
       }));
       
       // SYNC: Update global state
@@ -297,10 +297,6 @@ export function useTracks(options?: {
       return undefined;
     },
     
-    onError: (error: Error) => {
-      console.error('[useTracks] Query failed:', error);
-      dispatch({ type: 'TRACKS_ERROR', payload: error.message });
-    },
   });
   
   return {
@@ -348,22 +344,23 @@ export function useTrack(trackId: string, options?: { includeVersions?: boolean 
       }
       
       // ENHANCEMENT: Process и analyze lyrics для structure detection
-      let lyricsContext = data.metadata?.lyrics_context;
-      if (data.lyrics && !lyricsContext) {
+      const metadataObj = (data as any).metadata || {};
+      let lyricsContext = metadataObj.lyrics_context;
+      if ((data as any).lyrics && !lyricsContext) {
         lyricsContext = analyzeLyrics(data.lyrics);
       }
       
       const enhanced: EnhancedTrack = {
-        ...data,
-        metadata: data.metadata?.metadata || {},
-        ai_context: data.metadata?.ai_context,
-        lyrics_context,
-        versions: data.metadata?.versions || {
+        ...(data as any),
+        metadata: metadataObj?.metadata || {},
+        ai_context: metadataObj?.ai_context,
+        lyrics_context: lyricsContext,
+        versions: metadataObj?.versions || {
           version_number: 1,
           is_current: true,
           created_by: 'user',
         },
-        collaboration: data.metadata?.collaboration,
+        collaboration: metadataObj?.collaboration,
         _cached_at: Date.now(),
       };
       
@@ -516,7 +513,10 @@ export function useCreateTrack() {
       
       const { data: trackRecord, error: trackError } = await supabase
         .from('tracks')
-        .insert(trackData)
+        .insert({
+          ...trackData,
+          track_number: 1,
+        })
         .select()
         .single();
       
@@ -531,11 +531,11 @@ export function useCreateTrack() {
         lyrics: trackRecord.lyrics,
         duration: trackRecord.duration,
         genre_tags: trackRecord.genre_tags,
-        metadata: trackRecord.metadata?.metadata || {},
-        ai_context: trackRecord.metadata?.ai_context,
-        lyrics_context: trackRecord.metadata?.lyrics_context,
-        versions: trackRecord.metadata?.versions,
-        collaboration: trackRecord.metadata?.collaboration,
+        metadata: (trackRecord.metadata as any)?.metadata || {},
+        ai_context: (trackRecord.metadata as any)?.ai_context,
+        lyrics_context: (trackRecord.metadata as any)?.lyrics_context,
+        versions: (trackRecord.metadata as any)?.versions,
+        collaboration: (trackRecord.metadata as any)?.collaboration,
         _cached_at: Date.now(),
       };
       
