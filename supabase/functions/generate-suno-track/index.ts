@@ -356,6 +356,7 @@ serve(async (req) => {
               .eq('id', generation.id);
           }
         }
+      }
     }
 
     // Возвращаем результат с task ID для polling
