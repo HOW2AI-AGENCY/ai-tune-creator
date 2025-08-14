@@ -193,19 +193,51 @@ export default function AIGeneration() {
     }
     setIsGenerating(true);
     try {
-      const { error } = await supabase
-        .from("ai_generations")
-        .insert({
+      console.log("=== TRACK GENERATION START ===");
+      console.log("Service:", selectedService);
+      console.log("Track ID:", selectedTrackId);
+      console.log("Version:", selectedVersion);
+      console.log("Params:", {
+        prompt,
+        service: selectedService,
+        trackId: selectedTrackId,
+        projectId: selectedProjectId,
+        mode: "custom"
+      });
+
+      // Выбираем правильную Edge Function в зависимости от сервиса
+      const functionName = selectedService === 'suno' ? 'generate-suno-track' : 'generate-mureka-track';
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: {
           prompt,
-          service: selectedService,
-          status: "queued",
-          track_id: selectedTrackId,
-        } as any);
+          trackId: selectedTrackId,
+          projectId: selectedProjectId,
+          mode: "custom",
+          service: selectedService
+        }
+      });
+
       if (error) throw error;
-      toast({ title: "Запрос на генерацию добавлен", description: `Версия: v${selectedVersion}` });
-      setPrompt("");
+
+      console.log("Generation response:", data);
+
+      if (data?.success) {
+        toast({ 
+          title: "Генерация запущена", 
+          description: `Трек генерируется с помощью ${selectedService}. Task ID: ${data.data?.task_id || 'unknown'}` 
+        });
+        setPrompt("");
+        
+        // Обновляем список генераций через некоторое время
+        setTimeout(() => {
+          window.location.reload(); // Временное решение для обновления UI
+        }, 2000);
+      } else {
+        throw new Error(data?.error || 'Не удалось запустить генерацию');
+      }
     } catch (e: any) {
-      console.error(e);
+      console.error("Generation error:", e);
       toast({ title: "Ошибка генерации", description: e.message || "Не удалось отправить запрос", variant: "destructive" });
     } finally {
       setIsGenerating(false);
@@ -219,18 +251,43 @@ export default function AIGeneration() {
     }
     setIsGenerating(true);
     try {
-      const { error } = await supabase
-        .from("ai_generations")
-        .insert({
+      console.log("=== QUICK GENERATION START ===");
+      console.log("Service:", opts.service);
+      console.log("Track ID:", opts.trackId);
+      console.log("Next Version:", opts.nextVersion);
+      console.log("Prompt:", opts.prompt);
+
+      // Выбираем правильную Edge Function в зависимости от сервиса
+      const functionName = opts.service === 'suno' ? 'generate-suno-track' : 'generate-mureka-track';
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: {
           prompt: opts.prompt,
-          service: opts.service,
-          status: "queued",
-          track_id: opts.trackId,
-        } as any);
+          trackId: opts.trackId,
+          mode: "quick",
+          service: opts.service
+        }
+      });
+
       if (error) throw error;
-      toast({ title: "Запрос на генерацию добавлен", description: `Версия: v${opts.nextVersion}` });
+
+      console.log("Quick generation response:", data);
+
+      if (data?.success) {
+        toast({ 
+          title: "Генерация запущена", 
+          description: `Версия v${opts.nextVersion} генерируется с помощью ${opts.service}` 
+        });
+        
+        // Обновляем список генераций через некоторое время
+        setTimeout(() => {
+          window.location.reload(); // Временное решение для обновления UI
+        }, 2000);
+      } else {
+        throw new Error(data?.error || 'Не удалось запустить быструю генерацию');
+      }
     } catch (e: any) {
-      console.error(e);
+      console.error("Quick generation error:", e);
       toast({ title: "Ошибка генерации", description: e.message || "Не удалось отправить запрос", variant: "destructive" });
     } finally {
       setIsGenerating(false);
