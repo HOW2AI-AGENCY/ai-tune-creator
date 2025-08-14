@@ -586,20 +586,20 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
     
     dispatch({ type: 'PROJECTS_LOADING' });
     try {
-      const result = await supabase
+      const { data, error }: any = await supabase
         .from('projects')
-        .select('*')
+        .select('id, title, type, status, artist_id, cover_url, description')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false });
         
-      if (result.error) throw result.error;
+      if (error) throw error;
       
       // Simple type transformation
-      const transformedData: AppProject[] = (result.data || []).map(project => ({
+      const transformedData: AppProject[] = (data || []).map((project: any) => ({
         id: project.id,
         title: project.title,
-        type: 'single' as const,
-        status: 'draft' as const,
+        type: (project.type as "single" | "ep" | "album") || 'single',
+        status: (project.status as "draft" | "published" | "archived") || 'draft',
         artist_id: project.artist_id,
         cover_url: project.cover_url,
         description: project.description,
@@ -619,23 +619,23 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
     
     dispatch({ type: 'TRACKS_LOADING' });
     try {
-      const result = await supabase
+      const { data, error }: any = await supabase
         .from('tracks')
-        .select('*')
+        .select('id, title, project_id, audio_url, lyrics, duration, genre_tags')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false });
         
-      if (result.error) throw result.error;
+      if (error) throw error;
       
       // Simple type transformation
-      const transformedData: AppTrack[] = (result.data || []).map(track => ({
+      const transformedData: AppTrack[] = (data || []).map((track: any) => ({
         id: track.id,
         title: track.title,
         project_id: track.project_id,
         audio_url: track.audio_url,
         lyrics: track.lyrics,
         duration: track.duration,
-        genre_tags: [],
+        genre_tags: track.genre_tags || [],
       }));
       
       dispatch({ type: 'TRACKS_SUCCESS', payload: transformedData });

@@ -191,7 +191,7 @@ export function useTracks(options?: {
       
       console.log('[useTracks] Fetching tracks from database...');
       
-      let query = supabase
+      let query: any = supabase
         .from('tracks')
         .select(`
           id,
@@ -344,9 +344,9 @@ export function useTrack(trackId: string, options?: { includeVersions?: boolean 
       }
       
       // ENHANCEMENT: Process и analyze lyrics для structure detection
-      const metadataObj = (data as any).metadata || {};
+      const metadataObj = (data as any)?.metadata || {};
       let lyricsContext = metadataObj.lyrics_context;
-      if ((data as any).lyrics && !lyricsContext) {
+      if (data && (data as any).lyrics && !lyricsContext) {
         lyricsContext = analyzeLyrics((data as any).lyrics);
       }
       
