@@ -36,10 +36,10 @@ serve(async (req) => {
     }
 
     // Проверяем статус и кредиты через Suno API
-    console.log('Checking Suno API with endpoint: https://api.sunoapi.org/api/v1/account/credits');
+    console.log('Checking Suno API with endpoint: https://api.sunoapi.org/api/v1/generate/credit');
     console.log('Using API key length:', sunoApiKey?.length || 0);
     
-    const response = await fetch('https://api.sunoapi.org/api/v1/account/credits', {
+    const response = await fetch('https://api.sunoapi.org/api/v1/generate/credit', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -68,25 +68,37 @@ serve(async (req) => {
       });
     }
 
-    const data: SunoCreditsResponse = await response.json();
+    const apiResponse = await response.json();
+    console.log('Suno API Response:', apiResponse);
+    
+    // Проверяем успешность запроса
+    if (apiResponse.code !== 200) {
+      console.error('Suno API returned error code:', apiResponse.code, apiResponse.msg);
+      return new Response(JSON.stringify({
+        status: 'offline',
+        error: apiResponse.msg || 'API вернул ошибку'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const creditsRemaining = apiResponse.data;
     
     // Определяем статус на основе оставшихся кредитов
     let status = 'online';
-    if (data.credits_remaining <= 0) {
+    if (creditsRemaining <= 0) {
       status = 'limited';
-    } else if (data.credits_remaining <= 5) {
+    } else if (creditsRemaining <= 5) {
       status = 'limited';
     }
 
     const result = {
       status,
-      creditsRemaining: data.credits_remaining,
-      creditsTotal: data.credits_total,
-      subscriptionType: data.subscription_type,
-      rateLimit: data.rate_limit ? {
-        remaining: data.rate_limit.remaining,
-        resetTime: data.rate_limit.reset_time
-      } : undefined
+      creditsRemaining,
+      creditsTotal: null, // API не возвращает общее количество
+      subscriptionType: null,
+      rateLimit: undefined
     };
 
     console.log('Suno status check result:', result);
