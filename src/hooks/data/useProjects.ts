@@ -127,7 +127,7 @@ export const projectsQueryKeys = {
  */
 const projectsQueryConfig = {
   staleTime: 5 * 60 * 1000,         // 5 minutes - projects change less frequently
-  cacheTime: 30 * 60 * 1000,        // 30 minutes cache
+  gcTime: 30 * 60 * 1000,        // 30 minutes cache
   refetchOnWindowFocus: false,
   refetchOnReconnect: true,
   retry: 2,
@@ -187,24 +187,24 @@ export function useProjects() {
       const enhancedProjects: EnhancedProject[] = (data || []).map(project => ({
         id: project.id,
         title: project.title,
-        type: project.type || 'single',
-        status: project.status || 'draft',
+        type: (project.type as 'single' | 'ep' | 'album') || 'single',
+        status: (project.status as 'draft' | 'published' | 'archived') || 'draft',
         artist_id: project.artist_id,
         cover_url: project.cover_url,
         description: project.description,
-        auto_generated: project.metadata?.auto_generated || false,
-        generation_context: project.metadata?.generation_context,
+        auto_generated: (project.metadata as any)?.auto_generated || false,
+        generation_context: (project.metadata as any)?.generation_context,
         details: {
-          concept: project.metadata?.details?.concept || '',
-          target_audience: project.metadata?.details?.target_audience || '',
-          release_strategy: project.metadata?.details?.release_strategy || '',
-          marketing_notes: project.metadata?.details?.marketing_notes || '',
-          mood_description: project.metadata?.details?.mood_description || '',
-          genre_primary: project.metadata?.details?.genre_primary || '',
-          genre_secondary: project.metadata?.details?.genre_secondary || [],
+          concept: (project.metadata as any)?.details?.concept || '',
+          target_audience: (project.metadata as any)?.details?.target_audience || '',
+          release_strategy: (project.metadata as any)?.details?.release_strategy || '',
+          marketing_notes: (project.metadata as any)?.details?.marketing_notes || '',
+          mood_description: (project.metadata as any)?.details?.mood_description || '',
+          genre_primary: (project.metadata as any)?.details?.genre_primary || '',
+          genre_secondary: (project.metadata as any)?.details?.genre_secondary || [],
         },
-        ai_context: project.metadata?.ai_context,
-        cover_context: project.metadata?.cover_context,
+        ai_context: (project.metadata as any)?.ai_context,
+        cover_context: (project.metadata as any)?.cover_context,
         _cached_at: Date.now(),
         _cache_ttl: 30 * 60 * 1000,
       }));
@@ -243,11 +243,6 @@ export function useProjects() {
       return undefined;
     },
     
-    // ERROR HANDLING: Sync errors с global state
-    onError: (error: Error) => {
-      console.error('[useProjects] Query failed:', error);
-      dispatch({ type: 'PROJECTS_ERROR', payload: error.message });
-    },
   });
   
   return {
@@ -312,7 +307,9 @@ export function useProject(projectId: string) {
       // ENHANCEMENT: Add computed statistics
       const enhanced: EnhancedProject = {
         ...data,
-        details: data.metadata?.details || {
+        type: (data.type as 'single' | 'ep' | 'album') || 'single',
+        status: (data.status as 'draft' | 'published' | 'archived') || 'draft',
+        details: (data.metadata as any)?.details || {
           concept: '',
           target_audience: '',
           release_strategy: '',
@@ -327,8 +324,8 @@ export function useProject(projectId: string) {
           completion_percentage: 0, // TODO: Calculate based on tracks/goals
           last_activity: data.updated_at,
         },
-        ai_context: data.metadata?.ai_context,
-        cover_context: data.metadata?.cover_context,
+        ai_context: (data.metadata as any)?.ai_context,
+        cover_context: (data.metadata as any)?.cover_context,
         _cached_at: Date.now(),
       };
       
@@ -437,10 +434,10 @@ export function useCreateProject() {
               .from('projects')
               .update({
                 metadata: {
-                  ...projectData.metadata,
+                  ...(projectData.metadata as any),
                   details: aiData.data.concept,
                   ai_context: {
-                    ...projectData.metadata?.ai_context,
+                    ...(projectData.metadata as any)?.ai_context,
                     concept_generated: true,
                     generation_quality: aiData.data.quality_score || 0.8,
                   },
@@ -482,7 +479,7 @@ export function useCreateProject() {
               .update({
                 cover_url: coverData.data.cover_url,
                 metadata: {
-                  ...projectData.metadata,
+                  ...(projectData.metadata as any),
                   cover_context: {
                     provider: payload.cover_generation.provider || 'sunoapi',
                     prompt_used: coverData.data.prompt_used,
@@ -503,14 +500,14 @@ export function useCreateProject() {
       const enhancedProject: EnhancedProject = {
         id: projectData.id,
         title: projectData.title,
-        type: projectData.type || 'single',
-        status: projectData.status || 'draft',
+        type: (projectData.type as 'single' | 'ep' | 'album') || 'single',
+        status: (projectData.status as 'draft' | 'published' | 'archived') || 'draft',
         artist_id: projectData.artist_id,
         cover_url: projectData.cover_url,
         description: projectData.description,
-        auto_generated: projectData.metadata?.auto_generated || false,
-        generation_context: projectData.metadata?.generation_context,
-        details: projectData.metadata?.details || {
+        auto_generated: (projectData.metadata as any)?.auto_generated || false,
+        generation_context: (projectData.metadata as any)?.generation_context,
+        details: (projectData.metadata as any)?.details || {
           concept: '',
           target_audience: '',
           release_strategy: '',
@@ -519,8 +516,8 @@ export function useCreateProject() {
           genre_primary: '',
           genre_secondary: [],
         },
-        ai_context: projectData.metadata?.ai_context,
-        cover_context: projectData.metadata?.cover_context,
+        ai_context: (projectData.metadata as any)?.ai_context,
+        cover_context: (projectData.metadata as any)?.cover_context,
         _cached_at: Date.now(),
       };
       
@@ -542,7 +539,7 @@ export function useCreateProject() {
         description: payload.description,
         auto_generated: !!payload.auto_creation,
         generation_context: payload.auto_creation ? {
-          source: payload.auto_creation.source,
+          source: 'user_creation' as const,
           original_track_id: payload.auto_creation.source_track_id,
         } : undefined,
         details: {
