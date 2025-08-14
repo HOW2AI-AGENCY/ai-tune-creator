@@ -22,6 +22,35 @@ import { useAuth } from '@/hooks/useAuth';
 // 🏗️ TYPE DEFINITIONS
 // ====================================
 
+// Raw database response types to prevent infinite type instantiation
+interface RawArtist {
+  id: string;
+  name: string;
+  avatar_url?: string;
+  description?: string;
+  metadata?: any;
+}
+
+interface RawProject {
+  id: string;
+  title: string;
+  type?: string;
+  status?: string;
+  artist_id: string;
+  cover_url?: string;
+  description?: string;
+}
+
+interface RawTrack {
+  id: string;
+  title: string;
+  project_id: string;
+  audio_url?: string;
+  lyrics?: string;
+  duration?: number;
+  genre_tags?: string[];
+}
+
 /**
  * Core domain entities optimized for caching
  * 
@@ -560,18 +589,25 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
     
     dispatch({ type: 'ARTISTS_LOADING' });
     try {
-      const { data, error } = await supabase
+      // Use fetch directly to avoid Supabase type inference
+      const response: any = await (supabase as any)
         .from('artists')
         .select('id, name, avatar_url, description, metadata')
         .eq('user_id', user.id)
         .order('name');
+      
+      const data = response.data as RawArtist[] | null;
+      const error = response.error;
         
       if (error) throw error;
       
       // TRANSFORM: Convert metadata to profile structure
-      const transformedData: AppArtist[] = (data || []).map(artist => ({
-        ...artist,
-        profile: (artist.metadata as any)?.profile || {},
+      const transformedData: AppArtist[] = (data || []).map((artist: RawArtist) => ({
+        id: artist.id,
+        name: artist.name,
+        avatar_url: artist.avatar_url,
+        description: artist.description,
+        profile: artist.metadata?.profile || {},
       }));
       
       dispatch({ type: 'ARTISTS_SUCCESS', payload: transformedData });
@@ -586,16 +622,20 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
     
     dispatch({ type: 'PROJECTS_LOADING' });
     try {
-      const { data, error }: any = await supabase
+      // Use fetch directly to avoid Supabase type inference
+      const response: any = await (supabase as any)
         .from('projects')
         .select('id, title, type, status, artist_id, cover_url, description')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false });
+      
+      const data = response.data as RawProject[] | null;
+      const error = response.error;
         
       if (error) throw error;
       
       // Simple type transformation
-      const transformedData: AppProject[] = (data || []).map((project: any) => ({
+      const transformedData: AppProject[] = (data || []).map((project: RawProject) => ({
         id: project.id,
         title: project.title,
         type: (project.type as "single" | "ep" | "album") || 'single',
@@ -619,16 +659,20 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
     
     dispatch({ type: 'TRACKS_LOADING' });
     try {
-      const { data, error }: any = await supabase
+      // Use fetch directly to avoid Supabase type inference
+      const response: any = await (supabase as any)
         .from('tracks')
         .select('id, title, project_id, audio_url, lyrics, duration, genre_tags')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false });
+      
+      const data = response.data as RawTrack[] | null;
+      const error = response.error;
         
       if (error) throw error;
       
       // Simple type transformation
-      const transformedData: AppTrack[] = (data || []).map((track: any) => ({
+      const transformedData: AppTrack[] = (data || []).map((track: RawTrack) => ({
         id: track.id,
         title: track.title,
         project_id: track.project_id,
