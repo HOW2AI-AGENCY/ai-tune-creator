@@ -36,6 +36,9 @@ serve(async (req) => {
     }
 
     // Проверяем статус и кредиты через Suno API
+    console.log('Checking Suno API with endpoint: https://api.sunoapi.org/api/v1/account/credits');
+    console.log('Using API key length:', sunoApiKey?.length || 0);
+    
     const response = await fetch('https://api.sunoapi.org/api/v1/account/credits', {
       method: 'GET',
       headers: {

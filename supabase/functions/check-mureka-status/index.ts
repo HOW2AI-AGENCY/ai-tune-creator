@@ -39,6 +39,9 @@ serve(async (req) => {
     }
 
     // Проверяем статус и кредиты через Mureka API
+    console.log('Checking Mureka API with endpoint: https://api.mureka.ai/v1/account/status');
+    console.log('Using API key length:', murekaApiKey?.length || 0);
+    
     const response = await fetch('https://api.mureka.ai/v1/account/status', {
       method: 'GET',
       headers: {
