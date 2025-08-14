@@ -6,17 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface MurekaStatusResponse {
-  credits: {
-    balance: number;
-    total_spent: number;
-    plan_limit: number;
-  };
-  api_status: string;
-  rate_limits: {
-    remaining: number;
-    reset_at: string;
-  };
+interface MurekaBillingResponse {
+  account_id: number;
+  balance: number; // in cents
+  total_recharge: number; // in cents
+  total_spending: number; // in cents
+  concurrent_request_limit: number;
 }
 
 serve(async (req) => {
@@ -39,10 +34,10 @@ serve(async (req) => {
     }
 
     // Проверяем статус и кредиты через Mureka API
-    console.log('Checking Mureka API with endpoint: https://api.mureka.ai/v1/account/status');
+    console.log('Checking Mureka API with endpoint: https://api.mureka.ai/v1/account/billing');
     console.log('Using API key length:', murekaApiKey?.length || 0);
     
-    const response = await fetch('https://api.mureka.ai/v1/account/status', {
+    const response = await fetch('https://api.mureka.ai/v1/account/billing', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${murekaApiKey}`,
@@ -71,30 +66,29 @@ serve(async (req) => {
       });
     }
 
-    const data: MurekaStatusResponse = await response.json();
+    const data: MurekaBillingResponse = await response.json();
+    console.log('Mureka API Response:', data);
     
-    // Определяем статус на основе баланса кредитов
+    // Определяем статус на основе баланса (в центах)
+    const balanceInCents = data.balance || 0;
+    const balanceInDollars = balanceInCents / 100;
+    
     let status = 'online';
-    if (data.credits.balance <= 0) {
+    if (balanceInCents <= 0) {
       status = 'limited';
-    } else if (data.credits.balance <= 10) {
-      status = 'limited';
-    }
-
-    // Если API сообщает о проблемах
-    if (data.api_status !== 'operational') {
+    } else if (balanceInDollars <= 1) { // Менее $1
       status = 'limited';
     }
 
     const result = {
       status,
-      creditsRemaining: Math.floor(data.credits.balance),
-      creditsTotal: data.credits.plan_limit,
-      apiStatus: data.api_status,
-      rateLimit: {
-        remaining: data.rate_limits.remaining,
-        resetTime: data.rate_limits.reset_at
-      }
+      creditsRemaining: balanceInDollars,
+      creditsTotal: data.total_recharge ? data.total_recharge / 100 : null,
+      subscriptionType: null,
+      rateLimit: data.concurrent_request_limit ? {
+        remaining: data.concurrent_request_limit,
+        resetTime: null
+      } : undefined
     };
 
     console.log('Mureka status check result:', result);
