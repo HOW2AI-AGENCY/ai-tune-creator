@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Mic, Music2, Settings, Zap, Sliders } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import OperationLoader from "@/components/ui/operation-loader";
 import { QuickPresetsGrid } from "./QuickPresetsGrid";
 import { CustomModePanel } from "./CustomModePanel";
 import { quickPresets } from "../data/presets";
@@ -18,13 +19,24 @@ interface TrackGenerationSidebarProps {
   artists: Option[];
   onGenerate: (params: GenerationParams) => void;
   isGenerating: boolean;
+  generationProgress?: {
+    title: string;
+    subtitle?: string;
+    progress?: number;
+    steps?: Array<{
+      id: string;
+      label: string;
+      status: 'pending' | 'running' | 'done' | 'error';
+    }>;
+  };
 }
 
 export function TrackGenerationSidebar({ 
   projects, 
   artists, 
   onGenerate, 
-  isGenerating 
+  isGenerating,
+  generationProgress
 }: TrackGenerationSidebarProps) {
   // Основные состояния
   const [mode, setMode] = useState<'quick' | 'custom'>('quick');
@@ -111,11 +123,26 @@ export function TrackGenerationSidebar({
   };
 
   return (
-    <div className="w-80 bg-card border-r border-border p-4 space-y-4 overflow-y-auto">
-      <div className="flex items-center gap-2 mb-4">
-        <Sparkles className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-semibold">Генерация трека</h2>
-      </div>
+    <div className="w-80 bg-card border-r border-border overflow-y-auto">
+      {/* Показываем прогресс генерации */}
+      {isGenerating && generationProgress && (
+        <div className="p-4 border-b border-border">
+          <OperationLoader
+            title={generationProgress.title}
+            subtitle={generationProgress.subtitle}
+            progress={generationProgress.progress}
+            steps={generationProgress.steps}
+            size="sm"
+            colorClass="bg-primary/80"
+          />
+        </div>
+      )}
+      
+      <div className="p-4 space-y-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold">Генерация трека</h2>
+        </div>
 
       {/* Контекст */}
       <Card>
@@ -359,24 +386,25 @@ export function TrackGenerationSidebar({
         </TabsContent>
       </Tabs>
 
-      <Button 
-        onClick={handleGenerate}
-        disabled={isGenerating}
-        className="w-full"
-        size="lg"
-      >
-        {isGenerating ? (
-          <>
-            <Music2 className="h-4 w-4 mr-2 animate-pulse" />
-            Генерируется...
-          </>
-        ) : (
-          <>
-            <Sparkles className="h-4 w-4 mr-2" />
-            {mode === 'quick' ? 'Создать трек' : 'Создать с кастомными настройками'}
-          </>
-        )}
-      </Button>
+        <Button 
+          onClick={handleGenerate}
+          disabled={isGenerating}
+          className="w-full"
+          size="lg"
+        >
+          {isGenerating ? (
+            <>
+              <Music2 className="h-4 w-4 mr-2 animate-pulse" />
+              Генерируется...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4 mr-2" />
+              {mode === 'quick' ? 'Создать трек' : 'Создать с кастомными настройками'}
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

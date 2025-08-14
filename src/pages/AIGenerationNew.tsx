@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
 import { LyricsDrawer } from "@/features/ai-generation/components/LyricsDrawer";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
-import { useSunoStatusPolling } from "@/features/ai-generation/hooks/useSunoStatusPolling";
+import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
 import { 
   Search, 
   Play, 
@@ -86,33 +86,9 @@ export default function AIGenerationNew() {
   // Состояние для polling генерации
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [generatingMessage, setGeneratingMessage] = useState<string>('');
-
-  // Хук для polling статуса Suno генерации
-  const { data: pollingData, isPolling } = useSunoStatusPolling({
-    taskId: currentTaskId || undefined,
-    enabled: !!currentTaskId,
-    onComplete: (data) => {
-      console.log('Generation completed:', data);
-      setCurrentTaskId(null);
-      setGeneratingMessage('');
-      setIsGenerating(false); // Завершаем состояние генерации
-      
-      // Обновляем список генераций
-      fetchGenerations();
-      
-      // Если есть готовый трек, начинаем воспроизведение
-      if (data.track && data.track.audio_url) {
-        setSelectedTrack(data.track);
-        setIsPlayerOpen(true);
-      }
-    },
-    onError: (error) => {
-      console.error('Generation error:', error);
-      setCurrentTaskId(null);
-      setGeneratingMessage('');
-      setIsGenerating(false); // Завершаем состояние генерации при ошибке
-    }
-  });
+  
+  // Хук для генерации с прогрессом
+  const { generateTrack, isGenerating: hookIsGenerating, generationProgress } = useTrackGenerationWithProgress();
 
 
   useEffect(() => {
@@ -257,122 +233,11 @@ export default function AIGenerationNew() {
 
   // Обработчики
   const handleGenerate = async (params: GenerationParams) => {
-    setIsGenerating(true);
-    setCurrentTaskId(null); // Сбрасываем предыдущий task ID
     try {
-      toast({
-        title: "🎵 Генерация запущена",
-        description: `Создается трек с помощью ${params.service === 'suno' ? 'Suno AI' : 'Mureka'}`
-      });
-
-      // Определяем Edge Function в зависимости от сервиса
-      const functionName = params.service === 'suno' ? 'generate-suno-track' : 'generate-mureka-track';
-      
-      // Подготавливаем параметры для конкретного сервиса
-      let requestBody: any = {
-        prompt: params.prompt,
-        style: params.stylePrompt || "",
-        projectId: params.projectId,
-        artistId: params.artistId,
-        title: `AI Generated ${new Date().toLocaleDateString('ru-RU')}`,
-        mode: params.mode || 'quick'
-      };
-
-      // Добавляем кастомную лирику если есть
-      if (params.customLyrics && params.mode === 'custom') {
-        requestBody.custom_lyrics = params.customLyrics;
-      }
-
-      // Специфичные параметры для Suno
-      if (params.service === 'suno') {
-        requestBody = {
-          ...requestBody,
-          tags: params.genreTags?.join(', ') || "energetic, creative, viral",
-          make_instrumental: params.instrumental || false,
-          wait_audio: true,
-          model: "chirp-v3-5",
-          language: params.language || "ru"
-        };
-
-        // Добавляем дополнительные параметры для кастомного режима
-        if (params.mode === 'custom') {
-          if (params.voiceStyle && params.voiceStyle !== 'none') {
-            requestBody.voice_style = params.voiceStyle;
-          }
-          if (params.tempo && params.tempo !== 'none') {
-            requestBody.tempo = params.tempo;
-          }
-        }
-      }
-
-      // Специфичные параметры для Mureka
-      if (params.service === 'mureka') {
-        requestBody = {
-          ...requestBody,
-          genre: params.genreTags?.[0] || "electronic",
-          mood: params.genreTags?.[1] || "energetic",
-          duration: params.duration || 120,
-          tempo: params.tempo || "medium",
-          key: "C",
-          instruments: [],
-          instrumental: params.instrumental || false
-        };
-      }
-
-      console.log(`Calling ${functionName} with params:`, requestBody);
-
-      // Вызываем соответствующую Edge Function
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: requestBody
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data.success) {
-        throw new Error(data.error || 'Не удалось сгенерировать трек');
-      }
-
-      // Показываем результат с task ID
-      const taskId = data.data.task_id;
-      const status = data.data.status;
-      
-      if (taskId && status === 'processing') {
-        // Начинаем polling для асинхронной генерации
-        setCurrentTaskId(taskId);
-        setGeneratingMessage(`Генерируется трек... Task ID: ${taskId}`);
-        
-        toast({
-          title: "🎵 Генерация запущена",
-          description: "Трек генерируется, ожидайте завершения..."
-        });
-      } else if (data.data.track && data.data.track.audio_url) {
-        // Если трек уже готов (unlikely для Suno)
-        toast({
-          title: "✅ Трек создан!",
-          description: `${data.data.title || data.data.track?.title || 'Новый трек'} готов к прослушиванию`
-        });
-
-        setSelectedTrack(data.data.track);
-        setIsPlayerOpen(true);
-        
-        // Обновляем данные
-        await fetchGenerations();
-      }
-      
+      await generateTrack(params);
+      await fetchGenerations();
     } catch (error: any) {
       console.error('Generation error:', error);
-      toast({
-        title: "❌ Ошибка генерации",
-        description: error.message || `Не удалось создать трек с помощью ${params.service}`,
-        variant: "destructive"
-      });
-    } finally {
-      // Не сбрасываем isGenerating сразу, если начался polling
-      if (!currentTaskId) {
-        setIsGenerating(false);
-      }
     }
   };
 
@@ -453,7 +318,8 @@ export default function AIGenerationNew() {
         projects={projects}
         artists={artists}
         onGenerate={handleGenerate}
-        isGenerating={isGenerating || isPolling}
+        isGenerating={hookIsGenerating}
+        generationProgress={generationProgress}
       />
 
       {/* Основная область контента */}
