@@ -33,6 +33,36 @@ interface SunoTrackData {
   prompt?: string;
 }
 
+// Функция для фоновой загрузки трека
+async function downloadTrackInBackground(generationId: string, externalUrl: string, trackId?: string) {
+  try {
+    console.log('Starting background download for generation:', generationId);
+    
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Вызываем функцию загрузки трека
+    const { data, error } = await supabase.functions.invoke('download-and-save-track', {
+      body: {
+        generation_id: generationId,
+        external_url: externalUrl,
+        track_id: trackId
+      }
+    });
+
+    if (error) {
+      console.error('Background download error:', error);
+      return;
+    }
+
+    console.log('Background download completed for generation:', generationId);
+  } catch (error) {
+    console.error('Error in background download:', error);
+  }
+}
+
 // Edge Function для обработки колбэков от SunoAPI
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -138,7 +168,7 @@ serve(async (req) => {
           .from('tracks')
           .update({
             title: track.title,
-            audio_url: track.audio_url,
+            audio_url: track.audio_url, // Пока внешний URL
             duration: track.duration,
             lyrics: track.lyric || null,
             metadata: {
@@ -146,7 +176,8 @@ serve(async (req) => {
               suno_track_id: track.id,
               suno_model: track.model_name,
               suno_track_data: track,
-              completed_at: new Date().toISOString()
+              completed_at: new Date().toISOString(),
+              external_audio_url: track.audio_url
             },
             updated_at: new Date().toISOString()
           })
@@ -156,6 +187,9 @@ serve(async (req) => {
           console.error('Error updating track:', updateTrackError);
         } else {
           console.log('Track updated successfully:', generation.track_id);
+          
+          // Запускаем фоновую загрузку трека в Supabase Storage
+          EdgeRuntime.waitUntil(downloadTrackInBackground(generation.id, track.audio_url, generation.track_id));
         }
       } else {
         // Создаем новый трек
@@ -163,7 +197,7 @@ serve(async (req) => {
           .from('tracks')
           .insert({
             title: track.title,
-            audio_url: track.audio_url,
+            audio_url: track.audio_url, // Пока внешний URL
             duration: track.duration,
             lyrics: track.lyric || track.prompt || '',
             description: track.prompt || `Generated with ${track.model_name}`,
@@ -175,7 +209,8 @@ serve(async (req) => {
               suno_model: track.model_name,
               suno_track_data: track,
               generation_id: generation.id,
-              completed_at: new Date().toISOString()
+              completed_at: new Date().toISOString(),
+              external_audio_url: track.audio_url
             }
           })
           .select()
@@ -191,6 +226,9 @@ serve(async (req) => {
             .from('ai_generations')
             .update({ track_id: newTrack.id })
             .eq('id', generation.id);
+            
+          // Запускаем фоновую загрузку трека в Supabase Storage
+          EdgeRuntime.waitUntil(downloadTrackInBackground(generation.id, track.audio_url, newTrack.id));
         }
       }
 

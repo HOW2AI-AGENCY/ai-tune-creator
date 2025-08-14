@@ -3,10 +3,12 @@ import { ResizableSidebar } from "@/components/ui/resizable-sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useTrackSync } from "@/hooks/useTrackSync";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { TrackLibrary } from "@/components/tracks/TrackLibrary";
 import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
 import { LyricsDrawer } from "@/features/ai-generation/components/LyricsDrawer";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
@@ -20,7 +22,9 @@ import {
   Music,
   Clock,
   Eye,
-  Sparkles
+  Sparkles,
+  RefreshCw,
+  CloudDownload
 } from "lucide-react";
 import { GenerationParams } from "@/features/ai-generation/types";
 
@@ -98,6 +102,9 @@ export default function AIGenerationNew() {
   
   // Хук для генерации с прогрессом
   const { generateTrack, isGenerating: hookIsGenerating, generationProgress } = useTrackGenerationWithProgress();
+  
+  // Хук для синхронизации треков
+  const { isSyncing, syncTracks, downloadSingleTrack, lastSyncResults } = useTrackSync();
 
 
   useEffect(() => {
@@ -370,33 +377,70 @@ export default function AIGenerationNew() {
                 )}
               </p>
             </div>
-            <Badge variant="secondary" className="px-3 py-1">
-              {filteredGenerations.length} треков
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={syncTracks}
+                disabled={isSyncing}
+                className="flex items-center gap-2"
+              >
+                <CloudDownload className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Синхронизация...' : 'Загрузить треки'}
+              </Button>
+              <Badge variant="secondary" className="px-3 py-1">
+                {filteredGenerations.length} треков
+              </Badge>
+            </div>
           </div>
 
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Поиск по названию или описанию..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Поиск по названию или описанию..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            {lastSyncResults && (
+              <div className="text-sm text-muted-foreground">
+                Последняя синхронизация: {lastSyncResults.summary.successful_downloads} загружено
+              </div>
+            )}
           </div>
         </div>
 
         {/* Сетка треков */}
         <div className="flex-1 overflow-y-auto p-6">
-          {filteredGenerations.length === 0 ? (
+          {isSyncing && (
+            <div className="text-center py-8 mb-6">
+              <RefreshCw className="h-8 w-8 mx-auto mb-2 text-primary animate-spin" />
+              <p className="text-sm text-muted-foreground">
+                Синхронизация треков с внешними сервисами...
+              </p>
+            </div>
+          )}
+          
+          {filteredGenerations.length === 0 && !isSyncing ? (
             <div className="text-center py-12">
               <Music className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-medium text-foreground mb-2">
                 Нет треков с аудио
               </h3>
-              <p className="text-muted-foreground">
-                Создайте первый трек с помощью формы слева
+              <p className="text-muted-foreground mb-4">
+                Создайте первый трек с помощью формы слева или загрузите существующие
               </p>
+              <Button 
+                onClick={syncTracks} 
+                disabled={isSyncing}
+                className="flex items-center gap-2"
+              >
+                <CloudDownload className="h-4 w-4" />
+                Загрузить существующие треки
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

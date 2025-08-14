@@ -1,0 +1,280 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useTrackSync } from '@/hooks/useTrackSync';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Play, 
+  Download, 
+  MoreHorizontal, 
+  Music, 
+  Clock,
+  CloudDownload,
+  ExternalLink,
+  Sparkles
+} from 'lucide-react';
+
+interface Track {
+  id: string;
+  title: string;
+  duration?: number;
+  audio_url?: string;
+  created_at: string;
+  metadata?: any; // Используем any для metadata вместо строгой типизации
+  ai_generations?: Array<{
+    id: string;
+    service: string;
+    status: string;
+    result_url?: string;
+  }>;
+}
+
+interface TrackLibraryProps {
+  onPlayTrack?: (track: Track) => void;
+  onSelectTrack?: (track: Track) => void;
+  searchQuery?: string;
+}
+
+export function TrackLibrary({ onPlayTrack, onSelectTrack, searchQuery = '' }: TrackLibraryProps) {
+  const { user } = useAuth();
+  const { syncTracks, downloadSingleTrack, isSyncing } = useTrackSync();
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Загрузка треков
+  useEffect(() => {
+    if (!user) {
+      setTracks([]);
+      setLoading(false);
+      return;
+    }
+
+    loadTracks();
+  }, [user]);
+
+  const loadTracks = async () => {
+    try {
+      setLoading(true);
+
+      // Загружаем треки с информацией о генерациях
+      const { data, error } = await supabase
+        .from('tracks')
+        .select(`
+          id,
+          title,
+          duration,
+          audio_url,
+          created_at,
+          metadata,
+          ai_generations(
+            id,
+            service,
+            status,
+            result_url
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        console.error('Error loading tracks:', error);
+        return;
+      }
+
+      setTracks(data || []);
+    } catch (error) {
+      console.error('Error in loadTracks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Фильтрация треков по поисковому запросу
+  const filteredTracks = tracks.filter(track => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      track.title.toLowerCase().includes(query) ||
+      track.metadata?.service?.toLowerCase().includes(query)
+    );
+  });
+
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return '0:00';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const getServiceBadgeColor = (service?: string) => {
+    switch (service) {
+      case 'suno': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
+      case 'mureka': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+    }
+  };
+
+  const isLocallyStored = (track: Track) => {
+    return track.metadata?.local_storage_path && 
+           track.audio_url?.includes('supabase');
+  };
+
+  const hasExternalUrl = (track: Track) => {
+    return track.metadata?.original_external_url || 
+           (track.audio_url && !isLocallyStored(track));
+  };
+
+  const handleDownloadTrack = async (track: Track) => {
+    const generation = track.ai_generations?.[0];
+    if (!generation || !track.audio_url) return;
+
+    await downloadSingleTrack(generation.id, track.audio_url, track.id);
+    
+    // Обновляем список треков после загрузки
+    setTimeout(loadTracks, 1000);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Music className="h-8 w-8 animate-pulse text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (filteredTracks.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Music className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+        <h3 className="text-lg font-medium text-foreground mb-2">
+          {searchQuery ? 'Треки не найдены' : 'Нет треков'}
+        </h3>
+        <p className="text-muted-foreground mb-4">
+          {searchQuery 
+            ? `По запросу "${searchQuery}" ничего не найдено`
+            : 'Создайте первый трек или загрузите существующие'
+          }
+        </p>
+        {!searchQuery && (
+          <Button 
+            onClick={syncTracks} 
+            disabled={isSyncing}
+            className="flex items-center gap-2"
+          >
+            <CloudDownload className="h-4 w-4" />
+            Загрузить треки
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {filteredTracks.map((track) => (
+        <Card 
+          key={track.id} 
+          className="group cursor-pointer hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20"
+          onClick={() => onSelectTrack?.(track)}
+        >
+          <CardContent className="p-4">
+            {/* Header с сервисом и статусом */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                {track.metadata?.service && (
+                  <Badge 
+                    variant="secondary" 
+                    className={`text-xs px-2 py-1 ${getServiceBadgeColor(track.metadata.service)}`}
+                  >
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    {track.metadata.service}
+                  </Badge>
+                )}
+                {isLocallyStored(track) && (
+                  <Badge variant="default" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                    Загружен
+                  </Badge>
+                )}
+              </div>
+              
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Заголовок */}
+            <h3 className="font-medium text-base mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+              {track.title}
+            </h3>
+
+            {/* Информация о треке */}
+            <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {formatDuration(track.duration)}
+              </div>
+              <div className="text-xs">
+                {new Date(track.created_at).toLocaleDateString()}
+              </div>
+            </div>
+
+            {/* Действия */}
+            <div className="flex items-center gap-2">
+              {track.audio_url && (
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPlayTrack?.(track);
+                  }}
+                  className="flex-1 flex items-center gap-2"
+                >
+                  <Play className="h-4 w-4" />
+                  Играть
+                </Button>
+              )}
+
+              {hasExternalUrl(track) && !isLocallyStored(track) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownloadTrack(track);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Загрузить
+                </Button>
+              )}
+
+              {track.metadata?.original_external_url && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(track.metadata?.original_external_url, '_blank');
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {/* Дополнительная информация */}
+            {track.metadata?.file_size && isLocallyStored(track) && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                Размер: {(track.metadata.file_size / (1024 * 1024)).toFixed(1)} МБ
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
