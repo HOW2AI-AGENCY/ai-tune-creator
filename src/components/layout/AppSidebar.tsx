@@ -50,8 +50,8 @@ export function AppSidebar() {
     <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-            <Music className="w-5 h-5 text-primary-foreground" />
+          <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center overflow-hidden">
+            <img src="/lovable-uploads/3fa15532-e16b-48f1-8df1-cefb76ba2691.png" alt="App Icon" className="w-5 h-5 object-contain" />
           </div>
           {!collapsed && (
             <div className="flex flex-col">
