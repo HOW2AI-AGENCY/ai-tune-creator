@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { userDataCache } from '@/lib/cache/CacheManager';
 
 export interface AISettings {
   provider: 'openai' | 'anthropic' | 'deepseek';
@@ -61,21 +62,32 @@ export function useAISettings() {
       
       if (!user) return;
 
+      // Check cache first
+      const cacheKey = `ai_settings_${user.id}`;
+      const cachedSettings = userDataCache.get(cacheKey);
+      if (cachedSettings) {
+        setSettings({ ...DEFAULT_SETTINGS, ...cachedSettings });
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('user_settings')
         .select('value')
         .eq('user_id', user.id)
         .eq('category', 'ai')
         .eq('key', 'settings')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error;
       }
 
-      if (data && data.value) {
-        setSettings({ ...DEFAULT_SETTINGS, ...data.value as Partial<AISettings> });
-      }
+      const settingsData = data?.value || {};
+      const mergedSettings = { ...DEFAULT_SETTINGS, ...settingsData as Partial<AISettings> };
+      
+      setSettings(mergedSettings);
+      userDataCache.set(cacheKey, settingsData, 10 * 60 * 1000); // Cache for 10 minutes
     } catch (error: any) {
       console.error('Error loading AI settings:', error);
       toast({
@@ -111,6 +123,10 @@ export function useAISettings() {
       if (error) {
         throw error;
       }
+
+      // Update cache
+      const cacheKey = `ai_settings_${user.id}`;
+      userDataCache.set(cacheKey, updatedSettings, 10 * 60 * 1000);
 
       toast({
         title: "Успешно",

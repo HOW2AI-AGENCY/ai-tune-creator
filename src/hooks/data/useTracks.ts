@@ -191,7 +191,7 @@ export function useTracks(options?: {
       
       console.log('[useTracks] Fetching tracks from database...');
       
-      let query: any = supabase
+      const baseQuery = supabase
         .from('tracks')
         .select(`
           id,
@@ -215,19 +215,20 @@ export function useTracks(options?: {
             )
           )
         `)
-        .eq('user_id', user.id);
+        .eq('projects.artists.user_id', user.id);
       
       // Apply filtering based on options
+      let finalQuery: any = baseQuery;
       if (options?.projectId) {
-        query = query.eq('project_id', options.projectId);
+        finalQuery = finalQuery.eq('project_id', options.projectId);
       }
       if (options?.artistId) {
-        query = query.eq('projects.artist_id', options.artistId);
+        finalQuery = finalQuery.eq('projects.artist_id', options.artistId);
       }
       
-      query = query.order('updated_at', { ascending: false });
+      finalQuery = finalQuery.order('updated_at', { ascending: false });
       
-      const { data, error } = await query;
+      const { data, error } = await finalQuery;
       
       if (error) {
         console.error('[useTracks] Database error:', error);

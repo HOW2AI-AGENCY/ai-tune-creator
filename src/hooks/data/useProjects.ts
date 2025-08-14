@@ -156,7 +156,7 @@ export function useProjects() {
       
       console.log('[useProjects] Fetching projects from database...');
       
-      const { data, error } = await supabase
+      const { data, error }: { data: any; error: any } = await supabase
         .from('projects')
         .select(`
           id,
@@ -175,7 +175,7 @@ export function useProjects() {
             avatar_url
           )
         `)
-        .eq('user_id', user.id)
+        .eq('artists.user_id', user.id)
         .order('updated_at', { ascending: false });
       
       if (error) {

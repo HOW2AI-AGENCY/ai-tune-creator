@@ -40,51 +40,62 @@ export function useSunoStatusPolling({
       });
 
       if (error) {
+        console.error('Suno status error:', error);
         throw error;
       }
 
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to check status');
-      }
+      if (response?.success && response?.data) {
+        const statusData = response.data;
+        setData(statusData);
+        setError(null);
 
-      const statusData = response.data;
-      setData(statusData);
-      setError(null);
+        console.log('Status check result:', statusData.status);
 
-      console.log('Status check result:', statusData.status);
-
-      // Если генерация завершена
-      if (statusData.status === 'completed') {
-        setIsPolling(false);
-        
-        if (statusData.track && statusData.track.audio_url) {
+        // Если генерация завершена
+        if (statusData.status === 'completed') {
+          setIsPolling(false);
+          
+          if (statusData.track && statusData.track.audio_url) {
+            toast({
+              title: "🎵 Трек готов!",
+              description: `${statusData.track.title} успешно сгенерирован`
+            });
+            
+            onComplete?.(statusData);
+          }
+        } else if (statusData.status === 'failed') {
+          setIsPolling(false);
+          const errorMsg = 'Генерация трека не удалась';
+          setError(errorMsg);
+          
           toast({
-            title: "🎵 Трек готов!",
-            description: `${statusData.track.title} успешно сгенерирован`
+            title: "❌ Ошибка генерации",
+            description: errorMsg,
+            variant: "destructive"
           });
           
-          onComplete?.(statusData);
+          onError?.(errorMsg);
         }
-      } else if (statusData.status === 'failed') {
-        setIsPolling(false);
-        const errorMsg = 'Генерация трека не удалась';
-        setError(errorMsg);
-        
-        toast({
-          title: "❌ Ошибка генерации",
-          description: errorMsg,
-          variant: "destructive"
-        });
-        
-        onError?.(errorMsg);
-      }
 
-      return statusData;
+        return statusData;
+      } else {
+        throw new Error(response?.error || 'Invalid response from status check');
+      }
     } catch (err: any) {
       console.error('Error checking status:', err);
-      const errorMsg = err.message || 'Ошибка проверки статуса';
-      setError(errorMsg);
-      onError?.(errorMsg);
+      
+      // Don't stop polling on network errors, only on actual failures
+      if (err.message?.includes('Generation not found') || 
+          err.message?.includes('failed') ||
+          err.message?.includes('Invalid response')) {
+        setIsPolling(false);
+        const errorMsg = err.message || 'Ошибка проверки статуса';
+        setError(errorMsg);
+        onError?.(errorMsg);
+      } else {
+        // Network error - keep polling with exponential backoff
+        console.warn('Network error, will retry:', err.message);
+      }
       return null;
     }
   }, [toast, onComplete, onError]);

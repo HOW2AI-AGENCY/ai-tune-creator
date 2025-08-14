@@ -238,8 +238,9 @@ serve(async (req) => {
         user_id: userId,
         prompt,
         service: 'suno',
-        status: generatedTrack.status || 'completed',
-        result_url: generatedTrack.audio_url,
+        status: 'processing',
+        result_url: null,
+        external_id: taskId,
         metadata: {
           suno_task_id: taskId,
           suno_id: generatedTrack.id,
@@ -256,7 +257,18 @@ serve(async (req) => {
           suno_request: sunoRequest,
           suno_response: sunoData
         },
-        track_id: trackId
+        parameters: {
+          style,
+          title,
+          model,
+          make_instrumental,
+          custom_lyrics,
+          wait_audio,
+          language,
+          tempo,
+          voice_style
+        },
+        track_id: null
       })
       .select()
       .single();
@@ -268,8 +280,8 @@ serve(async (req) => {
       console.log('Generation saved:', generation.id);
     }
 
-    // Если есть trackId, обновляем существующий трек
-    if (trackId) {
+    // Если есть requestBody.trackId, обновляем существующий трек
+    if (requestBody.trackId) {
       const { data: updatedTrack, error: trackError } = await supabase
         .from('tracks')
         .update({
@@ -289,7 +301,7 @@ serve(async (req) => {
           },
           updated_at: new Date().toISOString()
         })
-        .eq('id', trackId)
+        .eq('id', requestBody.trackId)
         .select()
         .single();
 
@@ -300,49 +312,50 @@ serve(async (req) => {
         console.log('Track updated:', updatedTrack.id);
       }
     } else {
-      // Создаем новый трек если trackId не указан
-      const { data: newTrack, error: trackError } = await supabase
-        .from('tracks')
-        .insert({
-          title: generatedTrack.title || title || 'AI Generated Track',
-          lyrics: generatedTrack.lyric || (mode === 'custom' && custom_lyrics ? custom_lyrics : prompt),
-          description: generatedTrack.gpt_description_prompt || prompt,
-          audio_url: generatedTrack.audio_url,
-          genre_tags: tags.split(', ').filter(Boolean),
-          style_prompt: style,
-          project_id: projectId,
-          artist_id: artistId,
-          metadata: {
-            suno_task_id: taskId,
-            suno_id: generatedTrack.id,
-            suno_response: sunoData,
-            generation_id: generation?.id,
-            model: sunoRequest.model,
-            custom_mode: sunoRequest.customMode,
-            mode,
-            custom_lyrics: mode === 'custom' ? custom_lyrics : null,
-            voice_style: sunoRequest.voiceStyle || null,
-            language: sunoRequest.language || null,
-            tempo: sunoRequest.tempo || null
+      // Создаем новый трек если trackId не указан и projectId указан
+      if (projectId) {
+        const { data: newTrack, error: trackError } = await supabase
+          .from('tracks')
+          .insert({
+            title: generatedTrack.title || title || 'AI Generated Track',
+            track_number: 1,
+            lyrics: generatedTrack.lyric || (mode === 'custom' && custom_lyrics ? custom_lyrics : prompt),
+            description: generatedTrack.gpt_description_prompt || prompt,
+            audio_url: null,
+            genre_tags: tags.split(', ').filter(Boolean),
+            style_prompt: style,
+            project_id: projectId,
+            metadata: {
+              suno_task_id: taskId,
+              suno_id: generatedTrack.id,
+              suno_response: sunoData,
+              generation_id: generation?.id,
+              model: sunoRequest.model,
+              custom_mode: sunoRequest.customMode,
+              mode,
+              custom_lyrics: mode === 'custom' ? custom_lyrics : null,
+              voice_style: sunoRequest.voiceStyle || null,
+              language: sunoRequest.language || null,
+              tempo: sunoRequest.tempo || null
+            }
+          })
+          .select()
+          .single();
+
+        if (trackError) {
+          console.error('Error creating track:', trackError);
+        } else {
+          trackRecord = newTrack;
+          console.log('Track created:', newTrack.id);
+
+          // Обновляем generation с track_id
+          if (generation?.id) {
+            await supabase
+              .from('ai_generations')
+              .update({ track_id: newTrack.id })
+              .eq('id', generation.id);
           }
-        })
-        .select()
-        .single();
-
-      if (trackError) {
-        console.error('Error creating track:', trackError);
-      } else {
-        trackRecord = newTrack;
-        console.log('Track created:', newTrack.id);
-
-        // Обновляем generation с track_id
-        if (generation?.id) {
-          await supabase
-            .from('ai_generations')
-            .update({ track_id: newTrack.id })
-            .eq('id', generation.id);
         }
-      }
     }
 
     // Возвращаем результат с task ID для polling
