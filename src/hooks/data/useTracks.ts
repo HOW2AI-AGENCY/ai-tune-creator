@@ -347,7 +347,7 @@ export function useTrack(trackId: string, options?: { includeVersions?: boolean 
       const metadataObj = (data as any).metadata || {};
       let lyricsContext = metadataObj.lyrics_context;
       if ((data as any).lyrics && !lyricsContext) {
-        lyricsContext = analyzeLyrics(data.lyrics);
+        lyricsContext = analyzeLyrics((data as any).lyrics);
       }
       
       const enhanced: EnhancedTrack = {
