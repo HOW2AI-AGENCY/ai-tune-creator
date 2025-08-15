@@ -50,34 +50,24 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Extract user id from verified JWT for rate limiting
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const token = authHeader.replace('Bearer ', '');
-  const jwtPayload = token.split('.')[1];
-  const userId = jwtPayload ? JSON.parse(atob(jwtPayload)).sub as string : 'anonymous';
-
-  // Rate limit per user (stricter for music generation)
-  const now = Date.now();
-  const rl = rateMap.get(userId);
-  if (!rl || now > rl.reset) {
-    rateMap.set(userId, { count: 1, reset: now + RATE_LIMIT_WINDOW });
-  } else if (rl.count >= RATE_LIMIT_MAX) {
-    return new Response(JSON.stringify({ 
-      error: 'Rate limit exceeded. Suno AI generation limited to 5 requests per 10 minutes.',
-      retryAfter: Math.ceil((rl.reset - now) / 1000)
-    }), {
-      status: 429,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } else {
-    rl.count++;
-  }
-
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            Authorization: req.headers.get('Authorization') ?? ''
+          }
+        }
+      }
     );
+
+    // Получаем пользователя через Supabase auth
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('Authentication required');
+    }
 
     let requestBody;
     try {
@@ -235,7 +225,7 @@ serve(async (req) => {
     const { data: generation, error: genError } = await supabase
       .from('ai_generations')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         prompt,
         service: 'suno',
         status: 'processing',

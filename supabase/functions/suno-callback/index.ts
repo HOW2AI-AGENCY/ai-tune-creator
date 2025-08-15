@@ -119,7 +119,7 @@ serve(async (req) => {
       .from('ai_generations')
       .select('id, track_id, user_id, metadata')
       .eq('service', 'suno')
-      .contains('metadata', { suno_task_id: task_id })
+      .eq('external_id', task_id)
       .single();
 
     if (findError || !generation) {
@@ -197,12 +197,14 @@ serve(async (req) => {
           .from('tracks')
           .insert({
             title: track.title,
+            track_number: 1,
             audio_url: track.audio_url, // Пока внешний URL
             duration: track.duration,
             lyrics: track.lyric || track.prompt || '',
             description: track.prompt || `Generated with ${track.model_name}`,
             genre_tags: track.tags ? track.tags.split(', ').filter(Boolean) : [],
             style_prompt: track.style || '',
+            project_id: generation.metadata?.project_id || null,
             metadata: {
               suno_task_id: task_id,
               suno_track_id: track.id,
