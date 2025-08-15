@@ -12,10 +12,13 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Scissors
 } from "lucide-react";
 import { toast } from 'sonner';
 import { AIGeneration } from '../hooks/useGenerationState';
+import { VocalSeparationDialog } from './VocalSeparationDialog';
+import { MurekaStemDialog } from './MurekaStemDialog';
 
 interface GenerationTrackCardProps {
   generation: AIGeneration;
@@ -33,6 +36,8 @@ export function GenerationTrackCard({
   isRefreshing 
 }: GenerationTrackCardProps) {
   const [progress, setProgress] = useState(generation.progress || 0);
+  const [showVocalSeparation, setShowVocalSeparation] = useState(false);
+  const [showMurekaStem, setShowMurekaStem] = useState(false);
 
   // Simulate progress for processing generations
   useEffect(() => {
@@ -164,6 +169,14 @@ export function GenerationTrackCard({
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setShowVocalSeparation(true)}
+                title="Разделить на стемы"
+              >
+                <Scissors className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 asChild
               >
                 <a href={generation.result_url} target="_blank" rel="noopener noreferrer">
@@ -176,6 +189,25 @@ export function GenerationTrackCard({
       </Card>
     );
   }
+
+  // Dialogs for stem separation
+  const renderStemDialogs = () => (
+    <>
+      <VocalSeparationDialog
+        open={showVocalSeparation}
+        onOpenChange={setShowVocalSeparation}
+        track={{
+          id: generation.id,
+          title: generation.title || 'Сгенерированный трек',
+          metadata: { audio_url: generation.result_url || '', service: generation.service }
+        }}
+      />
+      <MurekaStemDialog
+        open={showMurekaStem}
+        onOpenChange={setShowMurekaStem}
+      />
+    </>
+  );
 
   // Processing/Failed/Pending state
   return (
@@ -257,6 +289,7 @@ export function GenerationTrackCard({
           </div>
         </div>
       </CardContent>
+      {renderStemDialogs()}
     </Card>
   );
 }
