@@ -17,6 +17,8 @@ export { VocalSeparationDialog } from './components/VocalSeparationDialog';
 export { VideoGenerationDialog } from './components/VideoGenerationDialog';
 export { MurekaLyricsDialog } from './components/MurekaLyricsDialog';
 export { MurekaStemDialog } from './components/MurekaStemDialog';
+export { MurekaExtensionDialog } from './components/MurekaExtensionDialog';
+export { MurekaInstrumentalDialog } from './components/MurekaInstrumentalDialog';
 
 // Type exports
 export type { GenerationParams, QuickPreset, Option } from './types';

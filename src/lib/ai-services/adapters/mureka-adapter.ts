@@ -226,6 +226,111 @@ export class MurekaAdapter extends BaseAIService {
     }
   }
 
+  async extendSong(songId?: string, uploadAudioId?: string, lyrics?: string, extendAt?: number): Promise<MurekaTaskResponse> {
+    try {
+      const requestBody: any = {
+        lyrics,
+        extend_at: extendAt
+      };
+
+      if (songId) {
+        requestBody.song_id = songId;
+      } else if (uploadAudioId) {
+        requestBody.upload_audio_id = uploadAudioId;
+      } else {
+        throw new Error('Either songId or uploadAudioId is required');
+      }
+
+      const response = await fetch(`${this.baseUrl}/song/extend`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw this.handleAPIError({ response });
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw this.handleAPIError(error);
+    }
+  }
+
+  async generateInstrumental(model: string = 'auto', prompt?: string, instrumentalId?: string, stream: boolean = false): Promise<MurekaTaskResponse> {
+    try {
+      const requestBody: any = {
+        model,
+        stream
+      };
+
+      if (prompt) {
+        requestBody.prompt = prompt;
+      } else if (instrumentalId) {
+        requestBody.instrumental_id = instrumentalId;
+      } else {
+        throw new Error('Either prompt or instrumentalId is required');
+      }
+
+      const response = await fetch(`${this.baseUrl}/instrumental/generate`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw this.handleAPIError({ response });
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw this.handleAPIError(error);
+    }
+  }
+
+  async getInstrumentalStatus(taskId: string): Promise<MurekaTaskResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/instrumental/query/${taskId}`, {
+        headers: this.getAuthHeaders()
+      });
+
+      if (!response.ok) {
+        throw this.handleAPIError({ response });
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw this.handleAPIError(error);
+    }
+  }
+
+  async createUpload(uploadName: string, purpose: 'fine-tuning', bytes?: number): Promise<any> {
+    try {
+      const requestBody: any = {
+        upload_name: uploadName,
+        purpose
+      };
+
+      if (bytes) {
+        requestBody.bytes = bytes;
+      }
+
+      const response = await fetch(`${this.baseUrl}/uploads/create`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw this.handleAPIError({ response });
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw this.handleAPIError(error);
+    }
+  }
+
   async stemSong(url: string): Promise<{ zip_url: string; expires_at: number }> {
     try {
       const response = await fetch(`${this.baseUrl}/song/stem`, {
