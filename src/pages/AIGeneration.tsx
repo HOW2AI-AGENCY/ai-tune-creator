@@ -4,6 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationSidebar, MusicService } from "@/features/ai-generation/components/GenerationSidebar";
 import { GenerationFeed } from "@/features/ai-generation/components/GenerationFeed";
+import { TaskQueuePanel } from "@/components/ai-generation/TaskQueuePanel";
+import { AIServiceStatusBanner } from "@/components/ai-generation/AIServiceStatusBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
 import { useSunoStatusPolling } from '@/features/ai-generation/hooks/useSunoStatusPolling';
@@ -347,6 +349,10 @@ export default function AIGeneration() {
 
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         <div className="w-full lg:w-80 xl:w-96 border-b lg:border-b-0 lg:border-r bg-card">
+          <div className="p-4 space-y-4">
+            <AIServiceStatusBanner />
+            <TaskQueuePanel className="lg:max-h-80 overflow-auto" />
+          </div>
           <GenerationSidebar
             prompt={prompt}
             setPrompt={setPrompt}
