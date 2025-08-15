@@ -8,9 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Clock, Zap } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertTriangle, Clock, Zap, Upload, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSunoRecordPolling } from '@/features/ai-generation/hooks/useSunoRecordPolling';
 
 interface Track {
   id: string;
@@ -36,6 +38,7 @@ const SUNO_MODELS = [
 
 export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarted }: TrackExtendDialogProps) {
   const [isExtending, setIsExtending] = useState(false);
+  const [extensionMode, setExtensionMode] = useState<'existing' | 'upload'>('existing');
   const [customMode, setCustomMode] = useState(true);
   const [continueAt, setContinueAt] = useState(60);
   const [prompt, setPrompt] = useState('');
@@ -47,8 +50,34 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
   const [styleWeight, setStyleWeight] = useState([0.65]);
   const [weirdnessConstraint, setWeirdnessConstraint] = useState([0.65]);
   const [audioWeight, setAudioWeight] = useState([0.65]);
+  const [instrumental, setInstrumental] = useState(true);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadUrl, setUploadUrl] = useState('');
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   
   const { toast } = useToast();
+
+  // Use the new record polling hook
+  const { data: recordData, isPolling } = useSunoRecordPolling({
+    taskId: currentTaskId || undefined,
+    enabled: !!currentTaskId,
+    onComplete: (data) => {
+      toast({
+        title: "Extension Completed!",
+        description: `Your track has been successfully extended.`,
+      });
+      onExtensionStarted?.();
+      setCurrentTaskId(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Extension Failed",
+        description: error,
+        variant: "destructive"
+      });
+      setCurrentTaskId(null);
+    }
+  });
 
   React.useEffect(() => {
     if (track && open) {
@@ -64,26 +93,70 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
     }
   }, [track, open]);
 
-  const maxContinueAt = track?.duration ? track.duration - 5 : 300; // Leave 5 seconds buffer
   const selectedModel = SUNO_MODELS.find(m => m.value === model);
 
-  const handleExtend = async () => {
-    if (!track) return;
+  const handleFileUpload = async (file: File) => {
+    try {
+      // Upload to Supabase storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage
+        .from('albert-tracks')
+        .upload(`uploads/${fileName}`, file);
 
-    // Validate inputs
-    if (customMode && (!prompt.trim() || !title.trim())) {
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('albert-tracks')
+        .getPublicUrl(data.path);
+
+      setUploadUrl(publicUrl);
+      setUploadedFile(file);
+      
       toast({
-        title: "Missing Required Fields",
-        description: "Please fill in the prompt and title fields.",
+        title: "File Uploaded",
+        description: "Audio file uploaded successfully",
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload audio file",
         variant: "destructive"
       });
-      return;
+    }
+  };
+
+  const handleExtend = async () => {
+    if (!track && extensionMode === 'existing') return;
+
+    // Validate inputs based on mode
+    if (extensionMode === 'upload') {
+      if (!uploadUrl) {
+        toast({
+          title: "Missing Audio File",
+          description: "Please upload an audio file first.",
+          variant: "destructive"
+        });
+        return;
+      }
+    } else {
+      if (customMode && (!prompt.trim() || !title.trim())) {
+        toast({
+          title: "Missing Required Fields",
+          description: "Please fill in the prompt and title fields.",
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
-    if (continueAt <= 0 || continueAt >= maxContinueAt) {
+    const currentMaxContinueAt = extensionMode === 'upload' ? 120 : (track?.duration ? track.duration - 5 : 300);
+    if (continueAt <= 0 || continueAt >= currentMaxContinueAt) {
+      const maxTime = currentMaxContinueAt;
       toast({
         title: "Invalid Extension Point",
-        description: `Extension point must be between 1 and ${maxContinueAt} seconds.`,
+        description: `Extension point must be between 1 and ${maxTime} seconds.`,
         variant: "destructive"
       });
       return;
@@ -92,27 +165,57 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
     setIsExtending(true);
 
     try {
-      const requestBody = {
-        trackId: track.id,
-        continueAt,
-        model,
-        defaultParamFlag: customMode
-      };
+      let requestBody: any;
+      let functionName: string;
 
-      if (customMode) {
-        Object.assign(requestBody, {
-          prompt: prompt.trim(),
-          style: style.trim() || track.style_prompt,
-          title: title.trim(),
-          negativeTags: negativeTags.trim() || undefined,
-          vocalGender: vocalGender || undefined,
-          styleWeight: styleWeight[0],
-          weirdnessConstraint: weirdnessConstraint[0],
-          audioWeight: audioWeight[0]
-        });
+      if (extensionMode === 'upload') {
+        // Upload and extend mode
+        functionName = 'upload-extend-suno-track';
+        requestBody = {
+          uploadUrl,
+          continueAt,
+          model,
+          defaultParamFlag: customMode,
+          instrumental
+        };
+
+        if (customMode) {
+          Object.assign(requestBody, {
+            prompt: prompt.trim(),
+            style: style.trim() || 'Ambient',
+            title: title.trim() || 'Extended Audio Track',
+            negativeTags: negativeTags.trim() || undefined,
+            vocalGender: vocalGender || undefined,
+            styleWeight: styleWeight[0],
+            weirdnessConstraint: weirdnessConstraint[0],
+            audioWeight: audioWeight[0]
+          });
+        }
+      } else {
+        // Existing track extend mode
+        functionName = 'extend-suno-track';
+        requestBody = {
+          trackId: track?.id,
+          continueAt,
+          model,
+          defaultParamFlag: customMode
+        };
+
+        if (customMode) {
+          Object.assign(requestBody, {
+            prompt: prompt.trim(),
+            style: style.trim() || track?.style_prompt,
+            title: title.trim(),
+            negativeTags: negativeTags.trim() || undefined,
+            vocalGender: vocalGender || undefined,
+            styleWeight: styleWeight[0],
+            weirdnessConstraint: weirdnessConstraint[0],
+            audioWeight: audioWeight[0]
+          });
+        }
       }
 
-      const { data, error } = await supabase.functions.invoke('extend-suno-track', {
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: requestBody
       });
 
@@ -121,13 +224,13 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
         throw new Error(error.message || 'Failed to start track extension');
       }
 
+      const taskId = data.taskId;
+      setCurrentTaskId(taskId);
+
       toast({
         title: "Extension Started",
-        description: `Track extension has been queued. Task ID: ${data.taskId}`,
+        description: `Track extension has been queued. Task ID: ${taskId}`,
       });
-
-      onExtensionStarted?.();
-      onOpenChange(false);
 
     } catch (error) {
       console.error('Error extending track:', error);
@@ -147,9 +250,10 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (!track) return null;
+  if (!track && extensionMode === 'existing') return null;
 
-  const hasExternalId = track.metadata?.external_id || track.metadata?.suno_id;
+  const maxContinueAt = extensionMode === 'upload' ? 120 : (track?.duration ? track.duration - 5 : 300);
+  const hasExternalId = track?.metadata?.external_id || track?.metadata?.suno_id;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -157,11 +261,11 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5" />
-            Extend Track: {track.title}
+            Extend Track{track ? `: ${track.title}` : ''}
           </DialogTitle>
         </DialogHeader>
 
-        {!hasExternalId ? (
+        {extensionMode === 'existing' && !hasExternalId ? (
           <div className="flex items-center gap-2 p-4 bg-destructive/10 rounded-lg">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             <div>
@@ -173,16 +277,74 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Track Info */}
-            <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-              <div>
-                <p className="font-medium">{track.title}</p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  Duration: {track.duration ? formatTime(track.duration) : 'Unknown'}
+            {/* Extension Mode Tabs */}
+            <Tabs value={extensionMode} onValueChange={(value) => setExtensionMode(value as 'existing' | 'upload')}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="existing" className="flex items-center gap-2">
+                  <Music className="h-4 w-4" />
+                  Extend Existing
+                </TabsTrigger>
+                <TabsTrigger value="upload" className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Upload & Extend
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="existing" className="space-y-4">
+                {track && (
+                  <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                    <div>
+                      <p className="font-medium">{track.title}</p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        Duration: {track.duration ? formatTime(track.duration) : 'Unknown'}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="upload" className="space-y-4">
+                <div className="space-y-3">
+                  <Label>Audio File Upload</Label>
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
+                    <Input
+                      type="file"
+                      accept="audio/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFileUpload(file);
+                        }
+                      }}
+                      className="mb-2"
+                    />
+                    <p className="text-sm text-muted-foreground text-center">
+                      Upload an audio file (max 2 minutes) to extend
+                    </p>
+                    {uploadedFile && (
+                      <div className="mt-2 p-2 bg-muted rounded text-sm">
+                        <strong>File:</strong> {uploadedFile.name}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+
+                {/* Instrumental Toggle for Upload Mode */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Instrumental Track</Label>
+                    <Switch checked={instrumental} onCheckedChange={setInstrumental} />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {instrumental 
+                      ? "Generate instrumental music without vocals"
+                      : "Generate music with vocals (lyrics will be created automatically or from prompt)"
+                    }
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
 
             {/* Extension Point */}
             <div className="space-y-3">
@@ -351,21 +513,39 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
               </div>
             )}
 
+            {/* Progress Status */}
+            {isPolling && recordData && (
+              <div className="p-4 bg-blue-50 rounded-lg border">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="font-medium">Extension in Progress</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Status: {recordData.status} | Task ID: {recordData.taskId}
+                </p>
+                {recordData.tracks.length > 0 && (
+                  <p className="text-sm text-green-600 mt-1">
+                    {recordData.tracks.length} track(s) generated
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex gap-2 pt-4">
               <Button
                 onClick={handleExtend}
-                disabled={isExtending}
+                disabled={isExtending || isPolling}
                 className="flex-1"
               >
-                {isExtending ? 'Starting Extension...' : 'Extend Track'}
+                {isExtending ? 'Starting Extension...' : isPolling ? 'Extension in Progress...' : 'Extend Track'}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isExtending}
               >
-                Cancel
+                {isPolling ? 'Close' : 'Cancel'}
               </Button>
             </div>
           </div>
