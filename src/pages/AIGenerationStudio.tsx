@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   Search, 
   Play, 
@@ -20,11 +22,14 @@ import {
   Clock,
   Eye,
   Pause,
-  SkipForward,
-  Volume2
+  Filter,
+  SlidersHorizontal,
+  Plus
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTrackSync } from "@/hooks/useTrackSync";
+import { MobileHeader } from "@/components/mobile/MobileHeader";
+import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { GenerationContextPanel } from "@/features/ai-generation/components/GenerationContextPanel";
 import { TaskQueuePanel } from "@/features/ai-generation/components/TaskQueuePanel";
 import { TrackResultsGrid } from "@/features/ai-generation/components/TrackResultsGrid";
@@ -32,6 +37,7 @@ import { TrackDetailsDrawer } from "@/features/ai-generation/components/TrackDet
 import { CommandPalette } from "@/features/ai-generation/components/CommandPalette";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { GenerationParams } from "@/features/ai-generation/types";
+import { cn } from "@/lib/utils";
 
 interface Track {
   id: string;
@@ -75,6 +81,7 @@ interface Option {
 export default function AIGenerationStudio() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   // Core State
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,6 +96,10 @@ export default function AIGenerationStudio() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [currentPlayingTrack, setCurrentPlayingTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Mobile State
+  const [isGenerationPanelOpen, setIsGenerationPanelOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Sync Hook
   const { isSyncing, syncTracks, lastSyncResults } = useTrackSync();
@@ -106,9 +117,11 @@ export default function AIGenerationStudio() {
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+    if (!isMobile) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     if (!user) return;
@@ -236,6 +249,11 @@ export default function AIGenerationStudio() {
         description: `${params.service === 'suno' ? 'Suno AI' : 'Mureka'} создает ваш трек`,
       });
 
+      // Close mobile generation panel
+      if (isMobile) {
+        setIsGenerationPanelOpen(false);
+      }
+
       // Refresh tasks
       await fetchTasks();
     } catch (error: any) {
@@ -268,8 +286,8 @@ export default function AIGenerationStudio() {
         setSearchQuery(data?.query || '');
         break;
       case 'generate':
-        if (data?.params) {
-          handleGenerate(data.params);
+        if (isMobile) {
+          setIsGenerationPanelOpen(true);
         }
         break;
       case 'sync':
@@ -288,8 +306,8 @@ export default function AIGenerationStudio() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md w-full mx-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
           <CardContent className="p-6 text-center">
             <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-xl font-semibold mb-2">Войдите в систему</h2>
@@ -302,21 +320,157 @@ export default function AIGenerationStudio() {
     );
   }
 
-  return (
-    <div className="h-screen bg-background text-foreground flex">
-      {/* Left Panel - Context & Generation Controls */}
-      <div className="w-80 bg-card border-r border-border flex flex-col">
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">AI Studio</h1>
+  // Mobile Layout
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-background pb-mobile-nav animate-fade-in">
+        {/* Mobile Header */}
+        <MobileHeader
+          title="AI Studio"
+          subtitle={`${filteredTracks.length} треков`}
+          showSearch={true}
+          onSearch={() => setIsCommandPaletteOpen(true)}
+          showNotifications={false}
+          isOnline={true}
+        >
+          {/* Search Bar */}
+          <div className="flex items-center gap-2 mt-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Поиск треков..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-muted/50 border-0"
+              />
+            </div>
+            
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(
+                "tap-highlight",
+                showFilters && "bg-primary/10 text-primary"
+              )}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+
+            <Button
+              size="icon"
+              onClick={syncTracks}
+              disabled={isSyncing}
+              className="tap-highlight bg-gradient-primary"
+            >
+              <CloudDownload className={cn(
+                "h-4 w-4",
+                isSyncing && "animate-spin"
+              )} />
+            </Button>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Генерация музыки нового поколения
-          </p>
+        </MobileHeader>
+
+        {/* Task Queue */}
+        <TaskQueuePanel tasks={tasks} />
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto">
+          <TrackResultsGrid
+            tracks={filteredTracks}
+            onTrackClick={handleTrackClick}
+            onPlayTrack={handlePlayTrack}
+            currentPlayingTrack={currentPlayingTrack}
+            isPlaying={isPlaying}
+            isSyncing={isSyncing}
+          />
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        {/* Floating Action Button */}
+        <Button
+          size="icon"
+          onClick={() => setIsGenerationPanelOpen(true)}
+          className="fixed bottom-20 right-4 h-14 w-14 rounded-full bg-gradient-primary shadow-glow animate-float tap-highlight"
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
+
+        {/* Generation Panel Sheet */}
+        <Sheet open={isGenerationPanelOpen} onOpenChange={setIsGenerationPanelOpen}>
+          <SheetContent 
+            side="bottom" 
+            className="h-[90vh] rounded-t-xl border-0 p-0 animate-slide-in-bottom"
+          >
+            <div className="h-full overflow-y-auto">
+              <div className="p-4 border-b border-border">
+                <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
+                <h2 className="text-lg font-semibold text-center">Создать трек</h2>
+              </div>
+              
+              <div className="p-4">
+                <GenerationContextPanel
+                  projects={projects}
+                  artists={artists}
+                  onGenerate={handleGenerate}
+                />
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Track Details Drawer */}
+        <TrackDetailsDrawer
+          track={selectedTrack}
+          isOpen={isTrackDetailsOpen}
+          onClose={() => setIsTrackDetailsOpen(false)}
+          onPlay={handlePlayTrack}
+        />
+
+        {/* Command Palette */}
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+          onAction={handleCommandAction}
+          tracks={tracks}
+          projects={projects}
+          artists={artists}
+        />
+
+        {/* Floating Player */}
+        {currentPlayingTrack && (
+          <FloatingPlayer
+            track={currentPlayingTrack}
+            isOpen={true}
+            onClose={() => setCurrentPlayingTrack(null)}
+          />
+        )}
+
+        {/* Bottom Navigation */}
+        <MobileBottomNav />
+      </div>
+    );
+  }
+
+  // Desktop Layout (existing code with improvements)
+  return (
+    <div className="h-screen bg-background text-foreground flex animate-fade-in">
+      {/* Left Panel - Context & Generation Controls */}
+      <div className="w-80 bg-card border-r border-border flex flex-col glass">
+        <div className="p-6 border-b border-border">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg bg-gradient-primary">
+              <Sparkles className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-gradient-primary">AI Studio</h1>
+              <p className="text-sm text-muted-foreground">
+                Генерация музыки нового поколения
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4">
           <GenerationContextPanel
             projects={projects}
             artists={artists}
@@ -328,7 +482,7 @@ export default function AIGenerationStudio() {
       {/* Center Panel - Task Queue & Results */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-border bg-card/50">
+        <div className="p-6 border-b border-border bg-gradient-surface">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <div className="relative flex-1 max-w-md">
@@ -337,14 +491,14 @@ export default function AIGenerationStudio() {
                   placeholder="Поиск треков, стилей, артистов..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-muted/50 border-0 focus:ring-2 focus:ring-primary/50"
                 />
               </div>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => setIsCommandPaletteOpen(true)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover-lift"
               >
                 <Command className="h-4 w-4" />
                 <span className="hidden md:inline">Команды</span>
@@ -352,18 +506,21 @@ export default function AIGenerationStudio() {
               </Button>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={syncTracks}
                 disabled={isSyncing}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover-lift"
               >
-                <CloudDownload className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                <CloudDownload className={cn(
+                  "h-4 w-4",
+                  isSyncing && "animate-spin"
+                )} />
                 {isSyncing ? 'Синхронизация...' : 'Синхронизация'}
               </Button>
-              <Badge variant="secondary" className="px-3 py-1">
+              <Badge variant="secondary" className="px-3 py-1 bg-primary/10 text-primary">
                 {filteredTracks.length} треков
               </Badge>
             </div>
