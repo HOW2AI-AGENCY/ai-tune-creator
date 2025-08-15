@@ -13,11 +13,14 @@ import {
   MoreHorizontal,
   Play,
   Download,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useState, useEffect } from "react";
 
 interface GenerationTask {
   id: string;
@@ -39,6 +42,17 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
   const { t } = useTranslation();
   const activeTasks = tasks.filter(task => task.status === 'pending' || task.status === 'running');
   const recentTasks = tasks.slice(0, 5); // Show last 5 tasks
+  
+  // State for collapsing the panel
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('taskQueuePanel-collapsed');
+    return saved === 'true';
+  });
+
+  // Save collapse state to localStorage
+  useEffect(() => {
+    localStorage.setItem('taskQueuePanel-collapsed', isCollapsed.toString());
+  }, [isCollapsed]);
 
   const getStatusIcon = (status: GenerationTask['status']) => {
     switch (status) {
@@ -90,142 +104,172 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
   return (
     <div className="border-b border-border bg-card/30">
       <div className="p-3 md:p-4 max-w-5xl mx-auto">
-        {/* Active Tasks Header */}
-        {activeTasks.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                {t('activeTasks')}
-              </h3>
-              <Badge variant="outline" className="text-xs">
-                {activeTasks.length}
-              </Badge>
-            </div>
-            
-            <div className="space-y-2">
-              {activeTasks.map((task) => (
-                <Card key={task.id} className="bg-card/50">
-                  <CardContent className="p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          {getServiceIcon(task.service)}
-                          <span className="text-xs font-medium capitalize">
-                            {task.service}
-                          </span>
-                          <Badge variant={getStatusColor(task.status)} className="text-xs">
-                            {task.status === 'pending' ? t('statusPending') : t('statusRunning')}
-                          </Badge>
-                        </div>
-                        
-                        <p className="text-sm text-foreground mb-2 line-clamp-2">
-                          {task.prompt}
-                        </p>
-                        
-                        {task.status === 'running' && task.progress !== undefined && (
-                          <div className="space-y-1">
-                            <Progress value={task.progress} className="h-1" />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>{task.progress}%</span>
-                              <span>~{formatEstimatedTime(task.estimated_time)}</span>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {task.status === 'pending' && (
-                          <div className="text-xs text-muted-foreground">
-                            {t('estimatedTime')}: {formatEstimatedTime(task.estimated_time)}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-1">
-                        {getStatusIcon(task.status)}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Recent Tasks */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium flex items-center gap-2">
+        {/* Panel Header with Collapse Button */}
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium flex items-center gap-2">
+            {activeTasks.length > 0 ? (
+              <Loader2 className="h-4 w-4 text-primary animate-spin" />
+            ) : (
               <Clock className="h-4 w-4" />
-              {t('recentTasks')}
-            </h3>
+            )}
+            Очередь задач
+          </h3>
+          <div className="flex items-center gap-2">
+            {activeTasks.length > 0 && (
+              <Badge variant="default" className="text-xs">
+                {activeTasks.length} активных
+              </Badge>
+            )}
             <Badge variant="outline" className="text-xs">
-              {recentTasks.length}
+              {recentTasks.length} недавних
             </Badge>
-          </div>
-          
-          <div className="space-y-1">
-            {recentTasks.map((task) => (
-              <div 
-                key={task.id} 
-                className="flex items-center justify-between p-2 rounded-md hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  {getStatusIcon(task.status)}
-                  <div className="flex items-center gap-1">
-                    {getServiceIcon(task.service)}
-                    <span className="text-xs text-muted-foreground capitalize">
-                      {task.service}
-                    </span>
-                  </div>
-                  <span className="text-sm truncate">
-                    {task.prompt}
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {task.status === 'completed' && task.result && (
-                    <div className="flex items-center gap-1">
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="h-6 w-6 p-0"
-                        aria-label={t('playTrack')}
-                      >
-                        <Play className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="h-6 w-6 p-0"
-                        aria-label={t('downloadTrack')}
-                      >
-                        <Download className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
-                  
-                  {task.status === 'failed' && (
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="h-6 w-6 p-0 text-destructive"
-                      aria-label={t('retry')}
-                    >
-                      <AlertCircle className="h-3 w-3" />
-                    </Button>
-                  )}
-                  
-                  <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(task.created_at), { 
-                      addSuffix: true, 
-                      locale: ru 
-                    })}
-                  </span>
-                </div>
-              </div>
-            ))}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="h-6 w-6 p-0"
+              aria-label={isCollapsed ? "Развернуть панель" : "Свернуть панель"}
+            >
+              {isCollapsed ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronUp className="h-4 w-4" />
+              )}
+            </Button>
           </div>
         </div>
+
+        {/* Collapsible Content */}
+        {!isCollapsed && (
+          <>
+            {/* Active Tasks */}
+            {activeTasks.length > 0 && (
+              <div className="mb-4">
+                <div className="space-y-2">
+                  {activeTasks.map((task) => (
+                    <Card key={task.id} className="bg-card/50">
+                      <CardContent className="p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              {getServiceIcon(task.service)}
+                              <span className="text-xs font-medium capitalize">
+                                {task.service}
+                              </span>
+                              <Badge variant={getStatusColor(task.status)} className="text-xs">
+                                {task.status === 'pending' ? t('statusPending') : t('statusRunning')}
+                              </Badge>
+                            </div>
+                            
+                            <p className="text-sm text-foreground mb-2 line-clamp-2">
+                              {task.prompt}
+                            </p>
+                            
+                            {task.status === 'running' && task.progress !== undefined && (
+                              <div className="space-y-1">
+                                <Progress value={task.progress} className="h-1" />
+                                <div className="flex justify-between text-xs text-muted-foreground">
+                                  <span>{task.progress}%</span>
+                                  <span>~{formatEstimatedTime(task.estimated_time)}</span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {task.status === 'pending' && (
+                              <div className="text-xs text-muted-foreground">
+                                {t('estimatedTime')}: {formatEstimatedTime(task.estimated_time)}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            {getStatusIcon(task.status)}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent Tasks */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  {t('recentTasks')}
+                </h3>
+                <Badge variant="outline" className="text-xs">
+                  {recentTasks.length}
+                </Badge>
+              </div>
+              
+              <div className="space-y-1">
+                {recentTasks.map((task) => (
+                  <div 
+                    key={task.id} 
+                    className="flex items-center justify-between p-2 rounded-md hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {getStatusIcon(task.status)}
+                      <div className="flex items-center gap-1">
+                        {getServiceIcon(task.service)}
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {task.service}
+                        </span>
+                      </div>
+                      <span className="text-sm truncate">
+                        {task.prompt}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {task.status === 'completed' && task.result && (
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="h-6 w-6 p-0"
+                            aria-label={t('playTrack')}
+                          >
+                            <Play className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="h-6 w-6 p-0"
+                            aria-label={t('downloadTrack')}
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {task.status === 'failed' && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-6 w-6 p-0 text-destructive"
+                          aria-label={t('retry')}
+                        >
+                          <AlertCircle className="h-3 w-3" />
+                        </Button>
+                      )}
+                      
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(task.created_at), { 
+                          addSuffix: true, 
+                          locale: ru 
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
