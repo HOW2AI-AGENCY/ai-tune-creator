@@ -6,7 +6,7 @@ export { useGenerationState } from './hooks/useGenerationState';
 
 // Component exports
 export { TrackGenerationSidebar } from './components/TrackGenerationSidebar';
-export { QuickPresetsGrid } from './components/QuickPresetsGrid';
+export { QuickPresetsSlider } from './components/QuickPresetsSlider';
 export { CustomModePanel } from './components/CustomModePanel';
 export { FloatingPlayer } from './components/FloatingPlayer';
 export { LyricsDrawer } from './components/LyricsDrawer';

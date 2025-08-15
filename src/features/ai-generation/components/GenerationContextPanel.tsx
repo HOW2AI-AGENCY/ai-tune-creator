@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AIServiceStatusPanel } from "./AIServiceStatusPanel";
-import { QuickPresetsGrid } from "./QuickPresetsGrid";
+import { QuickPresetsSlider } from "./QuickPresetsSlider";
 import { quickPresets } from "../data/presets";
 import { GenerationParams, Option } from "../types";
 import { useAIPromptProfiles } from "@/hooks/useAIPromptProfiles";
@@ -250,7 +250,7 @@ export function GenerationContextPanel({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <QuickPresetsGrid
+              <QuickPresetsSlider
                 presets={quickPresets}
                 onSelectPreset={handleSelectPreset}
                 selectedPresetId={selectedPresetId}
