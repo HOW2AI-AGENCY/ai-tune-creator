@@ -40,6 +40,10 @@ export interface GenerationResponse {
     bitDepth?: number;
     channels?: number;
     size?: number;
+    model?: string;
+    created_at?: number;
+    finished_at?: number;
+    title?: string;
   };
   progress?: number;
   error?: string;

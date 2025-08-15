@@ -1,26 +1,50 @@
 /**
  * Mureka AI Service Adapter
- * Implements the unified interface for Mureka API
+ * Implements the unified interface for Mureka API based on official documentation
  */
 
 import { BaseAIService } from '../base-service';
 import { GenerationRequest, GenerationResponse, AIServiceCapabilities } from '../types';
 
+export interface MurekaGenerationRequest {
+  lyrics: string;
+  model?: 'auto' | 'mureka-6' | 'mureka-7' | 'mureka-o1';
+  prompt?: string;
+  reference_id?: string;
+  vocal_id?: string;
+  melody_id?: string;
+  stream?: boolean;
+}
+
+export interface MurekaTaskResponse {
+  id: string;
+  created_at: number;
+  finished_at?: number;
+  model: string;
+  status: 'preparing' | 'queued' | 'running' | 'streaming' | 'succeeded' | 'failed' | 'timeouted' | 'cancelled';
+  failed_reason?: string;
+  choices?: Array<{
+    audio_url: string;
+    duration: number;
+    title?: string;
+  }>;
+}
+
 export class MurekaAdapter extends BaseAIService {
   readonly name = 'mureka';
-  readonly version = '1.2.0';
+  readonly version = '2.0.0';
   readonly capabilities: AIServiceCapabilities = {
     supportedFormats: ['wav', 'mp3', 'flac'],
-    maxDuration: 300, // 5 minutes
+    maxDuration: 480, // 8 minutes
     supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar'],
-    genres: ['ambient', 'electronic', 'classical', 'world', 'experimental', 'cinematic'],
+    genres: ['ambient', 'electronic', 'classical', 'world', 'experimental', 'cinematic', 'pop', 'rock', 'jazz', 'r&b'],
     features: {
       textToMusic: true,
       styleTransfer: true,
-      voiceCloning: false,
+      voiceCloning: true,
       instrumentSeparation: true,
-      mastering: true,
-      realTimeGeneration: false
+      mastering: false,
+      realTimeGeneration: true
     }
   };
   
@@ -31,43 +55,55 @@ export class MurekaAdapter extends BaseAIService {
   async generate(request: GenerationRequest): Promise<GenerationResponse> {
     await this.validateRequest(request);
     
-    const payload = {
-      text_prompt: request.prompt,
-      style_descriptor: request.style,
-      duration_seconds: request.duration || 30,
-      output_format: request.format?.container || 'wav',
-      quality_level: this.mapQuality(request.format?.quality || 'high'),
-      advanced_options: {
-        creativity_level: request.options?.creativity || 0.7,
-        coherence_weight: request.options?.coherence || 0.8,
-        tempo_stability: request.options?.tempoStability || 0.9
-      }
+    const payload: MurekaGenerationRequest = {
+      lyrics: request.metadata?.lyrics || request.prompt || 'Generate lyrics for a song',
+      model: request.metadata?.model || 'auto',
+      prompt: request.style || request.prompt,
+      stream: request.options?.stream || false
     };
+
+    // Add control options if provided
+    if (request.metadata?.reference_id) {
+      payload.reference_id = request.metadata.reference_id;
+      delete payload.prompt; // Cannot use prompt with reference_id
+    }
+    if (request.metadata?.vocal_id) {
+      payload.vocal_id = request.metadata.vocal_id;
+      delete payload.prompt; // Cannot use prompt with vocal_id
+      delete payload.melody_id;
+    }
+    if (request.metadata?.melody_id) {
+      payload.melody_id = request.metadata.melody_id;
+      delete payload.prompt; // Cannot use prompt with melody_id
+      delete payload.reference_id;
+      delete payload.vocal_id;
+    }
     
     try {
-      const response = await fetch(`${this.baseUrl}/generate`, {
+      const response = await fetch(`${this.baseUrl}/song/generate`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify(payload)
       });
       
       if (!response.ok) {
-        throw this.handleAPIError({ response });
+        const errorData = await response.json().catch(() => ({}));
+        throw this.handleAPIError({ 
+          response, 
+          message: errorData.error?.message || `HTTP ${response.status}` 
+        });
       }
       
-      const data = await response.json();
+      const data: MurekaTaskResponse = await response.json();
       
       return {
-        id: data.generation_id,
-        status: 'processing',
+        id: data.id,
+        status: this.mapStatus(data.status),
         metadata: {
-          duration: payload.duration_seconds,
-          format: payload.output_format,
-          sampleRate: 48000,
-          bitDepth: 24,
-          channels: 2
+          model: data.model,
+          created_at: data.created_at
         },
-        estimatedCompletion: new Date(Date.now() + (data.estimated_duration_ms || 30000))
+        estimatedCompletion: new Date(Date.now() + 120000) // 2 minutes estimate
       };
     } catch (error) {
       throw this.handleAPIError(error);
@@ -76,30 +112,32 @@ export class MurekaAdapter extends BaseAIService {
   
   async getStatus(generationId: string): Promise<GenerationResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/jobs/${generationId}`, {
+      const response = await fetch(`${this.baseUrl}/song/query/${generationId}`, {
         headers: this.getAuthHeaders()
       });
       
       if (!response.ok) {
-        throw this.handleAPIError({ response });
+        const errorData = await response.json().catch(() => ({}));
+        throw this.handleAPIError({ 
+          response, 
+          message: errorData.error?.message || `HTTP ${response.status}` 
+        });
       }
       
-      const data = await response.json();
+      const data: MurekaTaskResponse = await response.json();
       
       return {
         id: generationId,
         status: this.mapStatus(data.status),
-        audioUrl: data.result?.audio_url,
+        audioUrl: data.choices?.[0]?.audio_url,
         metadata: {
-          duration: data.result?.metadata?.duration,
-          format: data.result?.metadata?.format,
-          sampleRate: data.result?.metadata?.sample_rate,
-          bitDepth: data.result?.metadata?.bit_depth,
-          size: data.result?.metadata?.file_size_bytes
+          duration: data.choices?.[0]?.duration,
+          model: data.model,
+          created_at: data.created_at,
+          finished_at: data.finished_at,
+          title: data.choices?.[0]?.title
         },
-        progress: data.progress_percentage || 0,
-        error: data.error?.message,
-        cost: data.cost_usd
+        error: data.failed_reason
       };
     } catch (error) {
       throw this.handleAPIError(error);
@@ -107,47 +145,102 @@ export class MurekaAdapter extends BaseAIService {
   }
   
   async cancel(generationId: string): Promise<boolean> {
-    try {
-      const response = await fetch(`${this.baseUrl}/jobs/${generationId}/cancel`, {
-        method: 'DELETE',
-        headers: this.getAuthHeaders()
-      });
-      
-      return response.ok;
-    } catch {
-      return false;
-    }
+    // Mureka API doesn't provide a cancel endpoint in the official docs
+    // Return false to indicate cancellation is not supported
+    return false;
   }
   
   private mapStatus(murekaStatus: string): GenerationResponse['status'] {
     const statusMap: Record<string, GenerationResponse['status']> = {
-      'queued': 'pending',
+      'preparing': 'pending',
+      'queued': 'pending', 
       'running': 'processing',
-      'completed': 'completed',
+      'streaming': 'processing',
+      'succeeded': 'completed',
       'failed': 'failed',
+      'timeouted': 'failed',
       'cancelled': 'failed'
     };
     
     return statusMap[murekaStatus] || 'pending';
   }
   
-  private mapQuality(quality: string): string {
-    const qualityMap: Record<string, string> = {
-      'low': 'draft',
-      'medium': 'standard',
-      'high': 'premium',
-      'lossless': 'professional'
-    };
-    
-    return qualityMap[quality] || 'standard';
-  }
-  
   async estimateCost(request: GenerationRequest): Promise<number> {
-    const baseCost = 0.15; // $0.15 per generation
-    const durationMultiplier = Math.ceil((request.duration || 30) / 30);
-    const qualityMultiplier = request.format?.quality === 'lossless' ? 2.0 : 1;
-    const featureMultiplier = request.options?.mastering ? 1.3 : 1;
+    // Mureka uses credit-based pricing
+    // Based on official pricing: approximately $0.20-0.50 per generation
+    const baseCost = 0.30;
+    const modelMultiplier = this.getModelMultiplier(request.metadata?.model);
+    const streamMultiplier = request.options?.stream ? 1.2 : 1;
     
-    return baseCost * durationMultiplier * qualityMultiplier * featureMultiplier;
+    return baseCost * modelMultiplier * streamMultiplier;
+  }
+
+  private getModelMultiplier(model?: string): number {
+    switch (model) {
+      case 'mureka-o1':
+        return 2.0; // Premium model
+      case 'mureka-7':
+        return 1.5;
+      case 'mureka-6':
+        return 1.0;
+      case 'auto':
+      default:
+        return 1.3; // Latest model
+    }
+  }
+
+  // New methods for Mureka-specific features
+  async generateLyrics(prompt: string): Promise<{ title: string; lyrics: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/lyrics/generate`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ prompt })
+      });
+
+      if (!response.ok) {
+        throw this.handleAPIError({ response });
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw this.handleAPIError(error);
+    }
+  }
+
+  async extendLyrics(lyrics: string): Promise<{ lyrics: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/lyrics/extend`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ lyrics })
+      });
+
+      if (!response.ok) {
+        throw this.handleAPIError({ response });
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw this.handleAPIError(error);
+    }
+  }
+
+  async stemSong(url: string): Promise<{ zip_url: string; expires_at: number }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/song/stem`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ url })
+      });
+
+      if (!response.ok) {
+        throw this.handleAPIError({ response });
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw this.handleAPIError(error);
+    }
   }
 }

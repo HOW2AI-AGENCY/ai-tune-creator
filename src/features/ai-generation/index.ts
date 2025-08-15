@@ -15,6 +15,8 @@ export { LyricsGenerationDialog } from './components/LyricsGenerationDialog';
 export { WAVConversionDialog } from './components/WAVConversionDialog';
 export { VocalSeparationDialog } from './components/VocalSeparationDialog';
 export { VideoGenerationDialog } from './components/VideoGenerationDialog';
+export { MurekaLyricsDialog } from './components/MurekaLyricsDialog';
+export { MurekaStemDialog } from './components/MurekaStemDialog';
 
 // Type exports
 export type { GenerationParams, QuickPreset, Option } from './types';

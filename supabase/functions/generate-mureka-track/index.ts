@@ -13,34 +13,27 @@ const corsHeaders = {
 };
 
 interface MurekaGenerationRequest {
-  prompt: string;
-  style?: string;
-  duration?: number; // seconds
-  genre?: string;
-  mood?: string;
-  instruments?: string[];
-  tempo?: 'slow' | 'medium' | 'fast' | string;
-  key?: string; // musical key
-  mode?: 'quick' | 'custom';
-  custom_lyrics?: string;
-  instrumental?: boolean;
-  language?: string;
+  lyrics: string;
+  model?: 'auto' | 'mureka-6' | 'mureka-7' | 'mureka-o1';
+  prompt?: string;
+  reference_id?: string;
+  vocal_id?: string;
+  melody_id?: string;
+  stream?: boolean;
 }
 
-interface MurekaResponse {
+interface MurekaTaskResponse {
   id: string;
-  status: 'processing' | 'completed' | 'failed';
-  audio_url?: string;
-  title?: string;
-  duration?: number;
-  created_at: string;
-  metadata?: {
-    genre?: string;
-    mood?: string;
-    tempo?: string;
-    key?: string;
-    instruments?: string[];
-  };
+  created_at: number;
+  finished_at?: number;
+  model: string;
+  status: 'preparing' | 'queued' | 'running' | 'streaming' | 'succeeded' | 'failed' | 'timeouted' | 'cancelled';
+  failed_reason?: string;
+  choices?: Array<{
+    audio_url: string;
+    duration: number;
+    title?: string;
+  }>;
 }
 
 // T-059: Edge Function для генерации треков через Mureka AI
@@ -81,6 +74,8 @@ serve(async (req) => {
 
     const { 
       prompt,
+      lyrics,
+      model = "auto",
       style = "",
       duration = 120, // Default 120 seconds (2 minutes)
       genre = "electronic",
@@ -95,7 +90,11 @@ serve(async (req) => {
       mode = "quick",
       custom_lyrics = "",
       instrumental = false,
-      language = "ru"
+      language = "ru",
+      reference_id = null,
+      vocal_id = null,
+      melody_id = null,
+      stream = false
     } = await req.json();
 
     console.log('Generating Mureka track with params:', { 
@@ -119,33 +118,37 @@ serve(async (req) => {
       throw new Error('MUREKA_API_KEY not configured');
     }
 
-    // Подготавливаем данные для Mureka API
-    let requestPrompt = prompt;
+    // Prepare lyrics for Mureka API
+    let requestLyrics = lyrics || custom_lyrics || prompt;
     
-    // В кастомном режиме используем пользовательскую лирику если есть
-    if (mode === 'custom' && custom_lyrics && custom_lyrics.trim().length > 0) {
-      requestPrompt = custom_lyrics;
+    // If no lyrics provided, create a basic structure based on genre and style
+    if (!requestLyrics) {
+      requestLyrics = `[Verse]\n${genre} song with ${mood} mood\n[Chorus]\n${style || 'original composition'}\n[Verse]\nCreated with AI\n[Outro]`;
     }
     
     const murekaRequest: MurekaGenerationRequest = {
-      prompt: requestPrompt || prompt,
-      style,
-      duration,
-      genre,
-      mood,
-      instruments,
-      tempo,
-      key,
-      mode,
-      custom_lyrics: mode === 'custom' ? custom_lyrics : undefined,
-      instrumental,
-      language
+      lyrics: requestLyrics,
+      model,
+      prompt: style || `${genre}, ${mood}, ${tempo}`,
+      stream
     };
 
-    console.log('Making request to Mureka API:', murekaApiUrl);
+    // Add control options (mutually exclusive)
+    if (reference_id) {
+      murekaRequest.reference_id = reference_id;
+      delete murekaRequest.prompt; // Cannot use prompt with reference_id
+    } else if (vocal_id) {
+      murekaRequest.vocal_id = vocal_id;
+      delete murekaRequest.prompt; // Cannot use prompt with vocal_id
+    } else if (melody_id) {
+      murekaRequest.melody_id = melody_id;
+      delete murekaRequest.prompt; // Cannot use prompt with melody_id
+    }
+
+    console.log('Making request to Mureka API with official endpoint');
     
-    // Вызов Mureka API для создания трека
-    const murekaResponse = await fetch(`${murekaApiUrl}/v1/generate`, {
+    // Call Mureka API to create track using official endpoint
+    const murekaResponse = await fetch('https://api.mureka.ai/v1/song/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${murekaApiKey}`,
@@ -160,26 +163,26 @@ serve(async (req) => {
       throw new Error(`Mureka API error: ${murekaResponse.status} ${errorText}`);
     }
 
-    const murekaData: MurekaResponse = await murekaResponse.json();
+    const murekaData: MurekaTaskResponse = await murekaResponse.json();
     console.log('Mureka API Response received:', murekaData.id, murekaData.status);
 
     if (!murekaData || !murekaData.id) {
       throw new Error('Invalid response from Mureka AI');
     }
 
-    // Если генерация в процессе, запускаем polling
+    // Poll for completion using official endpoint
     let finalTrack = murekaData;
-    if (murekaData.status === 'processing') {
+    if (['preparing', 'queued', 'running', 'streaming'].includes(murekaData.status)) {
       console.log('Track is processing, starting polling...');
       
-      // Polling до завершения (максимум 5 минут)
-      const maxAttempts = 60; // 60 попыток по 5 секунд = 5 минут
+      // Polling until completion (max 5 minutes)
+      const maxAttempts = 60; // 60 attempts every 5 seconds = 5 minutes
       let attempts = 0;
       
-      while (attempts < maxAttempts && finalTrack.status === 'processing') {
-        await new Promise(resolve => setTimeout(resolve, 5000)); // 5 секунд
+      while (attempts < maxAttempts && ['preparing', 'queued', 'running', 'streaming'].includes(finalTrack.status)) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // 5 seconds
         
-        const statusResponse = await fetch(`${murekaApiUrl}/v1/status/${murekaData.id}`, {
+        const statusResponse = await fetch(`https://api.mureka.ai/v1/song/query/${murekaData.id}`, {
           headers: {
             'Authorization': `Bearer ${murekaApiKey}`,
             'Content-Type': 'application/json',
@@ -195,11 +198,12 @@ serve(async (req) => {
       }
     }
 
-    // Создаем или обновляем лирику с Mureka-специфическими тегами
-    const baseContent = mode === 'custom' && custom_lyrics ? custom_lyrics : prompt;
-    const processedLyrics = `[Generated by Mureka AI]
-${baseContent}
+    // Create processed lyrics with Mureka-specific metadata
+    const processedLyrics = `[Generated by Mureka AI - Model: ${model}]
+${requestLyrics}
 
+[Metadata]
+[Model: ${model}]
 [Style: ${style}]
 [Genre: ${genre}]
 [Mood: ${mood}]
@@ -207,13 +211,17 @@ ${baseContent}
 [Key: ${key}]
 ${instruments.length > 0 ? `[Instruments: ${instruments.join(', ')}]` : ''}
 ${instrumental ? '[Instrumental]' : ''}
-${mode === 'custom' ? '[Custom Mode]' : '[Quick Mode]'}
 ${language !== 'ru' ? `[Language: ${language}]` : ''}
+${reference_id ? `[Reference ID: ${reference_id}]` : ''}
+${vocal_id ? `[Vocal ID: ${vocal_id}]` : ''}
+${melody_id ? `[Melody ID: ${melody_id}]` : ''}
+${stream ? '[Streaming Enabled]' : ''}
 
 {mureka_generation}
-Трек создан с помощью искусственного интеллекта Mureka
-Продолжительность: ${duration} секунд
-Режим: ${mode === 'custom' ? 'Кастомный' : 'Быстрый'}
+Track created with Mureka AI using official API v1
+Model: ${model}
+Task ID: ${finalTrack.id}
+Status: ${finalTrack.status}
 {/mureka_generation}`;
 
     // Сохраняем информацию о генерации в базе данных
@@ -225,13 +233,18 @@ ${language !== 'ru' ? `[Language: ${language}]` : ''}
       .from('ai_generations')
       .insert({
         user_id: userId,
-        prompt,
+        prompt: prompt || requestLyrics.substring(0, 500),
         service: 'mureka',
-        status: finalTrack.status === 'completed' ? 'completed' : 'processing',
-        result_url: finalTrack.audio_url,
+        status: finalTrack.status === 'succeeded' ? 'completed' : finalTrack.status === 'failed' ? 'failed' : 'processing',
+        result_url: finalTrack.choices?.[0]?.audio_url,
         metadata: {
-          mureka_id: finalTrack.id,
-          duration: duration,
+          mureka_task_id: finalTrack.id,
+          model: finalTrack.model,
+          created_at: finalTrack.created_at,
+          finished_at: finalTrack.finished_at,
+          failed_reason: finalTrack.failed_reason,
+          duration: finalTrack.choices?.[0]?.duration || duration,
+          title: finalTrack.choices?.[0]?.title,
           genre: genre,
           mood: mood,
           tempo: tempo,
@@ -239,9 +252,14 @@ ${language !== 'ru' ? `[Language: ${language}]` : ''}
           instruments: instruments,
           style: style,
           mode,
-          custom_lyrics: mode === 'custom' ? custom_lyrics : null,
+          custom_lyrics: custom_lyrics,
+          lyrics: requestLyrics,
           instrumental,
           language,
+          reference_id,
+          vocal_id,
+          melody_id,
+          stream,
           mureka_response: finalTrack
         },
         track_id: trackId
@@ -261,10 +279,11 @@ ${language !== 'ru' ? `[Language: ${language}]` : ''}
       const { data: updatedTrack, error: trackError } = await supabase
         .from('tracks')
         .update({
-          audio_url: finalTrack.audio_url,
-          duration: finalTrack.duration || duration,
+          audio_url: finalTrack.choices?.[0]?.audio_url,
+          duration: finalTrack.choices?.[0]?.duration || duration,
           metadata: {
-            mureka_id: finalTrack.id,
+            mureka_task_id: finalTrack.id,
+            model: finalTrack.model,
             mureka_response: finalTrack,
             generation_id: generation?.id,
             genre: genre,
@@ -273,9 +292,14 @@ ${language !== 'ru' ? `[Language: ${language}]` : ''}
             key: key,
             instruments: instruments,
             mode,
-            custom_lyrics: mode === 'custom' ? custom_lyrics : null,
+            custom_lyrics: custom_lyrics,
+            lyrics: requestLyrics,
             instrumental,
-            language
+            language,
+            reference_id,
+            vocal_id,
+            melody_id,
+            stream
           },
           updated_at: new Date().toISOString()
         })
@@ -294,17 +318,18 @@ ${language !== 'ru' ? `[Language: ${language}]` : ''}
       const { data: newTrack, error: trackError } = await supabase
         .from('tracks')
         .insert({
-          title: title || finalTrack.title || `AI Track ${genre.charAt(0).toUpperCase()}${genre.slice(1)}`,
+          title: title || finalTrack.choices?.[0]?.title || `AI Track ${genre.charAt(0).toUpperCase()}${genre.slice(1)}`,
           lyrics: processedLyrics,
-          description: `Mureka AI generated ${genre} track in ${key} key with ${mood} mood`,
-          audio_url: finalTrack.audio_url,
-          duration: finalTrack.duration || duration,
+          description: `Mureka AI generated ${genre} track using ${model} model with ${mood} mood`,
+          audio_url: finalTrack.choices?.[0]?.audio_url,
+          duration: finalTrack.choices?.[0]?.duration || duration,
           genre_tags: [genre, mood, tempo].filter(Boolean),
           style_prompt: style,
           project_id: projectId,
           artist_id: artistId,
           metadata: {
-            mureka_id: finalTrack.id,
+            mureka_task_id: finalTrack.id,
+            model: finalTrack.model,
             mureka_response: finalTrack,
             generation_id: generation?.id,
             genre: genre,
@@ -313,9 +338,14 @@ ${language !== 'ru' ? `[Language: ${language}]` : ''}
             key: key,
             instruments: instruments,
             mode,
-            custom_lyrics: mode === 'custom' ? custom_lyrics : null,
+            custom_lyrics: custom_lyrics,
+            lyrics: requestLyrics,
             instrumental,
-            language
+            language,
+            reference_id,
+            vocal_id,
+            melody_id,
+            stream
           }
         })
         .select()
@@ -337,28 +367,35 @@ ${language !== 'ru' ? `[Language: ${language}]` : ''}
       }
     }
 
-    // Возвращаем результат
+    // Return result
     return new Response(JSON.stringify({
       success: true,
       data: {
         mureka: finalTrack,
         track: trackRecord,
         generation: generationRecord,
-        audio_url: finalTrack.audio_url,
-        title: finalTrack.title || title,
-        duration: finalTrack.duration || duration,
+        audio_url: finalTrack.choices?.[0]?.audio_url,
+        title: finalTrack.choices?.[0]?.title || title,
+        duration: finalTrack.choices?.[0]?.duration || duration,
         lyrics: processedLyrics,
-        status: finalTrack.status
+        status: finalTrack.status,
+        taskId: finalTrack.id,
+        model: finalTrack.model
       },
       metadata: {
         service: 'mureka',
+        model: finalTrack.model,
         genre: genre,
         mood: mood,
         tempo: tempo,
         key: key,
         instruments: instruments,
+        reference_id,
+        vocal_id,
+        melody_id,
+        stream,
         generatedAt: new Date().toISOString(),
-        processingTime: finalTrack.status === 'completed' ? 'immediate' : `polled_${Math.floor((Date.now() - now) / 1000)}s`
+        processingTime: finalTrack.status === 'succeeded' ? 'immediate' : `polled_${Math.floor((Date.now() - now) / 1000)}s`
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
