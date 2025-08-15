@@ -9,10 +9,12 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Clock, Zap, Upload, Music } from 'lucide-react';
+import { AlertTriangle, Clock, Zap, Upload, Music, Sparkles, Image } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSunoRecordPolling } from '@/features/ai-generation/hooks/useSunoRecordPolling';
+import { StyleBoostDialog } from '@/features/ai-generation/components/StyleBoostDialog';
+import { CoverGenerationDialog } from '@/features/ai-generation/components/CoverGenerationDialog';
 
 interface Track {
   id: string;
@@ -54,6 +56,9 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadUrl, setUploadUrl] = useState('');
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [styleBoostOpen, setStyleBoostOpen] = useState(false);
+  const [coverGenerationOpen, setCoverGenerationOpen] = useState(false);
+  const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
   
   const { toast } = useToast();
 
@@ -66,6 +71,12 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
         title: "Extension Completed!",
         description: `Your track has been successfully extended.`,
       });
+      
+      // Store the completed task ID for cover generation
+      if (data.tracks && data.tracks.length > 0) {
+        setCompletedTaskId(data.taskId);
+      }
+      
       onExtensionStarted?.();
       setCurrentTaskId(null);
     },
@@ -436,13 +447,27 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="style">Style (Optional)</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="style">Style (Optional)</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setStyleBoostOpen(true)}
+                      className="h-6 px-2 text-xs"
+                    >
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Boost
+                    </Button>
+                  </div>
                   <Input
                     id="style"
                     value={style}
                     onChange={(e) => setStyle(e.target.value)}
                     placeholder="e.g., Jazz, Classical, Electronic"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Click "Boost" to enhance your style description with AI
+                  </p>
                 </div>
 
                 {/* Advanced Parameters */}
@@ -531,6 +556,36 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
               </div>
             )}
 
+            {/* Success Actions */}
+            {recordData?.isCompleted && recordData.tracks.length > 0 && (
+              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-green-800">Extension Complete!</h4>
+                  <Badge variant="default" className="bg-green-600">
+                    {recordData.tracks.length} track(s) generated
+                  </Badge>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCoverGenerationOpen(true)}
+                    className="flex-1"
+                  >
+                    <Image className="h-4 w-4 mr-2" />
+                    Generate Cover
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => onOpenChange(false)}
+                    className="flex-1"
+                  >
+                    View Track
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex gap-2 pt-4">
               <Button
@@ -550,6 +605,31 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
             </div>
           </div>
         )}
+
+        {/* Style Boost Dialog */}
+        <StyleBoostDialog
+          open={styleBoostOpen}
+          onOpenChange={setStyleBoostOpen}
+          initialStyle={style}
+          onStyleGenerated={(boostedStyle) => {
+            setStyle(boostedStyle);
+            setStyleBoostOpen(false);
+          }}
+        />
+
+        {/* Cover Generation Dialog */}
+        <CoverGenerationDialog
+          open={coverGenerationOpen}
+          onOpenChange={setCoverGenerationOpen}
+          taskId={completedTaskId || currentTaskId}
+          trackTitle={title || track?.title}
+          onCoverGenerated={(images) => {
+            toast({
+              title: "Cover Images Generated",
+              description: `${images.length} cover images are ready for download.`,
+            });
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

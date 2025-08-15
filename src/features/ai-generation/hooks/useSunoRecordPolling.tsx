@@ -46,7 +46,7 @@ export function useSunoRecordPolling({
       console.log('Checking Suno record info for task:', id);
       
       const { data: result, error } = await supabase.functions.invoke('get-suno-record-info', {
-        body: null,
+        body: { taskId: id },
         headers: {
           'Content-Type': 'application/json'
         }

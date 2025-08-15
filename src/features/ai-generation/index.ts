@@ -9,6 +9,8 @@ export { QuickPresetsGrid } from './components/QuickPresetsGrid';
 export { CustomModePanel } from './components/CustomModePanel';
 export { FloatingPlayer } from './components/FloatingPlayer';
 export { LyricsDrawer } from './components/LyricsDrawer';
+export { StyleBoostDialog } from './components/StyleBoostDialog';
+export { CoverGenerationDialog } from './components/CoverGenerationDialog';
 
 // Type exports
 export type { GenerationParams, QuickPreset, Option } from './types';

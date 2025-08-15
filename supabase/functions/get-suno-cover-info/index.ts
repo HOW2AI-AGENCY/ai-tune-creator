@@ -23,10 +23,10 @@ serve(async (req) => {
       );
     }
 
-    console.log('Getting record info for task:', taskId);
+    console.log('Getting cover info for task:', taskId);
 
-    // Call Suno API to get record info
-    const response = await fetch(`https://api.sunoapi.org/api/v1/generate/record-info?taskId=${encodeURIComponent(taskId)}`, {
+    // Call Suno API to get cover record info
+    const response = await fetch(`https://api.sunoapi.org/api/v1/suno/cover/record-info?taskId=${encodeURIComponent(taskId)}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${sunoApiToken}`,
@@ -44,7 +44,7 @@ serve(async (req) => {
     }
 
     const sunoResult = await response.json();
-    console.log('Suno record info response:', sunoResult);
+    console.log('Suno cover info response:', sunoResult);
 
     if (sunoResult.code !== 200) {
       console.error('Suno API returned error:', sunoResult);
@@ -58,17 +58,18 @@ serve(async (req) => {
     const data = sunoResult.data;
     const transformedData = {
       taskId: data.taskId,
-      parentMusicId: data.parentMusicId,
-      status: data.status,
-      type: data.type,
-      operationType: data.operationType,
+      parentTaskId: data.parentTaskId,
+      callbackUrl: data.callbackUrl,
+      completeTime: data.completeTime,
+      createTime: data.createTime,
+      images: data.response?.images || [],
+      successFlag: data.successFlag,
       errorCode: data.errorCode,
       errorMessage: data.errorMessage,
-      parameters: data.param ? JSON.parse(data.param) : null,
-      tracks: data.response?.sunoData || [],
-      isCompleted: data.status === 'SUCCESS',
-      isFailed: data.status?.includes('FAILED') || data.status === 'SENSITIVE_WORD_ERROR',
-      isPending: data.status === 'PENDING' || data.status === 'TEXT_SUCCESS' || data.status === 'FIRST_SUCCESS'
+      isCompleted: data.successFlag === 1,
+      isFailed: data.successFlag === 3,
+      isGenerating: data.successFlag === 2,
+      isPending: data.successFlag === 0
     };
 
     return new Response(
@@ -80,7 +81,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in get-suno-record-info function:', error);
+    console.error('Error in get-suno-cover-info function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {

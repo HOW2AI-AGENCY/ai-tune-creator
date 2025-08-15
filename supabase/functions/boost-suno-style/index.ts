@@ -14,24 +14,25 @@ serve(async (req) => {
   }
 
   try {
-    const { taskId } = await req.json();
+    const { content } = await req.json();
 
-    if (!taskId) {
+    if (!content) {
       return new Response(
-        JSON.stringify({ error: 'Task ID is required' }),
+        JSON.stringify({ error: 'Content is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Getting record info for task:', taskId);
+    console.log('Generating style boost for content:', content);
 
-    // Call Suno API to get record info
-    const response = await fetch(`https://api.sunoapi.org/api/v1/generate/record-info?taskId=${encodeURIComponent(taskId)}`, {
-      method: 'GET',
+    // Call Suno API to boost style
+    const response = await fetch('https://api.sunoapi.org/api/v1/style/generate', {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiToken}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ content }),
     });
 
     if (!response.ok) {
@@ -44,7 +45,7 @@ serve(async (req) => {
     }
 
     const sunoResult = await response.json();
-    console.log('Suno record info response:', sunoResult);
+    console.log('Suno style boost response:', sunoResult);
 
     if (sunoResult.code !== 200) {
       console.error('Suno API returned error:', sunoResult);
@@ -54,21 +55,19 @@ serve(async (req) => {
       );
     }
 
-    // Transform the response to a more usable format
-    const data = sunoResult.data;
+    // Transform the response
     const transformedData = {
-      taskId: data.taskId,
-      parentMusicId: data.parentMusicId,
-      status: data.status,
-      type: data.type,
-      operationType: data.operationType,
-      errorCode: data.errorCode,
-      errorMessage: data.errorMessage,
-      parameters: data.param ? JSON.parse(data.param) : null,
-      tracks: data.response?.sunoData || [],
-      isCompleted: data.status === 'SUCCESS',
-      isFailed: data.status?.includes('FAILED') || data.status === 'SENSITIVE_WORD_ERROR',
-      isPending: data.status === 'PENDING' || data.status === 'TEXT_SUCCESS' || data.status === 'FIRST_SUCCESS'
+      taskId: sunoResult.data.taskId,
+      originalContent: content,
+      boostedStyle: sunoResult.data.result,
+      creditsConsumed: sunoResult.data.creditsConsumed,
+      creditsRemaining: sunoResult.data.creditsRemaining,
+      isSuccess: sunoResult.data.successFlag === '1',
+      isPending: sunoResult.data.successFlag === '0',
+      isFailed: sunoResult.data.successFlag === '2',
+      errorCode: sunoResult.data.errorCode,
+      errorMessage: sunoResult.data.errorMessage,
+      createTime: sunoResult.data.createTime
     };
 
     return new Response(
@@ -80,7 +79,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in get-suno-record-info function:', error);
+    console.error('Error in boost-suno-style function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
