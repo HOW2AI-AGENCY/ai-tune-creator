@@ -50,15 +50,38 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
 
   // Сброс состояния при смене трека
   useEffect(() => {
-    if (track && audioRef.current) {
+    if (track && audioRef.current && track.audio_url) {
       setCurrentTime(0);
       setIsPlaying(false);
       setIsLoading(true);
       
-      audioRef.current.src = track.audio_url || "";
+      audioRef.current.src = track.audio_url;
       audioRef.current.load();
+      
+      // Автозапуск воспроизведения
+      const handleLoadedData = () => {
+        audioRef.current?.play()
+          .then(() => {
+            setIsPlaying(true);
+            setIsLoading(false);
+            onPlayPause?.(true);
+          })
+          .catch((error) => {
+            console.error('Ошибка автозапуска:', error);
+            setIsLoading(false);
+          });
+      };
+      
+      audioRef.current.addEventListener('loadeddata', handleLoadedData);
+      
+      return () => {
+        audioRef.current?.removeEventListener('loadeddata', handleLoadedData);
+      };
+    } else if (track && !track.audio_url) {
+      console.warn('Трек без audio_url:', track);
+      setIsLoading(false);
     }
-  }, [track?.id, track?.audio_url]);
+  }, [track?.id, track?.audio_url, onPlayPause]);
 
   // Обновление времени воспроизведения
   useEffect(() => {
