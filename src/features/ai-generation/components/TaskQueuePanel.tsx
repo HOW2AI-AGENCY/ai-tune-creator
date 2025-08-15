@@ -87,7 +87,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
 
   return (
     <div className="border-b border-border bg-card/30">
-      <div className="p-4">
+      <div className="p-3 md:p-4 max-w-5xl mx-auto">
         {/* Active Tasks Header */}
         {activeTasks.length > 0 && (
           <div className="mb-4">
