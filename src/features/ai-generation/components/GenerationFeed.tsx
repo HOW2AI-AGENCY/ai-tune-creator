@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Music2, RefreshCw } from "lucide-react";
 import { AIGeneration, useGenerationState } from '../hooks/useGenerationState';
 import { GenerationTrackCard } from './GenerationTrackCard';
+import { TrackSkeleton } from "@/components/ui/track-skeleton";
+import { useTrackGenerationWithProgress } from '../hooks/useTrackGenerationWithProgress';
 
 interface GenerationFeedProps {
   onPlay?: (url: string) => void;
@@ -19,6 +21,8 @@ export function GenerationFeed({ onPlay, onDownload }: GenerationFeedProps) {
     checkGenerationStatus, 
     syncTracks 
   } = useGenerationState();
+  
+  const { ongoingGenerations } = useTrackGenerationWithProgress();
 
   if (isLoading) {
     return (
@@ -79,6 +83,20 @@ export function GenerationFeed({ onPlay, onDownload }: GenerationFeedProps) {
         </div>
       </div>
 
+      {/* Show ongoing generations first */}
+      {ongoingGenerations.map((generation) => (
+        <TrackSkeleton
+          key={generation.taskId}
+          progress={generation.progress}
+          title={generation.title}
+          subtitle={generation.subtitle}
+          status={generation.status}
+          steps={generation.steps}
+          animated={true}
+        />
+      ))}
+      
+      {/* Show completed generations */}
       {generations.map((generation) => (
         <GenerationTrackCard
           key={generation.id}

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSunoStatusPolling } from './useSunoStatusPolling';
+import { useGenerationPersistence } from '@/hooks/useGenerationPersistence';
 
 interface TrackGenerationProgress {
   title: string;
@@ -41,6 +42,7 @@ export function useTrackGenerationWithProgress() {
   
   const { toast } = useToast();
   const { startPolling, stopPolling } = useSunoStatusPolling({});
+  const { startGeneration, updateGeneration, completeGeneration, ongoingGenerations } = useGenerationPersistence();
 
   const updateProgress = useCallback((update: Partial<TrackGenerationProgress>) => {
     setGenerationProgress(prev => prev ? { ...prev, ...update } : null);
@@ -192,13 +194,15 @@ export function useTrackGenerationWithProgress() {
         ]
       });
 
-      // Если получили task ID, начинаем polling
+      // Если получили task ID, начинаем polling и сохраняем в persistence
       if (data.data?.task_id && params.service === 'suno') {
-        setCurrentTask({
+        const taskData = {
           taskId: data.data.task_id,
           service: params.service,
           generationId: data.data.generation?.id
-        });
+        };
+        
+        setCurrentTask(taskData);
         
         updateProgress({
           title: "Обрабатываем трек в Suno AI",
@@ -206,60 +210,77 @@ export function useTrackGenerationWithProgress() {
           progress: 80
         });
         
+        // Сохраняем в persistence для восстановления после перезагрузки
+        startGeneration({
+          taskId: data.data.task_id,
+          service: params.service as 'suno' | 'mureka',
+          generationId: data.data.generation?.id,
+          status: 'processing',
+          progress: 80,
+          title: params.prompt || 'AI Generated Track',
+          subtitle: `Используем ${params.service === 'suno' ? 'Suno AI' : 'Mureka'}`,
+          params,
+          steps: [
+            { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
+            { id: 'generate', label: 'Отправка в AI сервис', status: 'done' },
+            { id: 'process', label: 'Обработка трека', status: 'running' },
+            { id: 'save', label: 'Сохранение результата', status: 'pending' }
+          ]
+        });
+        
         // Запускаем polling статуса
         startPolling(data.data.task_id);
-        
-        // Имитируем обновления прогресса для polling
-        const progressInterval = setInterval(() => {
-          updateProgress({
-            progress: Math.min(95, (generationProgress?.progress || 80) + 5)
-          });
-        }, 3000);
-        
-        // Очистка интервала через 30 секунд
-        setTimeout(() => {
-          clearInterval(progressInterval);
-          updateProgress({
-            progress: 100,
-            title: "Трек готов!",
-            subtitle: "Генерация успешно завершена",
+      } else if (params.service === 'mureka') {
+        // Для Mureka - сохраняем в persistence для фоновой обработки
+        if (data.data?.generation?.id) {
+          startGeneration({
+            taskId: data.data.generation.id,
+            service: params.service as 'suno' | 'mureka',
+            generationId: data.data.generation.id,
+            status: 'processing',
+            progress: 80,
+            title: params.prompt || 'AI Generated Track',
+            subtitle: 'Используем Mureka',
+            params,
             steps: [
               { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
               { id: 'generate', label: 'Отправка в AI сервис', status: 'done' },
-              { id: 'process', label: 'Обработка трека', status: 'done' },
-              { id: 'save', label: 'Сохранение результата', status: 'done' }
+              { id: 'process', label: 'Обработка трека', status: 'running' },
+              { id: 'save', label: 'Сохранение результата', status: 'pending' }
             ]
           });
-        }, 30000);
-      } else if (params.service === 'mureka' && data.data?.audio_url) {
-        // Для Mureka - автоматически сохраняем трек в БД если есть аудио URL
-        try {
-          const saveResponse = await supabase.functions.invoke('save-mureka-track', {
-            body: {
-              generation_id: data.data.generation?.id,
-              audio_url: data.data.audio_url,
-              title: data.data.title,
-              duration: data.data.duration,
-              metadata: data.metadata
-            }
-          });
+        }
 
-          if (saveResponse.error) {
-            console.error('Error saving Mureka track:', saveResponse.error);
-            toast({
-              title: "Трек сгенерирован, но не сохранен",
-              description: "Трек создан, но возникла ошибка при сохранении в библиотеку",
-              variant: "destructive"
+        // Если уже есть аудио URL, сразу сохраняем
+        if (data.data?.audio_url) {
+          try {
+            const saveResponse = await supabase.functions.invoke('save-mureka-track', {
+              body: {
+                generation_id: data.data.generation?.id,
+                audio_url: data.data.audio_url,
+                title: data.data.title,
+                duration: data.data.duration,
+                metadata: data.metadata
+              }
             });
-          } else {
-            console.log('Mureka track saved successfully:', saveResponse.data);
-            toast({
-              title: "Трек сохранен в библиотеку",
-              description: "Трек успешно добавлен в вашу музыкальную коллекцию"
-            });
+
+            if (saveResponse.error) {
+              console.error('Error saving Mureka track:', saveResponse.error);
+              toast({
+                title: "Трек сгенерирован, но не сохранен",
+                description: "Трек создан, но возникла ошибка при сохранении в библиотеку",
+                variant: "destructive"
+              });
+            } else {
+              console.log('Mureka track saved successfully:', saveResponse.data);
+              toast({
+                title: "Трек сохранен в библиотеку",
+                description: "Трек успешно добавлен в вашу музыкальную коллекцию"
+              });
+            }
+          } catch (saveError) {
+            console.error('Save error:', saveError);
           }
-        } catch (saveError) {
-          console.error('Save error:', saveError);
         }
 
         updateProgress({
@@ -329,6 +350,7 @@ export function useTrackGenerationWithProgress() {
     isGenerating,
     generationProgress,
     currentTask,
+    ongoingGenerations,
     cancelGeneration: () => {
       stopPolling();
       setIsGenerating(false);
