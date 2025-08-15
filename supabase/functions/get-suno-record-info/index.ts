@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,6 +8,8 @@ const corsHeaders = {
 };
 
 const sunoApiToken = Deno.env.get('SUNOAPI_ORG_TOKEN');
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -14,7 +17,7 @@ serve(async (req) => {
   }
 
   try {
-    const { taskId } = await req.json();
+    const { taskId, generationId } = await req.json();
 
     if (!taskId) {
       return new Response(
@@ -22,6 +25,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log('Getting record info for task:', taskId);
 
@@ -56,6 +61,10 @@ serve(async (req) => {
 
     // Transform the response to a more usable format
     const data = sunoResult.data;
+    const isCompleted = data.status === 'SUCCESS';
+    const isFailed = data.status?.includes('FAILED') || data.status === 'SENSITIVE_WORD_ERROR';
+    const isPending = data.status === 'PENDING' || data.status === 'TEXT_SUCCESS' || data.status === 'FIRST_SUCCESS';
+    
     const transformedData = {
       taskId: data.taskId,
       parentMusicId: data.parentMusicId,
@@ -66,10 +75,51 @@ serve(async (req) => {
       errorMessage: data.errorMessage,
       parameters: data.param ? JSON.parse(data.param) : null,
       tracks: data.response?.sunoData || [],
-      isCompleted: data.status === 'SUCCESS',
-      isFailed: data.status?.includes('FAILED') || data.status === 'SENSITIVE_WORD_ERROR',
-      isPending: data.status === 'PENDING' || data.status === 'TEXT_SUCCESS' || data.status === 'FIRST_SUCCESS'
+      isCompleted,
+      isFailed,
+      isPending,
+      completed: isCompleted,
+      failed: isFailed
     };
+
+    // Update database if we have a generation ID
+    if (generationId) {
+      try {
+        if (isCompleted) {
+          const tracks = data.response?.sunoData || [];
+          const firstTrack = tracks[0];
+          
+          if (firstTrack?.audio_url) {
+            console.log('Updating generation to completed:', generationId);
+            await supabase
+              .from('ai_generations')
+              .update({
+                status: 'completed',
+                result_url: firstTrack.audio_url,
+                completed_at: new Date().toISOString(),
+                metadata: {
+                  ...data.response,
+                  suno_status: data.status,
+                  tracks_count: tracks.length
+                }
+              })
+              .eq('id', generationId);
+          }
+        } else if (isFailed) {
+          console.log('Updating generation to failed:', generationId);
+          await supabase
+            .from('ai_generations')
+            .update({
+              status: 'failed',
+              error_message: data.errorMessage || 'Generation failed',
+              completed_at: new Date().toISOString()
+            })
+            .eq('id', generationId);
+        }
+      } catch (dbError) {
+        console.error('Database update error:', dbError);
+      }
+    }
 
     return new Response(
       JSON.stringify(transformedData),

@@ -68,27 +68,28 @@ export function useGenerationState() {
 
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { 
-          taskId: generation.task_id || generation.external_id,
+          taskId: generation.external_id || generation.task_id,
           generationId: generation.id
         }
       });
 
       if (error) {
+        console.error('Status check error:', error);
         toast.error(`Ошибка проверки статуса: ${error.message}`);
         return;
       }
 
-      if (data.completed || data.failed) {
-        // Reload generations to get updated data
-        await loadGenerations();
-        
-        if (data.completed) {
-          toast.success('Генерация завершена!');
-        } else if (data.failed) {
-          toast.error('Генерация завершилась с ошибкой');
-        }
+      console.log('Status check result:', data);
+
+      // Reload generations after any status check
+      await loadGenerations();
+      
+      if (data?.status === 'completed' || data?.completed) {
+        toast.success('Генерация завершена!');
+      } else if (data?.status === 'failed' || data?.failed) {
+        toast.error('Генерация завершилась с ошибкой');
       } else {
-        toast.info('Генерация все еще обрабатывается...');
+        toast.info('Проверка статуса выполнена');
       }
 
     } catch (error) {
