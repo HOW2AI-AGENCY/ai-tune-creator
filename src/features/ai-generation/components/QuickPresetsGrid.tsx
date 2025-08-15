@@ -2,31 +2,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { QuickPreset } from "../types";
-
 interface QuickPresetsGridProps {
   presets: QuickPreset[];
   onSelectPreset: (preset: QuickPreset) => void;
   selectedPresetId?: string;
 }
-
-export function QuickPresetsGrid({ 
-  presets, 
-  onSelectPreset, 
-  selectedPresetId 
+export function QuickPresetsGrid({
+  presets,
+  onSelectPreset,
+  selectedPresetId
 }: QuickPresetsGridProps) {
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {presets.map((preset) => (
-        <Card 
-          key={preset.id}
-          className={`cursor-pointer transition-all hover:scale-105 border-2 ${
-            selectedPresetId === preset.id 
-              ? 'border-primary bg-primary/5' 
-              : 'border-border hover:border-primary/50'
-          }`}
-          onClick={() => onSelectPreset(preset)}
-        >
-          <CardContent className="p-3">
+  return <div className="grid grid-cols-2 gap-3">
+      {presets.map(preset => <Card key={preset.id} className={`cursor-pointer transition-all hover:scale-105 border-2 ${selectedPresetId === preset.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`} onClick={() => onSelectPreset(preset)}>
+          <CardContent className="mx-0 my-[5px] py-0">
             <div className="flex items-start gap-2 mb-2">
               <span className="text-lg">{preset.icon}</span>
               <div className="flex-1 min-w-0">
@@ -47,19 +35,12 @@ export function QuickPresetsGrid({
             </div>
             
             <div className="flex items-center justify-between mt-2">
-              <Badge 
-                variant={preset.service === 'suno' ? 'default' : 'outline'} 
-                className="text-xs"
-              >
+              <Badge variant={preset.service === 'suno' ? 'default' : 'outline'} className="text-xs">
                 {preset.service}
               </Badge>
-              {selectedPresetId === preset.id && (
-                <div className="w-2 h-2 bg-primary rounded-full" />
-              )}
+              {selectedPresetId === preset.id && <div className="w-2 h-2 bg-primary rounded-full" />}
             </div>
           </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+        </Card>)}
+    </div>;
 }
