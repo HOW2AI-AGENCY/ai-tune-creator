@@ -129,25 +129,38 @@ serve(async (req) => {
     // Подготавливаем данные согласно официальной документации SunoAPI.org
     let requestPrompt = prompt;
     let requestLyrics = "";
+
+    const looksLikeLyrics = (text?: string) => {
+      if (!text) return false;
+      const t = text.toLowerCase();
+      if (t.includes('создай') || t.includes('сгенерируй')) return false;
+      return /\[?(verse|chorus|bridge|intro|outro|куплет|припев|бридж)\]?/i.test(text) || /\n/.test(text) || text.split(/\s+/).length > 12;
+    };
     
-    // Логика разделения: если есть custom_lyrics, то это лирика для пения, а prompt - стиль
+    // Разделяем стиль и лирику корректно
     if (custom_lyrics && custom_lyrics.trim().length > 0) {
-      requestLyrics = custom_lyrics; // Что петь
-      requestPrompt = style || 'Pop, Electronic'; // Как звучать - стиль, а не промпт
+      // Пользовательская лирика: поём её, prompt описывает стиль
+      requestLyrics = custom_lyrics;
+      requestPrompt = style || prompt || 'Pop, Electronic';
     } else if (make_instrumental) {
-      requestLyrics = ""; // Инструментал без слов
+      // Инструментал: без лирики
+      requestLyrics = "";
       requestPrompt = prompt || style || 'Pop, Electronic';
+    } else if (looksLikeLyrics(prompt)) {
+      // Пользователь ввёл лирику в поле prompt
+      requestLyrics = prompt!;
+      requestPrompt = style || 'Pop, Electronic';
     } else {
-      // КРИТИЧНО: если нет custom_lyrics, то prompt должен стать лирикой для пения!
-      // А стиль должен быть из style параметра или дефолтный
-      requestLyrics = prompt || "Create a song about this topic"; // Промпт становится лирикой
-      requestPrompt = style || 'Pop, Electronic'; // Стиль отдельно
+      // Обычный режим: prompt = описание стиля, лирику генерирует сервис
+      requestLyrics = "";
+      requestPrompt = prompt || style || 'Pop, Electronic';
     }
     
     const sunoRequest: any = {
-      prompt: requestLyrics, // ЭТО КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ! prompt в Suno = что петь
+      prompt: requestPrompt, // Описание стиля / содержания
       customMode: true,
-      style: requestPrompt, // style = как звучать
+      lyrics: requestLyrics || undefined, // Текст для пения (если есть)
+      style: style || requestPrompt,
       title: title || `AI Generated ${new Date().toLocaleDateString('ru-RU')}`,
       instrumental: make_instrumental,
       model: model.replace('chirp-v', 'V').replace('-', '_'), // chirp-v3-5 -> V3_5

@@ -121,6 +121,13 @@ serve(async (req) => {
     // Fix: Separate lyrics and prompt handling
     let requestLyrics = '';
     let requestPrompt = '';
+
+    const looksLikeLyrics = (text?: string) => {
+      if (!text) return false;
+      const t = text.toLowerCase();
+      if (t.includes('создай') || t.includes('сгенерируй')) return false;
+      return /\[?(verse|chorus|bridge|intro|outro|куплет|припев|бридж)\]?/i.test(text) || /\n/.test(text) || text.split(/\s+/).length > 12;
+    };
     
     if (custom_lyrics && custom_lyrics.trim().length > 0) {
       // User provided explicit lyrics
@@ -134,10 +141,14 @@ serve(async (req) => {
       // Instrumental track - no lyrics needed
       requestLyrics = '';
       requestPrompt = prompt || style || `${genre}, ${mood}, ${tempo}`;
-    } else {
-      // КРИТИЧНО: prompt должен стать лирикой, а style - описанием жанра
-      requestLyrics = prompt || `[Verse]\n${genre} song with ${mood} mood\n[Chorus]\n${style || 'original composition'}\n[Verse]\nCreated with AI\n[Outro]`;
+    } else if (looksLikeLyrics(prompt)) {
+      // The prompt field actually contains lyrics
+      requestLyrics = prompt!;
       requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
+    } else {
+      // No lyrics provided, keep lyrics empty to let service generate its own
+      requestLyrics = '';
+      requestPrompt = prompt || style || `${genre}, ${mood}, ${tempo}`;
     }
     
     const murekaRequest: MurekaGenerationRequest = {
