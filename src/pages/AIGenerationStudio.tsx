@@ -40,6 +40,9 @@ import { GenerationParams } from "@/features/ai-generation/types";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
+import { TrackSkeleton } from "@/components/ui/track-skeleton";
 
 interface Track {
   id: string;
@@ -83,9 +86,19 @@ interface Option {
 export default function AIGenerationStudio() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const isMobile = useIsMobile();
   const location = useLocation();
   const { state: sidebarState } = useSidebar();
+  
+  // Generation with progress tracking
+  const { 
+    generateTrack, 
+    isGenerating, 
+    generationProgress, 
+    ongoingGenerations,
+    cancelGeneration 
+  } = useTrackGenerationWithProgress();
   
   // Check sidebar actual state
   const sidebarCollapsed = sidebarState === "collapsed";
@@ -245,14 +258,10 @@ export default function AIGenerationStudio() {
 
   const handleGenerate = async (params: GenerationParams) => {
     try {
-      const { data, error } = await supabase.functions.invoke(`generate-${params.service}-track`, {
-        body: params
-      });
-
-      if (error) throw error;
-
+      await generateTrack(params);
+      
       toast({
-        title: "🎵 Генерация запущена",
+        title: t('generationStarted'),
         description: `${params.service === 'suno' ? 'Suno AI' : 'Mureka'} создает ваш трек`,
       });
 
@@ -266,8 +275,8 @@ export default function AIGenerationStudio() {
     } catch (error: any) {
       console.error('Generation error:', error);
       toast({
-        title: "Ошибка генерации",
-        description: error.message || 'Произошла ошибка при запуске генерации',
+        title: t('generationError'),
+        description: error.message || t('generationErrorDesc'),
         variant: "destructive"
       });
     }
@@ -321,9 +330,9 @@ export default function AIGenerationStudio() {
         <Card className="max-w-md w-full">
           <CardContent className="p-6 text-center">
             <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h2 className="text-xl font-semibold mb-2">Войдите в систему</h2>
+            <h2 className="text-xl font-semibold mb-2">{t('loginRequired')}</h2>
             <p className="text-muted-foreground">
-              Для доступа к AI Studio необходимо войти в систему
+              {t('loginRequiredDesc')}
             </p>
           </CardContent>
         </Card>
@@ -338,7 +347,7 @@ export default function AIGenerationStudio() {
         {/* Mobile Header */}
         <MobileHeader
           title="AI Studio"
-          subtitle={`${filteredTracks.length} треков`}
+          subtitle={`${filteredTracks.length} ${t('tracks')}`}
           showSearch={true}
           onSearch={() => setIsCommandPaletteOpen(true)}
           showNotifications={false}
@@ -349,7 +358,7 @@ export default function AIGenerationStudio() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Поиск треков..."
+                placeholder={t('searchTracksPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-muted/50 border-0"
@@ -364,6 +373,7 @@ export default function AIGenerationStudio() {
                 "tap-highlight",
                 showFilters && "bg-primary/10 text-primary"
               )}
+              aria-label={t('filterTracks')}
             >
               <SlidersHorizontal className="h-4 w-4" />
             </Button>
@@ -373,6 +383,7 @@ export default function AIGenerationStudio() {
               onClick={syncTracks}
               disabled={isSyncing}
               className="tap-highlight bg-gradient-primary"
+              aria-label={t('syncTracks')}
             >
               <CloudDownload className={cn(
                 "h-4 w-4",
@@ -387,6 +398,23 @@ export default function AIGenerationStudio() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
+          {/* Generation Progress Skeletons */}
+          {ongoingGenerations.length > 0 && (
+            <div className="p-4 space-y-3">
+              {ongoingGenerations.map((generation) => (
+                <TrackSkeleton
+                  key={generation.taskId}
+                  progress={generation.progress}
+                  title={generation.taskId}
+                  subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'}
+                  status={generation.status as any}
+                  steps={generation.steps}
+                  animated={true}
+                />
+              ))}
+            </div>
+          )}
+          
           <TrackResultsGrid
             tracks={filteredTracks}
             onTrackClick={handleTrackClick}
@@ -402,6 +430,7 @@ export default function AIGenerationStudio() {
           size="icon"
           onClick={() => setIsGenerationPanelOpen(true)}
           className="fixed bottom-20 right-4 h-14 w-14 rounded-full bg-gradient-primary shadow-glow animate-float tap-highlight"
+          aria-label={t('createTrack')}
         >
           <Plus className="h-6 w-6" />
         </Button>
@@ -415,7 +444,7 @@ export default function AIGenerationStudio() {
             <div className="h-full overflow-y-auto">
               <div className="p-4 border-b border-border">
                 <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
-                <h2 className="text-lg font-semibold text-center">Создать трек</h2>
+                <h2 className="text-lg font-semibold text-center">{t('createTrack')}</h2>
               </div>
               
               <div className="p-4">
@@ -490,7 +519,7 @@ export default function AIGenerationStudio() {
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Поиск треков, стилей, артистов..."
+                  placeholder={t('searchTracks')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 bg-muted/50 border-0 focus:ring-2 focus:ring-primary/50"

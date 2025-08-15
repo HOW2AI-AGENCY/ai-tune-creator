@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   RefreshCw
 } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Track {
   id: string;
@@ -52,6 +53,7 @@ export function TrackResultsGrid({
   isPlaying,
   isSyncing
 }: TrackResultsGridProps) {
+  const { t } = useTranslation();
   const formatDuration = (seconds?: number) => {
     if (!seconds) return "--:--";
     const minutes = Math.floor(seconds / 60);
@@ -69,10 +71,10 @@ export function TrackResultsGrid({
         <div className="text-center py-12">
           <RefreshCw className="h-12 w-12 mx-auto mb-4 text-primary animate-spin" />
           <h3 className="text-lg font-medium text-foreground mb-2">
-            Синхронизация треков
+            {t('syncingTracks')}
           </h3>
           <p className="text-muted-foreground">
-            Загружаем треки с внешних сервисов...
+            {t('syncingTracksDesc')}
           </p>
         </div>
       </div>
@@ -85,10 +87,10 @@ export function TrackResultsGrid({
         <div className="text-center py-12">
           <Music className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-lg font-medium text-foreground mb-2">
-            Нет треков
+            {t('noTracks')}
           </h3>
           <p className="text-muted-foreground mb-4">
-            Создайте первый трек с помощью AI генерации
+            {t('noTracksDesc')}
           </p>
         </div>
       </div>
@@ -146,6 +148,7 @@ export function TrackResultsGrid({
                       e.stopPropagation();
                       // TODO: Handle like functionality
                     }}
+                    aria-label={t('likeTrack')}
                   >
                     <Heart className="h-4 w-4" />
                   </Button>
@@ -157,6 +160,7 @@ export function TrackResultsGrid({
                       e.stopPropagation();
                       onPlayTrack(track);
                     }}
+                    aria-label={isCurrentTrackPlaying(track) ? t('pauseTrack') : t('playTrack')}
                   >
                     {isCurrentTrackPlaying(track) ? (
                       <Pause className="h-5 w-5" />
@@ -173,6 +177,7 @@ export function TrackResultsGrid({
                       e.stopPropagation();
                       // TODO: Handle download functionality
                     }}
+                    aria-label={t('downloadTrack')}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
@@ -228,6 +233,7 @@ export function TrackResultsGrid({
                       e.stopPropagation();
                       // TODO: Handle more options
                     }}
+                    aria-label={t('moreOptions')}
                   >
                     <MoreHorizontal className="h-3 w-3" />
                   </Button>

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface GenerationTask {
   id: string;
@@ -35,6 +36,7 @@ interface TaskQueuePanelProps {
 }
 
 export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
+  const { t } = useTranslation();
   const activeTasks = tasks.filter(task => task.status === 'pending' || task.status === 'running');
   const recentTasks = tasks.slice(0, 5); // Show last 5 tasks
 
@@ -75,7 +77,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
   };
 
   const formatEstimatedTime = (seconds?: number) => {
-    if (!seconds) return 'Неизвестно';
+    if (!seconds) return t('unknown');
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return minutes > 0 ? `${minutes}м ${remainingSeconds}с` : `${remainingSeconds}с`;
@@ -94,7 +96,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium flex items-center gap-2">
                 <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                Активные задачи
+                {t('activeTasks')}
               </h3>
               <Badge variant="outline" className="text-xs">
                 {activeTasks.length}
@@ -113,7 +115,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
                             {task.service}
                           </span>
                           <Badge variant={getStatusColor(task.status)} className="text-xs">
-                            {task.status === 'pending' ? 'В очереди' : 'Генерация'}
+                            {task.status === 'pending' ? t('statusPending') : t('statusRunning')}
                           </Badge>
                         </div>
                         
@@ -133,7 +135,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
                         
                         {task.status === 'pending' && (
                           <div className="text-xs text-muted-foreground">
-                            Оценочное время: {formatEstimatedTime(task.estimated_time)}
+                            {t('estimatedTime')}: {formatEstimatedTime(task.estimated_time)}
                           </div>
                         )}
                       </div>
@@ -154,7 +156,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Недавние задачи
+              {t('recentTasks')}
             </h3>
             <Badge variant="outline" className="text-xs">
               {recentTasks.length}
@@ -183,17 +185,32 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
                 <div className="flex items-center gap-2">
                   {task.status === 'completed' && task.result && (
                     <div className="flex items-center gap-1">
-                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0">
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-6 w-6 p-0"
+                        aria-label={t('playTrack')}
+                      >
                         <Play className="h-3 w-3" />
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0">
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-6 w-6 p-0"
+                        aria-label={t('downloadTrack')}
+                      >
                         <Download className="h-3 w-3" />
                       </Button>
                     </div>
                   )}
                   
                   {task.status === 'failed' && (
-                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-6 w-6 p-0 text-destructive"
+                      aria-label={t('retry')}
+                    >
                       <AlertCircle className="h-3 w-3" />
                     </Button>
                   )}

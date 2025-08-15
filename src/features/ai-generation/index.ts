@@ -22,6 +22,7 @@ export { MurekaExtensionDialog } from './components/MurekaExtensionDialog';
 export { MurekaInstrumentalDialog } from './components/MurekaInstrumentalDialog';
 export { GenerationFeed } from './components/GenerationFeed';
 export { GenerationTrackCard } from './components/GenerationTrackCard';
+export { useTrackGenerationWithProgress } from './hooks/useTrackGenerationWithProgress';
 
 // Type exports
 export type { GenerationParams, QuickPreset, Option } from './types';

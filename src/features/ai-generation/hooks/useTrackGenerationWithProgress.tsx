@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSunoStatusPolling } from './useSunoStatusPolling';
 import { useGenerationPersistence } from '@/hooks/useGenerationPersistence';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface TrackGenerationProgress {
   title: string;
@@ -41,6 +42,7 @@ export function useTrackGenerationWithProgress() {
   } | null>(null);
   
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { startPolling, stopPolling } = useSunoStatusPolling({});
   const { startGeneration, updateGeneration, completeGeneration, ongoingGenerations } = useGenerationPersistence();
 
@@ -58,14 +60,14 @@ export function useTrackGenerationWithProgress() {
       
       // Инициализируем прогресс
       setGenerationProgress({
-        title: "Генерируем музыкальный трек",
-        subtitle: `Используем ${params.service === 'suno' ? 'Suno AI' : 'Mureka'} для создания трека`,
+        title: t('generateTrack'),
+        subtitle: `${params.service === 'suno' ? 'Suno AI' : 'Mureka'}`,
         progress: 0,
         steps: [
-          { id: 'prepare', label: 'Подготовка запроса', status: 'running' },
+          { id: 'prepare', label: t('statusPreparing'), status: 'running' },
           { id: 'generate', label: 'Отправка в AI сервис', status: 'pending' },
-          { id: 'process', label: 'Обработка трека', status: 'pending' },
-          { id: 'save', label: 'Сохранение результата', status: 'pending' }
+          { id: 'process', label: t('statusProcessing'), status: 'pending' },
+          { id: 'save', label: t('statusSaving'), status: 'pending' }
         ]
       });
 
@@ -74,10 +76,10 @@ export function useTrackGenerationWithProgress() {
       updateProgress({
         progress: 25,
         steps: [
-          { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
+          { id: 'prepare', label: t('statusPreparing'), status: 'done' },
           { id: 'generate', label: 'Отправка в AI сервис', status: 'running' },
-          { id: 'process', label: 'Обработка трека', status: 'pending' },
-          { id: 'save', label: 'Сохранение результата', status: 'pending' }
+          { id: 'process', label: t('statusProcessing'), status: 'pending' },
+          { id: 'save', label: t('statusSaving'), status: 'pending' }
         ]
       });
 
@@ -115,10 +117,10 @@ export function useTrackGenerationWithProgress() {
         updateProgress({
           progress: 50,
           steps: [
-            { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
+            { id: 'prepare', label: t('statusPreparing'), status: 'done' },
             { id: 'generate', label: 'Отправка в AI сервис', status: 'done' },
-            { id: 'process', label: 'Обработка трека', status: 'running' },
-            { id: 'save', label: 'Сохранение результата', status: 'pending' }
+            { id: 'process', label: t('statusProcessing'), status: 'running' },
+            { id: 'save', label: t('statusSaving'), status: 'pending' }
           ]
         });
         
@@ -147,10 +149,10 @@ export function useTrackGenerationWithProgress() {
         updateProgress({
           progress: 50,
           steps: [
-            { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
+            { id: 'prepare', label: t('statusPreparing'), status: 'done' },
             { id: 'generate', label: 'Отправка в AI сервис', status: 'done' },
-            { id: 'process', label: 'Обработка трека', status: 'running' },
-            { id: 'save', label: 'Сохранение результата', status: 'pending' }
+            { id: 'process', label: t('statusProcessing'), status: 'running' },
+            { id: 'save', label: t('statusSaving'), status: 'pending' }
           ]
         });
       }
@@ -159,10 +161,10 @@ export function useTrackGenerationWithProgress() {
         console.error('Edge Function Error:', error);
         updateProgress({
           steps: [
-            { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
+            { id: 'prepare', label: t('statusPreparing'), status: 'done' },
             { id: 'generate', label: 'Отправка в AI сервис', status: 'error' },
-            { id: 'process', label: 'Обработка трека', status: 'pending' },
-            { id: 'save', label: 'Сохранение результата', status: 'pending' }
+            { id: 'process', label: t('statusProcessing'), status: 'pending' },
+            { id: 'save', label: t('statusSaving'), status: 'pending' }
           ]
         });
         throw error;
@@ -172,10 +174,10 @@ export function useTrackGenerationWithProgress() {
         console.error('Generation failed:', data);
         updateProgress({
           steps: [
-            { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
+            { id: 'prepare', label: t('statusPreparing'), status: 'done' },
             { id: 'generate', label: 'Отправка в AI сервис', status: 'error' },
-            { id: 'process', label: 'Обработка трека', status: 'pending' },
-            { id: 'save', label: 'Сохранение результата', status: 'pending' }
+            { id: 'process', label: t('statusProcessing'), status: 'pending' },
+            { id: 'save', label: t('statusSaving'), status: 'pending' }
           ]
         });
         throw new Error(data?.error || 'Generation failed');
@@ -187,10 +189,10 @@ export function useTrackGenerationWithProgress() {
       updateProgress({
         progress: 75,
         steps: [
-          { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
+          { id: 'prepare', label: t('statusPreparing'), status: 'done' },
           { id: 'generate', label: 'Отправка в AI сервис', status: 'done' },
-          { id: 'process', label: 'Обработка трека', status: 'done' },
-          { id: 'save', label: 'Сохранение результата', status: 'running' }
+          { id: 'process', label: t('statusProcessing'), status: 'done' },
+          { id: 'save', label: t('statusSaving'), status: 'running' }
         ]
       });
 
@@ -221,10 +223,10 @@ export function useTrackGenerationWithProgress() {
           subtitle: `Используем ${params.service === 'suno' ? 'Suno AI' : 'Mureka'}`,
           params,
           steps: [
-            { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
+            { id: 'prepare', label: t('statusPreparing'), status: 'done' },
             { id: 'generate', label: 'Отправка в AI сервис', status: 'done' },
-            { id: 'process', label: 'Обработка трека', status: 'running' },
-            { id: 'save', label: 'Сохранение результата', status: 'pending' }
+            { id: 'process', label: t('statusProcessing'), status: 'running' },
+            { id: 'save', label: t('statusSaving'), status: 'pending' }
           ]
         });
         
