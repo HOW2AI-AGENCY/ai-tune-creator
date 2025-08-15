@@ -20,6 +20,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useAuth } from "@/hooks/useAuth";
 import { CreateProjectDialog, CreateProjectWithAIDialog, CoverUploadDialog, BannerUploadDialog } from "@/features/projects";
 import { CreateTrackDialog, TrackDetailsDialog } from "@/features/tracks";
+import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +69,10 @@ export default function Projects() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<any | null>(null);
   const [trackDetailsOpen, setTrackDetailsOpen] = useState(false);
+  
+  // Player state
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState<any | null>(null);
 
   const fetchProjects = async () => {
     try {
@@ -350,6 +355,19 @@ export default function Projects() {
     }
   };
 
+  const handlePlayTrack = (track: any) => {
+    if (!track.audio_url) {
+      toast({
+        title: "Аудио недоступно",
+        description: "У этого трека нет аудиофайла",
+        variant: "destructive"
+      });
+      return;
+    }
+    setCurrentTrack(track);
+    setPlayerOpen(true);
+  };
+
   if (!user) {
     return (
       <Card className="m-6">
@@ -590,14 +608,31 @@ export default function Projects() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Play className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
+                           <div className="flex items-center gap-2">
+                             {track.audio_url && (
+                               <Button 
+                                 variant="ghost" 
+                                 size="sm"
+                                 onClick={() => handlePlayTrack(track)}
+                               >
+                                 <Play className="h-4 w-4" />
+                               </Button>
+                             )}
+                             <Button 
+                               variant="ghost" 
+                               size="sm"
+                               onClick={() => handleTrackClick(track)}
+                             >
+                               <Eye className="h-4 w-4" />
+                             </Button>
+                             <Button 
+                               variant="ghost" 
+                               size="sm"
+                               onClick={() => handleTrackClick(track)}
+                             >
+                               <Edit className="h-4 w-4" />
+                             </Button>
+                           </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -913,6 +948,23 @@ export default function Projects() {
             }
           } : null}
           onTrackUpdated={handleTrackUpdated}
+        />
+
+        {/* Player */}
+        <FloatingPlayer
+          isOpen={playerOpen}
+          onClose={() => setPlayerOpen(false)}
+          track={currentTrack ? {
+            id: currentTrack.id,
+            title: currentTrack.title,
+            audio_url: currentTrack.audio_url || '',
+            project: {
+              title: selectedProject?.title || '',
+              artist: {
+                name: selectedProject?.artist?.name || 'Unknown Artist'
+              }
+            }
+          } : null}
         />
       </div>
     </ScrollArea>

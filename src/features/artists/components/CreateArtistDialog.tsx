@@ -111,11 +111,8 @@ export function CreateArtistDialog({ open: controlledOpen, onOpenChange, onArtis
       const { data, error } = await supabase.functions.invoke('generate-with-llm', {
         body: {
           prompt,
-          systemPrompt,
           provider: 'openai',
-          model: 'gpt-4.1-2025-04-14',
-          temperature: 0.8,
-          maxTokens: 1000
+          model: 'gpt-4.1-2025-04-14'
         }
       });
 

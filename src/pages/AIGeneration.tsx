@@ -4,9 +4,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationSidebar, MusicService } from "@/features/ai-generation/components/GenerationSidebar";
 import { GenerationFeed } from "@/features/ai-generation/components/GenerationFeed";
+import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TaskQueuePanel } from "@/components/ai-generation/TaskQueuePanel";
 import { AIServiceStatusBanner } from "@/components/ai-generation/AIServiceStatusBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import { useSunoStatusPolling } from '@/features/ai-generation/hooks/useSunoStatusPolling';
 
@@ -31,6 +34,12 @@ export default function AIGeneration() {
   const [artists, setArtists] = useState<Option[]>([]);
   const [generations, setGenerations] = useState<any[]>([]);
   const [tracks, setTracks] = useState<{ id: string; name: string; projectId: string; currentVersion: number; trackNumber: number }[]>([]);
+  const [allTracks, setAllTracks] = useState<any[]>([]);
+  
+  // Tab and player state
+  const [activeTab, setActiveTab] = useState("tracks");
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState<any | null>(null);
 
   // Polling hook для отслеживания прогресса
   const { isPolling } = useSunoStatusPolling({
@@ -146,7 +155,34 @@ export default function AIGeneration() {
 
     fetchMeta();
     fetchGenerations();
+    fetchAllTracks();
   }, [user]);
+
+  const fetchAllTracks = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('tracks')
+        .select(`
+          *,
+          projects (
+            title,
+            artist_id,
+            is_inbox,
+            artists (
+              name
+            )
+          )
+        `)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      setAllTracks(data || []);
+    } catch (error) {
+      console.error('Error fetching all tracks:', error);
+    }
+  };
 
   // Load tracks for generation context
   useEffect(() => {
@@ -331,6 +367,14 @@ export default function AIGeneration() {
     }
   };
 
+  const handlePlayTrack = (track: any) => {
+    if (!track.audio_url) {
+      return;
+    }
+    setCurrentTrack(track);
+    setPlayerOpen(true);
+  };
+
   return (
     <div className="w-full h-full flex flex-col">
       <header className="flex items-center justify-between p-4 sm:p-6 border-b">
@@ -380,35 +424,111 @@ export default function AIGeneration() {
             <div className="p-4 sm:p-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg sm:text-xl">Войдите, чтобы видеть свои генерации</CardTitle>
+                  <CardTitle className="text-lg sm:text-xl">Войдите, чтобы видеть контент</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm sm:text-base text-muted-foreground">
-                    После входа здесь появится лента ваших генераций, сгруппированных по версиям трека.
+                    После входа здесь появятся ваши треки и генерации ИИ.
                   </p>
                 </CardContent>
               </Card>
             </div>
           ) : (
             <div className="p-4 sm:p-6">
-              <GenerationFeed 
-                onPlay={(url) => {
-                  // TODO: Implement audio player
-                  window.open(url, '_blank');
-                }}
-                onDownload={(url, filename) => {
-                  const link = document.createElement('a');
-                  link.href = url;
-                  link.download = filename;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
-              />
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="mb-4">
+                  <TabsTrigger value="tracks">Все треки</TabsTrigger>
+                  <TabsTrigger value="generations">Генерации ИИ</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="tracks">
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold">Все треки ({allTracks.length})</h2>
+                    {allTracks.length === 0 ? (
+                      <Card>
+                        <CardContent className="flex flex-col items-center justify-center py-12">
+                          <div className="h-12 w-12 text-muted-foreground mb-4">🎵</div>
+                          <h3 className="text-lg font-semibold mb-2">Треков пока нет</h3>
+                          <p className="text-muted-foreground text-center">
+                            Создайте свой первый трек с помощью ИИ генерации
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="grid gap-4">
+                        {allTracks.map((track) => (
+                          <Card key={track.id}>
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <h3 className="font-medium">{track.title}</h3>
+                                  <div className="text-sm text-muted-foreground">
+                                    {track.projects?.artists?.name && (
+                                      <span>{track.projects.artists.name}</span>
+                                    )}
+                                    {track.projects?.title && (
+                                      <span> • {track.projects.title}</span>
+                                    )}
+                                    {track.projects?.is_inbox && (
+                                      <span> • Inbox</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  {track.audio_url && (
+                                    <Button 
+                                      size="sm" 
+                                      onClick={() => handlePlayTrack(track)}
+                                      className="gap-2"
+                                    >
+                                      ▶️ Играть
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="generations">
+                  <GenerationFeed 
+                    onPlay={handlePlayTrack}
+                    onDownload={(url, filename) => {
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = filename;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
             </div>
           )}
         </main>
       </div>
+      
+      {/* Player */}
+      <FloatingPlayer
+        isOpen={playerOpen}
+        onClose={() => setPlayerOpen(false)}
+        track={currentTrack ? {
+          id: currentTrack.id,
+          title: currentTrack.title,
+          audio_url: currentTrack.audio_url || '',
+          project: {
+            title: currentTrack.projects?.title || '',
+            artist: {
+              name: currentTrack.projects?.artists?.name || 'Unknown Artist'
+            }
+          }
+        } : null}
+      />
     </div>
   );
 }

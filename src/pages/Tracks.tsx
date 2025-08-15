@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TrackEditDialog, TrackVersionsDialog, TrackGenerationDialog, TrackViewDialog } from "@/features/tracks";
+import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { 
   Plus, 
   Search, 
@@ -21,7 +22,8 @@ import {
   Play,
   Loader2,
   FileText,
-  Eye
+  Eye,
+  RefreshCw
 } from "lucide-react";
 
 interface Track {
@@ -65,6 +67,10 @@ export default function Tracks() {
   const [generationDialogOpen, setGenerationDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
+  
+  // Player state
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
 
   const loadTracks = async () => {
     try {
@@ -196,6 +202,41 @@ export default function Tracks() {
     // TODO: Обработать другие типы генерации
   };
 
+  const handlePlayTrack = (track: Track) => {
+    if (!track.audio_url) {
+      toast({
+        title: "Аудио недоступно",
+        description: "У этого трека нет аудиофайла",
+        variant: "destructive"
+      });
+      return;
+    }
+    setCurrentTrack(track);
+    setPlayerOpen(true);
+  };
+
+  const syncInboxTracks = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-generated-tracks');
+      if (error) throw error;
+      
+      toast({
+        title: "Синхронизация запущена",
+        description: "Треки обновляются..."
+      });
+      
+      // Обновляем список треков
+      loadTracks();
+    } catch (error: any) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Ошибка синхронизации",
+        description: error.message || "Не удалось синхронизировать треки",
+        variant: "destructive"
+      });
+    }
+  };
+
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return "--:--";
     const mins = Math.floor(seconds / 60);
@@ -237,6 +278,14 @@ export default function Tracks() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            onClick={syncInboxTracks}
+            variant="outline"
+            className="gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Синхронизация
+          </Button>
           <Button 
             onClick={() => handleGenerateAI()}
             variant="outline"
@@ -425,14 +474,25 @@ export default function Tracks() {
 
                 {/* Действия */}
                 <div className="flex gap-2">
+                  {track.audio_url && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => handlePlayTrack(track)}
+                      className="flex-1"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Играть
+                    </Button>
+                  )}
+                  
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleViewTrack(track)}
-                    className="flex-1"
+                    className={track.audio_url ? "" : "flex-1"}
                   >
-                    <Eye className="h-4 w-4 mr-2" />
-                    Просмотр
+                    <Eye className="h-4 w-4" />
                   </Button>
                   
                   <Button
@@ -498,6 +558,23 @@ export default function Tracks() {
         open={viewDialogOpen}
         onOpenChange={setViewDialogOpen}
         track={selectedTrack}
+      />
+
+      {/* Player */}
+      <FloatingPlayer
+        isOpen={playerOpen}
+        onClose={() => setPlayerOpen(false)}
+        track={currentTrack ? {
+          id: currentTrack.id,
+          title: currentTrack.title,
+          audio_url: currentTrack.audio_url || '',
+          project: {
+            title: currentTrack.projects?.title || '',
+            artist: {
+              name: currentTrack.projects?.artists?.name || 'Unknown Artist'
+            }
+          }
+        } : null}
       />
     </div>
   );
