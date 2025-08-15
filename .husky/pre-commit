@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run type checking
+npm run typecheck
+
+# Run linting with auto-fix
+npm run lint:fix
+
+# Run tests if they exist
+if [ -f "package.json" ] && grep -q '"test"' package.json; then
+  npm test
+fi
+
+echo "✅ Pre-commit checks passed!"
