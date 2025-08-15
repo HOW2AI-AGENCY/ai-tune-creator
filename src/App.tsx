@@ -11,7 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects"; 
 import Artists from "./pages/Artists";
 import AIGeneration from "./pages/AIGeneration";
-import AIGenerationNew from "./pages/AIGenerationNew";
+import AIGenerationStudio from "./pages/AIGenerationStudio";
 import Tracks from "./pages/Tracks";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
@@ -69,7 +69,7 @@ const App = () => (
               <Route path="/projects" element={<AppLayout><Projects /></AppLayout>} />
               <Route path="/tracks" element={<AppLayout><Tracks /></AppLayout>} />
               <Route path="/artists" element={<AppLayout><Artists /></AppLayout>} />
-              <Route path="/generate" element={<AppLayout><AIGenerationNew /></AppLayout>} />
+              <Route path="/generate" element={<AppLayout><AIGenerationStudio /></AppLayout>} />
               <Route path="/generate-old" element={<AppLayout><AIGeneration /></AppLayout>} />
               <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
               <Route path="/demo/track-details" element={<AppLayout><TrackDetailsDemo /></AppLayout>} />
