@@ -1,5 +1,5 @@
 import { ReactNode, useEffect } from "react";
-import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { useLocation } from "react-router-dom";
@@ -26,12 +26,12 @@ export function AppLayout({ children }: AppLayoutProps) {
       <SidebarRouteSync />
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
-        <div className="flex-1 flex flex-col">
+        <SidebarInset>
           <AppHeader />
           <main className="flex-1 overflow-auto">
             {children}
           </main>
-        </div>
+        </SidebarInset>
       </div>
     </SidebarProvider>
   );

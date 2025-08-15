@@ -51,7 +51,7 @@ export function AppSidebar() {
       : "hover:bg-sidebar-accent/50 text-sidebar-foreground";
 
   return (
-    <Sidebar className={shouldCollapse ? "w-14" : "w-60"} collapsible="icon">
+    <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center overflow-hidden">

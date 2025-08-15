@@ -39,6 +39,7 @@ import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlay
 import { GenerationParams } from "@/features/ai-generation/types";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
+import { useSidebar } from "@/components/ui/sidebar";
 
 interface Track {
   id: string;
@@ -84,10 +85,10 @@ export default function AIGenerationStudio() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const location = useLocation();
-
-  // Check if sidebar should be collapsed on AI generation page
-  const isAIGenerationPage = location.pathname === "/generate" || location.pathname.startsWith("/generate");
-  const sidebarCollapsed = isAIGenerationPage;
+  const { state: sidebarState } = useSidebar();
+  
+  // Check sidebar actual state
+  const sidebarCollapsed = sidebarState === "collapsed";
 
   // Core State
   const [searchQuery, setSearchQuery] = useState("");
@@ -468,7 +469,7 @@ export default function AIGenerationStudio() {
       {/* Context Panel - adapts to sidebar state */}
       <div className={cn(
         "bg-card border-r border-border flex flex-col glass transition-all duration-200 relative",
-        sidebarCollapsed ? "w-72" : "w-80"
+        sidebarCollapsed ? "w-64 xl:w-72" : "w-80"
       )}>
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-3 mb-2">
