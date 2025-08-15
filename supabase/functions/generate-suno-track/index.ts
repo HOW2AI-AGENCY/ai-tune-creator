@@ -92,7 +92,8 @@ serve(async (req) => {
       custom_lyrics = "",
       voice_style = "",
       language = "ru",
-      tempo = ""
+      tempo = "",
+      useInbox = false
     } = requestBody;
 
     // Валидация обязательных полей в зависимости от режима
@@ -100,6 +101,26 @@ serve(async (req) => {
       // В кастомном режиме с пользовательской лирикой prompt может быть пустым
     } else if (!prompt || prompt.trim().length === 0) {
       throw new Error('Prompt is required and cannot be empty');
+    }
+
+    // Handle context (inbox logic)
+    let finalProjectId = projectId;
+    let finalArtistId = artistId;
+
+    // If useInbox is true or no context provided, use inbox logic
+    if (useInbox || (!projectId && !artistId)) {
+      console.log('Using inbox logic, useInbox:', useInbox);
+      
+      const { data: inboxProjectId, error: inboxError } = await supabase
+        .rpc('ensure_user_inbox', { p_user_id: user.id });
+
+      if (inboxError) {
+        console.error('Failed to ensure inbox:', inboxError);
+        throw new Error('Failed to create inbox project');
+      }
+
+      finalProjectId = inboxProjectId;
+      console.log('Using inbox project:', finalProjectId);
     }
 
     console.log('=== SUNO EDGE FUNCTION DEBUG ===');
@@ -114,7 +135,10 @@ serve(async (req) => {
       custom_lyrics: custom_lyrics ? `"${custom_lyrics.substring(0, 50)}..."` : '[empty]',
       voice_style: voice_style ? `"${voice_style}"` : '[empty]',
       language: language ? `"${language}"` : '[empty]',
-      tempo: tempo ? `"${tempo}"` : '[empty]'
+      tempo: tempo ? `"${tempo}"` : '[empty]',
+      useInbox,
+      finalProjectId,
+      finalArtistId
     });
     console.log('=== END DEBUG ===');
 
@@ -269,8 +293,8 @@ serve(async (req) => {
           tempo: sunoRequest.tempo || null,
           suno_request: sunoRequest,
           suno_response: sunoData,
-          project_id: projectId,
-          artist_id: artistId
+          project_id: finalProjectId,
+          artist_id: finalArtistId
         },
         parameters: {
           style,
@@ -283,8 +307,8 @@ serve(async (req) => {
           tempo,
           voice_style,
           trackId,
-          projectId,
-          artistId,
+          projectId: finalProjectId,
+          artistId: finalArtistId,
           mode
         },
         track_id: null
@@ -331,8 +355,8 @@ serve(async (req) => {
         console.log('Track updated:', updatedTrack.id);
       }
     } else {
-      // Создаем новый трек если trackId не указан и projectId указан
-      if (projectId) {
+      // Создаем новый трек если trackId не указан и finalProjectId указан
+      if (finalProjectId) {
         const { data: newTrack, error: trackError } = await supabase
           .from('tracks')
           .insert({
@@ -343,7 +367,7 @@ serve(async (req) => {
             audio_url: null,
             genre_tags: tags.split(', ').filter(Boolean),
             style_prompt: style,
-            project_id: projectId,
+            project_id: finalProjectId,
             metadata: {
               suno_task_id: taskId,
               suno_id: generatedTrack.id,

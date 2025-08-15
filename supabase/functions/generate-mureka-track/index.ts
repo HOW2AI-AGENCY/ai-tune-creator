@@ -94,8 +94,29 @@ serve(async (req) => {
       reference_id = null,
       vocal_id = null,
       melody_id = null,
-      stream = false
+      stream = false,
+      useInbox = false
     } = await req.json();
+
+    // Handle context (inbox logic)
+    let finalProjectId = projectId;
+    let finalArtistId = artistId;
+
+    // If useInbox is true or no context provided, use inbox logic
+    if (useInbox || (!projectId && !artistId)) {
+      console.log('Using inbox logic, useInbox:', useInbox);
+      
+      const { data: inboxProjectId, error: inboxError } = await supabase
+        .rpc('ensure_user_inbox', { p_user_id: userId });
+
+      if (inboxError) {
+        console.error('Failed to ensure inbox:', inboxError);
+        throw new Error('Failed to create inbox project');
+      }
+
+      finalProjectId = inboxProjectId;
+      console.log('Using inbox project:', finalProjectId);
+    }
 
     console.log('Generating Mureka track with params:', { 
       prompt: prompt ? prompt.substring(0, 100) + '...' : '[using custom lyrics]',
@@ -107,7 +128,10 @@ serve(async (req) => {
       mode,
       custom_lyrics: custom_lyrics ? custom_lyrics.substring(0, 50) + '...' : '',
       instrumental,
-      language
+      language,
+      useInbox,
+      finalProjectId,
+      finalArtistId
     });
 
     // Получаем Mureka API ключи
@@ -312,8 +336,8 @@ Status: ${finalTrack.status}
           melody_id,
           stream,
           mureka_response: finalTrack,
-          project_id: projectId,
-          artist_id: artistId
+          project_id: finalProjectId,
+          artist_id: finalArtistId
         },
         parameters: {
           prompt,
@@ -327,8 +351,8 @@ Status: ${finalTrack.status}
           tempo,
           key,
           trackId,
-          projectId,
-          artistId,
+          projectId: finalProjectId,
+          artistId: finalArtistId,
           title,
           mode,
           custom_lyrics,
@@ -402,7 +426,7 @@ Status: ${finalTrack.status}
           duration: finalTrack.choices?.[0]?.duration || duration,
           genre_tags: [genre, mood, tempo].filter(Boolean),
           style_prompt: style,
-          project_id: projectId,
+          project_id: finalProjectId,
           track_number: 1,
           metadata: {
             mureka_task_id: finalTrack.id,

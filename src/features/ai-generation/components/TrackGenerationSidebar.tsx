@@ -60,6 +60,7 @@ export function TrackGenerationSidebar({
   const [selectedArtistId, setSelectedArtistId] = useState<string>("none");
   const [selectedGenre, setSelectedGenre] = useState<string>("none");
   const [selectedMood, setSelectedMood] = useState<string>("none");
+  const [sendToInbox, setSendToInbox] = useState(false);
   
   // Состояния для быстрых пресетов
   const [selectedPresetId, setSelectedPresetId] = useState<string>("");
@@ -126,8 +127,8 @@ export function TrackGenerationSidebar({
     const params: GenerationParams = {
       prompt: inputType === 'description' ? prompt : stylePrompt,
       service: selectedService,
-      projectId: selectedProjectId !== "none" ? selectedProjectId : undefined,
-      artistId: selectedArtistId !== "none" ? selectedArtistId : undefined,
+      projectId: sendToInbox ? undefined : (selectedProjectId !== "none" ? selectedProjectId : undefined),
+      artistId: sendToInbox ? undefined : (selectedArtistId !== "none" ? selectedArtistId : undefined),
       genreTags,
       mode,
       customLyrics: inputType === 'lyrics' ? prompt : (mode === 'custom' ? customLyrics : undefined),
@@ -137,7 +138,8 @@ export function TrackGenerationSidebar({
       voiceStyle: voiceStyle !== "none" ? voiceStyle : undefined,
       language,
       stylePrompt: stylePrompt || undefined,
-      inputType
+      inputType,
+      useInbox: sendToInbox
     };
 
     setPreviewParams(params);
@@ -230,39 +232,54 @@ export function TrackGenerationSidebar({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <Label className="text-xs text-muted-foreground">Проект</Label>
-            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-              <SelectTrigger className="h-8">
-                <SelectValue placeholder="Выберите проект" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Без проекта</SelectItem>
-                {projects.map(project => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="send-to-inbox"
+              checked={sendToInbox}
+              onCheckedChange={setSendToInbox}
+            />
+            <Label htmlFor="send-to-inbox" className="text-xs text-muted-foreground">
+              Отправить в Inbox
+            </Label>
           </div>
 
-          <div>
-            <Label className="text-xs text-muted-foreground">Артист</Label>
-            <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
-              <SelectTrigger className="h-8">
-                <SelectValue placeholder="Выберите артиста" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Без артиста</SelectItem>
-                {artists.map(artist => (
-                  <SelectItem key={artist.id} value={artist.id}>
-                    {artist.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!sendToInbox && (
+            <>
+              <div>
+                <Label className="text-xs text-muted-foreground">Проект</Label>
+                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="Выберите проект" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Без проекта</SelectItem>
+                    {projects.map(project => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Артист</Label>
+                <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="Выберите артиста" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Без артиста</SelectItem>
+                    {artists.map(artist => (
+                      <SelectItem key={artist.id} value={artist.id}>
+                        {artist.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

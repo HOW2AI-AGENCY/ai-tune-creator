@@ -25,6 +25,7 @@ export interface GenerationParams {
   voiceStyle?: string;
   language?: string;
   inputType?: 'description' | 'lyrics';
+  useInbox?: boolean;
 }
 
 export interface Option {
