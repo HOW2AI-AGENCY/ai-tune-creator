@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.01.035] - 2025-08-15
+
+### 🚀 Inbox System & AI Service Status Implementation
+
+#### 🗃️ Project Inbox Architecture
+- **Inbox Logic** - Automated context handling for generated tracks
+  - Auto-creation of user inbox projects for orphaned tracks
+  - `ensure_user_inbox()` function for seamless track organization
+  - "Send to Inbox" toggle in generation sidebar
+  - Smart project selection: specific project vs inbox fallback
+
+#### 📊 AI Service Status Monitoring
+- **Real-time Status Tracking** - Live monitoring of AI service health
+  - Suno AI: Credits remaining (API: api.sunoapi.org/api/v1/generate/credit)
+  - Mureka AI: Balance check (API: api.mureka.ai/v1/account/billing)
+  - Auto-refresh every 30 seconds with rate limiting protection
+  - Status indicators: online (green), limited (yellow), offline (red), checking (gray)
+
+#### 🤖 Enhanced AI Generation
+- **Mureka API Improvements** - Fixed critical empty lyrics error
+  - Always ensure non-empty lyrics for Mureka requests
+  - Fallback lyrics for instrumental tracks: `[Instrumental]`
+  - Improved prompt/lyrics separation logic
+  - Better error handling and user feedback
+
+#### 🗄️ Database Enhancements
+- **New Tables & Functions**:
+  - `track_assets` table for external file management
+  - `is_inbox` flag for projects to identify inbox containers
+  - `dedupe_track_title()` function for unique naming
+  - `get_next_track_number()` function for ordering
+  - Enhanced indexes for better query performance
+
+#### 🔧 Technical Infrastructure
+- **Edge Function Updates**:
+  - `backfill-inbox-tracks` - Migrate existing orphaned tracks
+  - Enhanced `generate-suno-track` and `generate-mureka-track` with inbox logic
+  - `check-suno-status` and `check-mureka-status` for service monitoring
+  - Improved rate limiting and error handling across all functions
+
+#### 📱 UI/UX Improvements
+- **AIServiceStatusPanel** - Compact and full status display modes
+- **TrackGenerationSidebar** - Added inbox toggle and context controls
+- **Error Messages** - Better user feedback for AI service issues
+- **Loading States** - Enhanced progress indicators during generation
+
+#### 🔒 Security & Performance
+- **Row Level Security** - Proper RLS policies for all new tables
+- **Function Security** - Secure search_path settings for all database functions
+- **Rate Limiting** - Service-specific limits (Suno: 5/10min, Mureka: 10/15min)
+- **Input Validation** - Enhanced validation for all AI generation endpoints
+
 ## [0.01.033] - 2025-01-13
 
 ### 🚀 Performance Architecture Release

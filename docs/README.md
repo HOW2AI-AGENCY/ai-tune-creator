@@ -6,6 +6,8 @@ Welcome to the comprehensive documentation for the AI Music Platform. This docum
 
 ### 🚀 Getting Started
 - **[Quick Start Guide](./getting-started.md)** - Get up and running in 5 minutes
+- **[AI Generation System Guide](./ai-generation-system-guide.md)** - Complete guide to AI music generation
+- **[Troubleshooting](./troubleshooting.md)** - Common issues and solutions
 - **[Installation](./installation.md)** - Detailed installation instructions
 - **[Configuration](./configuration.md)** - Environment setup and configuration
 - **[First Project](./first-project.md)** - Create your first AI-generated music

@@ -2,21 +2,43 @@
 
 ## Overview
 
-Данная система интегрирована с несколькими провайдерами ИИ для генерации контента, связанного с музыкальными артистами, включая профили артистов, тексты песен и маркетинговые материалы.
+Система интегрирована с несколькими AI провайдерами для генерации музыкального контента. Основные сервисы:
+- **Suno AI** - Полная генерация треков из текстовых описаний
+- **Mureka AI** - Креативные композиции с расширенными возможностями
 
-## Supported AI Providers
+## AI Music Generation Services
 
-### OpenAI
+### Suno AI
+- **API**: api.sunoapi.org
+- **Models**: chirp-v3-5 (основная модель)
+- **Capabilities**: Полная генерация треков из текста, включая музыку и вокал
+- **Формат**: MP3, высокое качество, до 4 минут
+- **Rate Limit**: 5 запросов за 10 минут
+- **API Key**: `SUNOAPI_ORG_TOKEN` в Supabase Edge Function Secrets
+- **Status Check**: `GET /api/v1/generate/credit`
+
+### Mureka AI  
+- **API**: api.mureka.ai
+- **Models**: auto, mureka-6, mureka-7, mureka-o1
+- **Capabilities**: Креативные композиции, расширенные настройки, stem separation
+- **Формат**: WAV/MP3, профессиональное качество, до 8 минут
+- **Rate Limit**: 10 запросов за 15 минут
+- **API Key**: `MUREKA_API_KEY` в Supabase Edge Function Secrets  
+- **Status Check**: `GET /v1/account/billing`
+
+### General AI Providers (для генерации контента)
+
+#### OpenAI
 - **Models**: GPT-4o, GPT-4o Mini, GPT-4 Turbo
 - **API Key**: `OPENAI_API_KEY` в Supabase Edge Function Secrets
 - **Best for**: Высокое качество генерации, хорошая поддержка русского языка
 
-### Anthropic Claude
+#### Anthropic Claude
 - **Models**: Claude 3 Opus, Claude 3 Sonnet, Claude 3 Haiku
 - **API Key**: `ANTHROPIC_API_KEY` в Supabase Edge Function Secrets
 - **Best for**: Детальный анализ и креативное письмо
 
-### DeepSeek
+#### DeepSeek
 - **Models**: DeepSeek Chat, DeepSeek Coder
 - **API Key**: `DEEPSEEK_API_KEY` в Supabase Edge Function Secrets
 - **Best for**: Экономичная альтернатива с хорошим качеством
@@ -38,40 +60,81 @@
 
 ## API Usage
 
-### Generate Artist Info
+## Music Generation API Usage
 
-**Endpoint**: `/functions/v1/generate-artist-info`
+### Generate Suno Track
+
+**Endpoint**: `/functions/v1/generate-suno-track`
 
 **Request Body**:
 ```json
 {
-  "name": "Имя артиста",
-  "context": "Дополнительный контекст",
-  "prompt": "Кастомный промпт",
-  "provider": "openai|anthropic|deepseek",
-  "model": "название_модели",
-  "temperature": 0.8,
-  "maxTokens": 1000
+  "prompt": "Electronic dance music with uplifting melody",
+  "style": "electronic",
+  "genre": "edm", 
+  "mood": "energetic",
+  "tempo": "medium",
+  "duration": 120,
+  "useInbox": false,
+  "projectId": "uuid",
+  "artistId": "uuid",
+  "instrumental": false,
+  "model": "chirp-v3-5"
 }
 ```
 
 **Response**:
 ```json
 {
-  "artistInfo": {
-    "description": "Описание артиста",
-    "genre": "Жанр",
-    "location": "Локация",
-    "background": "Предыстория",
-    "style": "Стиль",
-    "influences": ["Влияние 1", "Влияние 2"]
-  },
-  "metadata": {
-    "provider": "openai",
-    "model": "gpt-4o-mini",
-    "temperature": 0.8,
-    "maxTokens": 1000,
-    "generatedAt": "2024-01-01T00:00:00.000Z"
+  "success": true,
+  "data": {
+    "suno": {
+      "id": "task-uuid",
+      "status": "complete",
+      "audio_url": "https://..."
+    },
+    "track": {
+      "id": "uuid",
+      "title": "Generated Track",
+      "audio_url": "https://...",
+      "duration": 120
+    }
+  }
+}
+```
+
+### Generate Mureka Track
+
+**Endpoint**: `/functions/v1/generate-mureka-track`
+
+**Request Body**:
+```json
+{
+  "lyrics": "Your song lyrics here", // Обязательное поле!
+  "model": "auto",
+  "prompt": "Electronic style with ambient textures",
+  "useInbox": false,
+  "projectId": "uuid", 
+  "instrumental": false,
+  "stream": false
+}
+```
+
+### Check Service Status
+
+**Suno Status**: `/functions/v1/check-suno-status`
+**Mureka Status**: `/functions/v1/check-mureka-status`
+
+**Response Format**:
+```json
+{
+  "status": "online", // online | limited | offline | checking
+  "creditsRemaining": 483.2,
+  "creditsTotal": 500,
+  "lastChecked": "2025-08-15T16:30:00Z",
+  "rateLimit": {
+    "remaining": 95,
+    "resetTime": "2025-08-15T17:00:00Z"
   }
 }
 ```

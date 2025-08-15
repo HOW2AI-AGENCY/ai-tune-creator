@@ -357,12 +357,61 @@ Content-Type: application/json
 
 ## 🤖 AI Генерация
 
-### POST /rpc/generate_ai_track
+### Система мониторинга статуса AI сервисов
 
-Генерация трека с помощью AI
+#### GET /functions/v1/check-suno-status
+
+Проверить статус Suno AI сервиса
 
 ```http
-POST /rpc/generate_ai_track
+GET /functions/v1/check-suno-status
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**Ответ:**
+```json
+{
+  "status": "online", // online | limited | offline | checking
+  "creditsRemaining": 483.2,
+  "creditsTotal": 500,
+  "lastChecked": "2025-08-15T16:30:00Z",
+  "rateLimit": {
+    "remaining": 95,
+    "resetTime": "2025-08-15T17:00:00Z"
+  }
+}
+```
+
+#### GET /functions/v1/check-mureka-status
+
+Проверить статус Mureka AI сервиса
+
+```http
+GET /functions/v1/check-mureka-status
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**Ответ:**
+```json
+{
+  "status": "online", // online | limited | offline | checking
+  "creditsRemaining": 29.0,
+  "creditsTotal": 30.0,
+  "subscriptionType": null,
+  "lastChecked": "2025-08-15T16:30:00Z",
+  "rateLimit": {
+    "remaining": 1,
+    "resetTime": null
+  }
+}
+```
+
+### POST /functions/v1/generate-suno-track
+
+Генерация трека с помощью Suno AI
+
+```http
+POST /functions/v1/generate-suno-track
 Authorization: Bearer YOUR_JWT_TOKEN
 Content-Type: application/json
 
@@ -370,48 +419,73 @@ Content-Type: application/json
   "prompt": "Electronic dance music with uplifting melody",
   "style": "edm",
   "duration": 120,
+  "genre": "electronic",
+  "mood": "energetic",
+  "tempo": "medium",
+  "useInbox": false,
+  "projectId": "uuid",
+  "artistId": "uuid",
   "options": {
-    "provider": "suno", // suno | mureka
     "quality": "high",
-    "instrumental": false
+    "instrumental": false,
+    "model": "chirp-v3-5"
   }
 }
 ```
 
-**Ответ:**
-```json
-{
-  "generation_id": "uuid",
-  "status": "processing",
-  "estimated_time": 60,
-  "message": "Track generation started"
-}
-```
+### POST /functions/v1/generate-mureka-track
 
-### GET /rpc/get_generation_status
-
-Проверить статус генерации
+Генерация трека с помощью Mureka AI
 
 ```http
-GET /rpc/get_generation_status?generation_id=uuid
+POST /functions/v1/generate-mureka-track
 Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "lyrics": "Your song lyrics here",
+  "model": "auto", // auto | mureka-6 | mureka-7 | mureka-o1
+  "prompt": "Style and mood description",
+  "useInbox": false,
+  "projectId": "uuid",
+  "artistId": "uuid",
+  "instrumental": false,
+  "stream": false
+}
 ```
 
-**Ответ:**
+**Ответ генерации:**
 ```json
 {
-  "generation_id": "uuid",
-  "status": "completed", // processing | completed | failed
-  "progress": 100,
-  "audio_url": "https://...",
-  "metadata": {
+  "success": true,
+  "data": {
+    "taskId": "uuid",
+    "status": "completed", // processing | completed | failed
+    "audio_url": "https://...",
+    "title": "Generated Track Title",
     "duration": 120,
-    "bpm": 128,
-    "key": "Am"
+    "lyrics": "Processed lyrics with metadata",
+    "track": {
+      "id": "uuid",
+      "title": "Track Title",
+      "project_id": "uuid"
+    }
   },
-  "created_at": "2024-07-31T12:00:00Z",
-  "completed_at": "2024-07-31T12:02:00Z"
+  "metadata": {
+    "service": "suno|mureka",
+    "model": "chirp-v3-5|auto",
+    "generatedAt": "2025-08-15T16:30:00Z"
+  }
 }
+```
+
+### GET /functions/v1/get-generation-status
+
+Проверить статус генерации (универсальный)
+
+```http
+GET /functions/v1/get-generation-status?generation_id=uuid&service=suno
+Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
 ## 📊 Аналитика
