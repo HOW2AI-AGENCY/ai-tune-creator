@@ -24,7 +24,7 @@ export function QuickPresetsSlider({
     >
       <CarouselContent className="-ml-2 md:-ml-4">
         {presets.map((preset) => (
-          <CarouselItem key={preset.id} className="pl-2 md:pl-4 basis-4/5 md:basis-1/2 lg:basis-1/3">
+          <CarouselItem key={preset.id} className="pl-2 md:pl-4 basis-full">
             <Card
               className={`cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 rounded-xl ${
                 selectedPresetId === preset.id 
