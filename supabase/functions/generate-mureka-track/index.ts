@@ -125,26 +125,19 @@ serve(async (req) => {
     if (custom_lyrics && custom_lyrics.trim().length > 0) {
       // User provided explicit lyrics
       requestLyrics = custom_lyrics;
+      requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
     } else if (lyrics && lyrics.trim().length > 0) {
       // User provided lyrics in lyrics field
       requestLyrics = lyrics;
+      requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
     } else if (instrumental) {
       // Instrumental track - no lyrics needed
       requestLyrics = '';
-    } else if (prompt && !prompt.toLowerCase().includes('создай') && !prompt.toLowerCase().includes('сгенерируй')) {
-      // If prompt looks like lyrics (doesn't contain generation instructions)
-      requestLyrics = prompt;
+      requestPrompt = prompt || style || `${genre}, ${mood}, ${tempo}`;
     } else {
-      // Generate default lyrics based on genre and style
+      // Use prompt as style description, not as lyrics to sing
       requestLyrics = `[Verse]\n${genre} song with ${mood} mood\n[Chorus]\n${style || 'original composition'}\n[Verse]\nCreated with AI\n[Outro]`;
-    }
-    
-    // For prompt, use style description or generation instructions
-    if (prompt && (prompt.toLowerCase().includes('создай') || prompt.toLowerCase().includes('сгенерируй'))) {
-      // Prompt contains generation instructions - use as style prompt, not lyrics
-      requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
-    } else {
-      requestPrompt = style || prompt || `${genre}, ${mood}, ${tempo}`;
+      requestPrompt = prompt || style || `${genre}, ${mood}, ${tempo}`;
     }
     
     const murekaRequest: MurekaGenerationRequest = {

@@ -128,17 +128,20 @@ serve(async (req) => {
 
     // Подготавливаем данные согласно официальной документации SunoAPI.org
     let requestPrompt = prompt;
+    let customLyrics = "";
     
     // В кастомном режиме используем пользовательскую лирику если есть
     if (mode === 'custom' && custom_lyrics && custom_lyrics.trim().length > 0) {
-      requestPrompt = custom_lyrics;
+      customLyrics = custom_lyrics;
+      // В кастомном режиме НЕ используем лирику как промпт, а передаем отдельно
     }
     
     const sunoRequest: any = {
-      prompt: requestPrompt || prompt,
+      prompt: requestPrompt,
+      customMode: true,
+      lyrics: customLyrics || undefined, // Передаем лирику отдельно
       style: style || 'Pop, Electronic',
       title: title || `AI Generated ${new Date().toLocaleDateString('ru-RU')}`,
-      customMode: true, // Используем Custom Mode для контроля
       instrumental: make_instrumental,
       model: model.replace('chirp-v', 'V').replace('-', '_'), // chirp-v3-5 -> V3_5
       callBackUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/suno-callback` // Наш callback endpoint
