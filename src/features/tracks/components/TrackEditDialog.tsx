@@ -383,6 +383,19 @@ export function TrackEditDialog({ open, onOpenChange, track, onTrackUpdated }: T
                 trackTitle={track.title}
                 showSidebar={false}
                 className="border rounded-md"
+                autoSave={true}
+                onSave={async (lyrics) => {
+                  // Автосохранение только текста песни
+                  try {
+                    await supabase
+                      .from('tracks')
+                      .update({ lyrics })
+                      .eq('id', track.id);
+                  } catch (error) {
+                    console.error('Auto-save error:', error);
+                    throw error;
+                  }
+                }}
               />
             </div>
 

@@ -34,7 +34,7 @@ export function useLyricsAutoSave(
       
       toast({
         title: "Автосохранение",
-        description: "Лирика сохранена",
+        description: "Текст песни сохранен",
         duration: 1500,
       });
     } catch (error) {

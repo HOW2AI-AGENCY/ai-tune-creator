@@ -235,6 +235,11 @@ export function CreateTrackDialog({
                   trackTitle={formData.title || 'Новый трек'}
                   showSidebar={false}
                   className="border rounded-md"
+                  autoSave={false}
+                  onSave={async (lyrics) => {
+                    // Для новых треков автосохранение отключено
+                    // Пользователь должен сначала создать трек
+                  }}
                 />
               </div>
             </TabsContent>
