@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -410,6 +410,8 @@ export default function AIGenerationStudio() {
       {currentPlayingTrack && (
         <FloatingPlayer
           track={currentPlayingTrack}
+          isOpen={true}
+          onClose={() => setCurrentPlayingTrack(null)}
         />
       )}
     </div>
