@@ -38,6 +38,7 @@ import { CommandPalette } from "@/features/ai-generation/components/CommandPalet
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { GenerationParams } from "@/features/ai-generation/types";
 import { cn } from "@/lib/utils";
+import { useLocation } from "react-router-dom";
 
 interface Track {
   id: string;
@@ -82,6 +83,11 @@ export default function AIGenerationStudio() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const location = useLocation();
+
+  // Check if sidebar should be collapsed on AI generation page
+  const isAIGenerationPage = location.pathname === "/generate" || location.pathname.startsWith("/generate");
+  const sidebarCollapsed = isAIGenerationPage;
 
   // Core State
   const [searchQuery, setSearchQuery] = useState("");
@@ -456,11 +462,14 @@ export default function AIGenerationStudio() {
     );
   }
 
-  // Desktop Layout (existing code with improvements)
+  // Desktop Layout (using proper sidebar layout)
   return (
     <div className="h-screen bg-background text-foreground flex animate-fade-in">
-      {/* Left Panel - Context & Generation Controls */}
-      <div className="w-80 bg-card border-r border-border flex flex-col glass">
+      {/* Context Panel - adapts to sidebar state */}
+      <div className={cn(
+        "bg-card border-r border-border flex flex-col glass transition-all duration-200 relative",
+        sidebarCollapsed ? "w-72" : "w-80"
+      )}>
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-lg bg-gradient-primary">
@@ -484,8 +493,8 @@ export default function AIGenerationStudio() {
         </div>
       </div>
 
-      {/* Center Panel - Task Queue & Results */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content - adapts to sidebar and context panel */}
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-200">
         {/* Header */}
         <div className="p-6 border-b border-border bg-gradient-surface">
           <div className="flex items-center justify-between mb-4">

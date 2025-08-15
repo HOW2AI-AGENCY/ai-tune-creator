@@ -57,6 +57,7 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(261 83% 58%), hsl(290 80% 60%));
     --gradient-secondary: linear-gradient(135deg, hsl(263 70% 50%), hsl(261 83% 58%));
     --gradient-accent: linear-gradient(180deg, hsl(261 70% 98%), hsl(261 70% 95%));
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%), hsl(261 70% 99%));
     
     /* Shadows */
     --shadow-glow: 0 0 30px hsl(261 83% 58% / 0.3);
@@ -121,6 +122,7 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(261 83% 68%), hsl(290 80% 70%));
     --gradient-secondary: linear-gradient(135deg, hsl(263 70% 60%), hsl(261 83% 68%));
     --gradient-accent: linear-gradient(180deg, hsl(217.2 32.6% 20%), hsl(217.2 32.6% 17.5%));
+    --gradient-surface: linear-gradient(180deg, hsl(222.2 84% 4.9%), hsl(217.2 32.6% 6%));
     
     /* Shadows (Dark) */
     --shadow-glow: 0 0 30px hsl(261 83% 68% / 0.4);
@@ -226,6 +228,10 @@ All colors MUST be HSL.
   
   .gradient-accent {
     background: var(--gradient-accent);
+  }
+
+  .gradient-surface {
+    background: var(--gradient-surface);
   }
   
   .shadow-glow {
