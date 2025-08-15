@@ -202,6 +202,40 @@ All colors MUST be HSL.
     transform: scale(0.98);
   }
   
+  /* Scrollbar utilities */
+  .scrollbar-hide {
+    /* Firefox */
+    scrollbar-width: none;
+    /* IE/Edge */
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    /* Chrome/Safari */
+    width: 0px;
+    height: 0px;
+    display: none;
+  }
+
+  .scrollbar-slim {
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border) / 0.3) transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border) / 0.3);
+    border-radius: 9999px;
+  }
+  .scrollbar-slim:hover::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border) / 0.5);
+  }
+
   /* Text gradients */
   .text-gradient-primary {
     background: var(--gradient-primary);

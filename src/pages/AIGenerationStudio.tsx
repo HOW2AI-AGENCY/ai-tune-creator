@@ -548,7 +548,7 @@ export default function AIGenerationStudio() {
         <Separator />
 
         {/* Results Grid */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollbar-slim">
           <TrackResultsGrid
             tracks={filteredTracks}
             onTrackClick={handleTrackClick}
