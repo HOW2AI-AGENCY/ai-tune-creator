@@ -12,5 +12,9 @@ export * from './adapters';
 export * from './core/api-client';
 export * from './core/service-adapter';
 
-// Router
-export * from './router/service-router';
+// Router (selective exports to avoid RouterStrategy conflict)
+export { 
+  ServiceRouter,
+  type ServiceRouterConfig,
+  type RegisteredService
+} from './router/service-router';

@@ -6,7 +6,7 @@
 import { ServiceAdapter } from '../core/service-adapter';
 import { GenerationRequest, GenerationResponse } from '../types';
 
-export interface RouterStrategy {
+export interface RoutingStrategy {
   name: string;
   selectService(
     request: GenerationRequest,
@@ -32,7 +32,7 @@ export interface RegisteredService {
 
 export class ServiceRouter {
   private services: Map<string, RegisteredService> = new Map();
-  private strategies: Map<string, RouterStrategy> = new Map();
+  private strategies: Map<string, RoutingStrategy> = new Map();
   private currentIndex = 0;
   private config: ServiceRouterConfig;
 
@@ -96,7 +96,7 @@ export class ServiceRouter {
   /**
    * Register a routing strategy
    */
-  registerStrategy(name: string, strategy: RouterStrategy): void {
+  registerStrategy(name: string, strategy: RoutingStrategy): void {
     this.strategies.set(name, strategy);
   }
 
@@ -296,7 +296,7 @@ export class ServiceRouter {
 
 // Built-in routing strategies
 
-class BestPerformanceStrategy implements RouterStrategy {
+class BestPerformanceStrategy implements RoutingStrategy {
   name = 'best-performance';
 
   selectService(request: GenerationRequest, services: RegisteredService[]): RegisteredService | null {
@@ -319,7 +319,7 @@ class BestPerformanceStrategy implements RouterStrategy {
   }
 }
 
-class LowestCostStrategy implements RouterStrategy {
+class LowestCostStrategy implements RoutingStrategy {
   name = 'lowest-cost';
 
   selectService(request: GenerationRequest, services: Array<RegisteredService & { id: string }>): (RegisteredService & { id: string }) | null {
@@ -331,7 +331,7 @@ class LowestCostStrategy implements RouterStrategy {
   }
 }
 
-class FastestStrategy implements RouterStrategy {
+class FastestStrategy implements RoutingStrategy {
   name = 'fastest';
 
   selectService(request: GenerationRequest, services: Array<RegisteredService & { id: string }>): (RegisteredService & { id: string }) | null {
@@ -352,7 +352,7 @@ class FastestStrategy implements RouterStrategy {
   }
 }
 
-class RoundRobinStrategy implements RouterStrategy {
+class RoundRobinStrategy implements RoutingStrategy {
   name = 'round-robin';
   private currentIndex = 0;
 
