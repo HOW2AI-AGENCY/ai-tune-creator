@@ -88,32 +88,76 @@ export function CreateArtistDialog({ open: controlledOpen, onOpenChange, onArtis
 
     setIsGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-artist-info', {
+      console.log('Запуск генерации информации об артисте:', artistName);
+      
+      const systemPrompt = `Ты - эксперт по музыкальной индустрии. Сгенерируй подробную информацию об артисте на основе его имени. 
+      Верни ответ строго в формате JSON со следующими полями:
+      {
+        "description": "подробное описание артиста (2-3 предложения)",
+        "genre": "основной жанр музыки",
+        "location": "город или страна происхождения",
+        "background": "краткая история или бэкграунд",
+        "style": "музыкальный стиль и особенности",
+        "influences": ["список", "влияний", "и", "вдохновений"]
+      }`;
+
+      const prompt = `Сгенерируй информацию об артисте: ${artistName}
+      
+      Если это реальный артист - используй фактическую информацию.
+      Если это вымышленное имя - создай правдоподобную информацию в стиле современной музыки.
+      
+      Ответ должен быть на русском языке.`;
+
+      const { data, error } = await supabase.functions.invoke('generate-with-llm', {
         body: {
-          name: artistName,
-          context: "Российский музыкальный артист",
+          prompt,
+          systemPrompt,
           provider: 'openai',
-          model: 'gpt-4o-mini',
+          model: 'gpt-4.1-2025-04-14',
           temperature: 0.8,
           maxTokens: 1000
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Ошибка при вызове функции:', error);
+        throw error;
+      }
 
-      const { artistInfo } = data;
+      console.log('Получен ответ от LLM:', data);
+
+      if (!data?.content) {
+        throw new Error('Пустой ответ от AI сервиса');
+      }
+
+      // Парсим JSON ответ
+      let artistInfo;
+      try {
+        const jsonMatch = data.content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          artistInfo = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('JSON не найден в ответе');
+        }
+      } catch (parseError) {
+        console.error('Ошибка парсинга JSON:', parseError);
+        console.log('Исходный ответ:', data.content);
+        throw new Error('Ошибка обработки ответа AI');
+      }
       
       // Заполняем форму сгенерированными данными
-      form.setValue('description', artistInfo.description);
-      form.setValue('metadata.genre', artistInfo.genre);
-      form.setValue('metadata.location', artistInfo.location);
-      form.setValue('metadata.background', artistInfo.background);
-      form.setValue('metadata.style', artistInfo.style);
-      form.setValue('metadata.influences', artistInfo.influences);
+      if (artistInfo.description) form.setValue('description', artistInfo.description);
+      if (artistInfo.genre) form.setValue('metadata.genre', artistInfo.genre);
+      if (artistInfo.location) form.setValue('metadata.location', artistInfo.location);
+      if (artistInfo.background) form.setValue('metadata.background', artistInfo.background);
+      if (artistInfo.style) form.setValue('metadata.style', artistInfo.style);
+      if (artistInfo.influences && Array.isArray(artistInfo.influences)) {
+        form.setValue('metadata.influences', artistInfo.influences);
+      }
 
       toast({
         title: "Успешно",
-        description: "Информация об артисте сгенерирована"
+        description: `Информация об артисте сгенерирована с помощью ${data.provider.toUpperCase()}`
       });
 
     } catch (error: any) {
