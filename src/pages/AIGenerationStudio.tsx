@@ -471,19 +471,6 @@ export default function AIGenerationStudio() {
         "bg-card border-r border-border flex flex-col glass transition-all duration-200 relative",
         sidebarCollapsed ? "w-64 xl:w-72" : "w-80"
       )}>
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-gradient-primary">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-gradient-primary">AI Studio</h1>
-              <p className="text-sm text-muted-foreground">
-                Генерация музыки нового поколения
-              </p>
-            </div>
-          </div>
-        </div>
 
         <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
           <GenerationContextPanel
