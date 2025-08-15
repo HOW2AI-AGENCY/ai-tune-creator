@@ -21,6 +21,7 @@ export type Database = {
           error_message: string | null
           external_id: string | null
           id: string
+          metadata: Json | null
           parameters: Json | null
           prompt: string
           result_url: string | null
@@ -35,6 +36,7 @@ export type Database = {
           error_message?: string | null
           external_id?: string | null
           id?: string
+          metadata?: Json | null
           parameters?: Json | null
           prompt: string
           result_url?: string | null
@@ -49,6 +51,7 @@ export type Database = {
           error_message?: string | null
           external_id?: string | null
           id?: string
+          metadata?: Json | null
           parameters?: Json | null
           prompt?: string
           result_url?: string | null
