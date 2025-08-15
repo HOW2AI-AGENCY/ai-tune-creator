@@ -11,6 +11,8 @@ export { FloatingPlayer } from './components/FloatingPlayer';
 export { LyricsDrawer } from './components/LyricsDrawer';
 export { StyleBoostDialog } from './components/StyleBoostDialog';
 export { CoverGenerationDialog } from './components/CoverGenerationDialog';
+export { LyricsGenerationDialog } from './components/LyricsGenerationDialog';
+export { WAVConversionDialog } from './components/WAVConversionDialog';
 
 // Type exports
 export type { GenerationParams, QuickPreset, Option } from './types';

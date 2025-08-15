@@ -9,12 +9,14 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Clock, Zap, Upload, Music, Sparkles, Image } from 'lucide-react';
+import { AlertTriangle, Clock, Zap, Upload, Music, Sparkles, Image, FileText, FileAudio } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSunoRecordPolling } from '@/features/ai-generation/hooks/useSunoRecordPolling';
 import { StyleBoostDialog } from '@/features/ai-generation/components/StyleBoostDialog';
 import { CoverGenerationDialog } from '@/features/ai-generation/components/CoverGenerationDialog';
+import { LyricsGenerationDialog } from '@/features/ai-generation/components/LyricsGenerationDialog';
+import { WAVConversionDialog } from '@/features/ai-generation/components/WAVConversionDialog';
 
 interface Track {
   id: string;
@@ -58,6 +60,8 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [styleBoostOpen, setStyleBoostOpen] = useState(false);
   const [coverGenerationOpen, setCoverGenerationOpen] = useState(false);
+  const [lyricsGenerationOpen, setLyricsGenerationOpen] = useState(false);
+  const [wavConversionOpen, setWavConversionOpen] = useState(false);
   const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
   
   const { toast } = useToast();
@@ -573,14 +577,25 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
                     className="flex-1"
                   >
                     <Image className="h-4 w-4 mr-2" />
-                    Generate Cover
+                    Cover
                   </Button>
                   <Button
+                    variant="outline"
                     size="sm"
-                    onClick={() => onOpenChange(false)}
+                    onClick={() => setLyricsGenerationOpen(true)}
                     className="flex-1"
                   >
-                    View Track
+                    <FileText className="h-4 w-4 mr-2" />
+                    Lyrics
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setWavConversionOpen(true)}
+                    className="flex-1"
+                  >
+                    <FileAudio className="h-4 w-4 mr-2" />
+                    WAV
                   </Button>
                 </div>
               </div>
@@ -617,16 +632,28 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
           }}
         />
 
-        {/* Cover Generation Dialog */}
-        <CoverGenerationDialog
-          open={coverGenerationOpen}
-          onOpenChange={setCoverGenerationOpen}
+        {/* Lyrics Generation Dialog */}
+        <LyricsGenerationDialog
+          open={lyricsGenerationOpen}
+          onOpenChange={setLyricsGenerationOpen}
+          onLyricsGenerated={(lyrics, title) => {
+            toast({
+              title: "Lyrics Generated",
+              description: `"${title}" lyrics are ready to use.`,
+            });
+          }}
+        />
+
+        {/* WAV Conversion Dialog */}
+        <WAVConversionDialog
+          open={wavConversionOpen}
+          onOpenChange={setWavConversionOpen}
           taskId={completedTaskId || currentTaskId}
           trackTitle={title || track?.title}
-          onCoverGenerated={(images) => {
+          onConversionComplete={(wavUrl) => {
             toast({
-              title: "Cover Images Generated",
-              description: `${images.length} cover images are ready for download.`,
+              title: "WAV Conversion Complete",
+              description: "Your track is ready for download in WAV format.",
             });
           }}
         />
