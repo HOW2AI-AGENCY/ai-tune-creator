@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { TrackDetailsView } from "./TrackDetailsView";
 import { TrackVersionsDialog } from "./TrackVersionsDialog";
 import { TrackGenerationDialog } from "./TrackGenerationDialog";
+import { TrackExtendDialog } from "./TrackExtendDialog";
 import { Button } from "@/components/ui/button";
-import { History, Sparkles } from "lucide-react";
+import { History, Sparkles, Zap } from "lucide-react";
 
 interface Track {
   id: string;
@@ -40,6 +41,7 @@ interface TrackDetailsDialogProps {
 export function TrackDetailsDialog({ open, onOpenChange, track, onTrackUpdated }: TrackDetailsDialogProps) {
   const [versionsDialogOpen, setVersionsDialogOpen] = useState(false);
   const [generationDialogOpen, setGenerationDialogOpen] = useState(false);
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
 
   if (!track) return null;
 
@@ -69,6 +71,14 @@ export function TrackDetailsDialog({ open, onOpenChange, track, onTrackUpdated }
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
                   ИИ Генерация
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setExtendDialogOpen(true)}
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  Расширить трек
                 </Button>
               </div>
             </div>
@@ -106,6 +116,13 @@ export function TrackDetailsDialog({ open, onOpenChange, track, onTrackUpdated }
           genreTags: track.genre_tags || undefined,
           lyrics: track.lyrics || undefined
         }}
+      />
+
+      <TrackExtendDialog
+        open={extendDialogOpen}
+        onOpenChange={setExtendDialogOpen}
+        track={track}
+        onExtensionStarted={onTrackUpdated}
       />
     </>
   );

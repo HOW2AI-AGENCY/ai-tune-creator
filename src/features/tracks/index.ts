@@ -5,6 +5,7 @@ export { TrackEditDialog } from './components/TrackEditDialog';
 export { TrackGenerationDialog } from './components/TrackGenerationDialog';
 export { TrackVersionsDialog } from './components/TrackVersionsDialog';
 export { TrackViewDialog } from './components/TrackViewDialog';
+export { TrackExtendDialog } from './components/TrackExtendDialog';
 export { LyricsAnalysisReport } from './components/LyricsAnalysisReport';
 
 // New interactive components
