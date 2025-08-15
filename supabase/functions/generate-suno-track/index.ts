@@ -268,7 +268,9 @@ serve(async (req) => {
           language: sunoRequest.language || null,
           tempo: sunoRequest.tempo || null,
           suno_request: sunoRequest,
-          suno_response: sunoData
+          suno_response: sunoData,
+          project_id: projectId,
+          artist_id: artistId
         },
         parameters: {
           style,
@@ -279,7 +281,11 @@ serve(async (req) => {
           wait_audio,
           language,
           tempo,
-          voice_style
+          voice_style,
+          trackId,
+          projectId,
+          artistId,
+          mode
         },
         track_id: null
       })

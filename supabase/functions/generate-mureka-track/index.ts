@@ -311,7 +311,33 @@ Status: ${finalTrack.status}
           vocal_id,
           melody_id,
           stream,
-          mureka_response: finalTrack
+          mureka_response: finalTrack,
+          project_id: projectId,
+          artist_id: artistId
+        },
+        parameters: {
+          prompt,
+          lyrics,
+          model,
+          style,
+          duration,
+          genre,
+          mood,
+          instruments,
+          tempo,
+          key,
+          trackId,
+          projectId,
+          artistId,
+          title,
+          mode,
+          custom_lyrics,
+          instrumental,
+          language,
+          reference_id,
+          vocal_id,
+          melody_id,
+          stream
         },
         track_id: trackId
       })

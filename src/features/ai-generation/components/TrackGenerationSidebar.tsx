@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Mic, Music2, Settings, Zap, Sliders } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Sparkles, Mic, Music2, Settings, Zap, Sliders, FileText, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import OperationLoader from "@/components/ui/operation-loader";
 import { QuickPresetsGrid } from "./QuickPresetsGrid";
@@ -64,6 +65,7 @@ export function TrackGenerationSidebar({
   
   // Состояния для кастомного режима
   const [customLyrics, setCustomLyrics] = useState("");
+  const [inputType, setInputType] = useState<'description' | 'lyrics'>('description');
   const [tempo, setTempo] = useState("none");
   const [duration, setDuration] = useState(120);
   const [instrumental, setInstrumental] = useState(false);
@@ -120,19 +122,20 @@ export function TrackGenerationSidebar({
     if (selectedMood && selectedMood !== "none") genreTags.push(selectedMood);
 
     const params: GenerationParams = {
-      prompt,
+      prompt: inputType === 'description' ? prompt : stylePrompt,
       service: selectedService,
       projectId: selectedProjectId !== "none" ? selectedProjectId : undefined,
       artistId: selectedArtistId !== "none" ? selectedArtistId : undefined,
       genreTags,
       mode,
-      customLyrics: mode === 'custom' ? customLyrics : undefined,
+      customLyrics: inputType === 'lyrics' ? prompt : (mode === 'custom' ? customLyrics : undefined),
       tempo: tempo !== "none" ? tempo : undefined,
       duration,
       instrumental,
       voiceStyle: voiceStyle !== "none" ? voiceStyle : undefined,
       language,
-      stylePrompt: stylePrompt || undefined
+      stylePrompt: stylePrompt || undefined,
+      inputType
     };
 
     setPreviewParams(params);
@@ -340,14 +343,42 @@ export function TrackGenerationSidebar({
             </CardContent>
           </Card>
 
-          {/* Описание */}
+          {/* Тип ввода */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Описание трека</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2">
+                {inputType === 'description' ? <MessageSquare className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                Что вы хотите ввести?
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">
+                    {inputType === 'description' ? 'Описание стиля' : 'Готовая лирика'}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {inputType === 'description' 
+                      ? 'Опишите стиль и настроение - AI создаст музыку и лирику'
+                      : 'Введите готовый текст песни - AI создаст музыку к нему'
+                    }
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <Switch 
+                    checked={inputType === 'lyrics'}
+                    onCheckedChange={(checked) => setInputType(checked ? 'lyrics' : 'description')}
+                  />
+                  <FileText className="h-4 w-4" />
+                </div>
+              </div>
+              
               <Textarea
-                placeholder="Опишите желаемый трек или используйте готовый пресет выше..."
+                placeholder={inputType === 'description' 
+                  ? "Опишите желаемый трек или используйте готовый пресет выше..."
+                  : "Введите текст песни (лирику), к которому нужно создать музыку..."
+                }
                 value={prompt}
                 onChange={(e) => {
                   setPrompt(e.target.value);
@@ -356,12 +387,14 @@ export function TrackGenerationSidebar({
                     setSelectedPresetId("");
                   }
                 }}
-                className="min-h-[80px] text-sm resize-none"
+                className="min-h-[100px] text-sm resize-none"
               />
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-xs text-muted-foreground">
                 {selectedPresetId ? 
                   `Выбран пресет: ${quickPresets.find(p => p.id === selectedPresetId)?.name}` : 
-                  "Выберите пресет выше или опишите свой трек"
+                  inputType === 'description' 
+                    ? "Выберите пресет выше или опишите свой трек"
+                    : "AI создаст музыку к вашей лирике"
                 }
               </p>
             </CardContent>

@@ -108,24 +108,69 @@ serve(async (req) => {
       });
     }
 
+    // Получаем project_id из metadata или создаем Inbox
+    let projectId = generation.metadata?.project_id;
+    
+    if (!projectId) {
+      // Создаем Inbox для пользователя
+      const { data: inboxData, error: inboxError } = await supabase
+        .rpc('ensure_user_inbox', { p_user_id: userId });
+      
+      if (inboxError) {
+        console.error('Error creating inbox:', inboxError);
+        projectId = null;
+      } else {
+        projectId = inboxData;
+        console.log('Created/found inbox project:', projectId);
+      }
+    }
+
     // Create new track
     const trackTitle = title || `AI Track ${new Date().toLocaleDateString('ru-RU')}`;
     const trackMetadata = metadata || generation.metadata || {};
     
+    // Дедуплицируем название трека
+    let finalTitle = trackTitle;
+    if (projectId) {
+      const { data: dedupedTitle, error: dedupError } = await supabase
+        .rpc('dedupe_track_title', { 
+          p_project_id: projectId, 
+          p_title: trackTitle 
+        });
+      
+      if (!dedupError && dedupedTitle) {
+        finalTitle = dedupedTitle;
+      }
+    }
+
+    // Получаем следующий номер трека
+    let trackNumber = 1;
+    if (projectId) {
+      const { data: nextNumber, error: numberError } = await supabase
+        .rpc('get_next_track_number', { p_project_id: projectId });
+      
+      if (!numberError && nextNumber) {
+        trackNumber = nextNumber;
+      }
+    }
+    
     const { data: newTrack, error: trackError } = await supabase
       .from('tracks')
       .insert({
-        title: trackTitle,
+        title: finalTitle,
+        track_number: trackNumber,
         audio_url: audio_url,
         duration: duration,
         lyrics: generation.prompt || 'AI Generated Track',
         description: `Generated with Mureka AI`,
         genre_tags: trackMetadata.genre ? [trackMetadata.genre] : ['ai-generated'],
+        project_id: projectId,
         metadata: {
           ...trackMetadata,
           generation_id: generation_id,
           service: 'mureka',
-          saved_at: new Date().toISOString()
+          saved_at: new Date().toISOString(),
+          auto_inbox: !generation.metadata?.project_id
         }
       })
       .select()

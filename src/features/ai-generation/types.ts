@@ -24,6 +24,7 @@ export interface GenerationParams {
   instrumental?: boolean;
   voiceStyle?: string;
   language?: string;
+  inputType?: 'description' | 'lyrics';
 }
 
 export interface Option {

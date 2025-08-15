@@ -42,6 +42,7 @@ interface Track {
   projects?: {
     title: string;
     artist_id: string;
+    is_inbox?: boolean;
     artists?: {
       name: string;
     };
@@ -76,6 +77,7 @@ export default function Tracks() {
           projects (
             title,
             artist_id,
+            is_inbox,
             artists (
               name
             )
@@ -112,7 +114,7 @@ export default function Tracks() {
         );
       }
 
-      setTracks(filteredTracks);
+      setTracks(filteredTracks as any);
     } catch (error: any) {
       console.error('Error loading tracks:', error);
       toast({
@@ -132,6 +134,7 @@ export default function Tracks() {
         .select(`
           id,
           title,
+          is_inbox,
           artists (
             name
           )
@@ -278,8 +281,17 @@ export default function Tracks() {
                   <SelectItem value="all">Все проекты</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
-                      {project.title} 
-                      {project.artists?.name && ` (${project.artists.name})`}
+                      {project.is_inbox ? (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">Inbox</Badge>
+                          {project.title}
+                        </div>
+                      ) : (
+                        <span>
+                          {project.title} 
+                          {project.artists?.name && ` (${project.artists.name})`}
+                        </span>
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>

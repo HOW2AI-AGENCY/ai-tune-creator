@@ -192,19 +192,61 @@ serve(async (req) => {
           EdgeRuntime.waitUntil(downloadTrackInBackground(generation.id, track.audio_url, generation.track_id));
         }
       } else {
+        // Получаем project_id из metadata или создаем Inbox
+        let projectId = generation.metadata?.project_id;
+        
+        if (!projectId) {
+          // Создаем Inbox для пользователя
+          const { data: inboxData, error: inboxError } = await supabase
+            .rpc('ensure_user_inbox', { p_user_id: generation.user_id });
+          
+          if (inboxError) {
+            console.error('Error creating inbox:', inboxError);
+            projectId = null;
+          } else {
+            projectId = inboxData;
+            console.log('Created/found inbox project:', projectId);
+          }
+        }
+
+        // Дедуплицируем название трека
+        let finalTitle = track.title;
+        if (projectId) {
+          const { data: dedupedTitle, error: dedupError } = await supabase
+            .rpc('dedupe_track_title', { 
+              p_project_id: projectId, 
+              p_title: track.title 
+            });
+          
+          if (!dedupError && dedupedTitle) {
+            finalTitle = dedupedTitle;
+          }
+        }
+
+        // Получаем следующий номер трека
+        let trackNumber = 1;
+        if (projectId) {
+          const { data: nextNumber, error: numberError } = await supabase
+            .rpc('get_next_track_number', { p_project_id: projectId });
+          
+          if (!numberError && nextNumber) {
+            trackNumber = nextNumber;
+          }
+        }
+        
         // Создаем новый трек
         const { data: newTrack, error: createTrackError } = await supabase
           .from('tracks')
           .insert({
-            title: track.title,
-            track_number: 1,
+            title: finalTitle,
+            track_number: trackNumber,
             audio_url: track.audio_url, // Пока внешний URL
             duration: track.duration,
             lyrics: track.lyric || track.prompt || '',
             description: track.prompt || `Generated with ${track.model_name}`,
             genre_tags: track.tags ? track.tags.split(', ').filter(Boolean) : [],
             style_prompt: track.style || '',
-            project_id: generation.metadata?.project_id || null,
+            project_id: projectId,
             metadata: {
               suno_task_id: task_id,
               suno_track_id: track.id,
@@ -212,7 +254,8 @@ serve(async (req) => {
               suno_track_data: track,
               generation_id: generation.id,
               completed_at: new Date().toISOString(),
-              external_audio_url: track.audio_url
+              external_audio_url: track.audio_url,
+              auto_inbox: !generation.metadata?.project_id
             }
           })
           .select()
