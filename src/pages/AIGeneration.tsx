@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationSidebar, MusicService } from "@/features/ai-generation/components/GenerationSidebar";
-import { GenerationFeed, GenerationItem } from "@/features/ai-generation/components/GenerationFeed";
+import { GenerationFeed } from "@/features/ai-generation/components/GenerationFeed";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
 import { useSunoStatusPolling } from '@/features/ai-generation/hooks/useSunoStatusPolling';
@@ -27,7 +27,7 @@ export default function AIGeneration() {
   // Data
   const [projects, setProjects] = useState<Option[]>([]);
   const [artists, setArtists] = useState<Option[]>([]);
-  const [generations, setGenerations] = useState<GenerationItem[]>([]);
+  const [generations, setGenerations] = useState<any[]>([]);
   const [tracks, setTracks] = useState<{ id: string; name: string; projectId: string; currentVersion: number; trackNumber: number }[]>([]);
 
   // Polling hook для отслеживания прогресса
@@ -89,7 +89,7 @@ export default function AIGeneration() {
       groups[gid].push(r);
     });
 
-    const items: GenerationItem[] = [];
+    const items: any[] = [];
     Object.entries(groups).forEach(([gid, arr]) => {
       arr.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       arr.forEach((r: any, idx: number) => {
@@ -385,7 +385,20 @@ export default function AIGeneration() {
             </div>
           ) : (
             <div className="p-4 sm:p-6">
-              <GenerationFeed generations={filteredGenerations} onQuickGenerate={handleQuickGenerate} />
+              <GenerationFeed 
+                onPlay={(url) => {
+                  // TODO: Implement audio player
+                  window.open(url, '_blank');
+                }}
+                onDownload={(url, filename) => {
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = filename;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+              />
             </div>
           )}
         </main>
