@@ -21,6 +21,10 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const { t } = useTranslation();
 
+  // Auto-collapse on AI generation page
+  const isAIGenerationPage = currentPath === "/generate" || currentPath.startsWith("/generate");
+  const shouldCollapse = collapsed || isAIGenerationPage;
+
   const mainNavItems = [
     { title: t("dashboard"), url: "/", icon: Headphones },
     { title: t("artists"), url: "/artists", icon: Users },
@@ -47,13 +51,13 @@ export function AppSidebar() {
       : "hover:bg-sidebar-accent/50 text-sidebar-foreground";
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">
+    <Sidebar className={shouldCollapse ? "w-14" : "w-60"} collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center overflow-hidden">
             <img src="/lovable-uploads/3fa15532-e16b-48f1-8df1-cefb76ba2691.png" alt="App Icon" className="w-5 h-5 object-contain" />
           </div>
-          {!collapsed && (
+          {!shouldCollapse && (
             <div className="flex flex-col">
               <span className="font-bold text-sidebar-foreground">{t("appName")}</span>
               <span className="text-xs text-sidebar-foreground/60">{t("appSubtitle")}</span>
@@ -75,9 +79,9 @@ export function AppSidebar() {
                       end={item.url === "/"}
                       className={({ isActive }) => getNavCls({ isActive })}
                     >
-                      <item.icon className="w-4 h-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
+                       <item.icon className="w-4 h-4" />
+                       {!shouldCollapse && <span>{item.title}</span>}
+                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -96,8 +100,8 @@ export function AppSidebar() {
                       to={item.url}
                       className={({ isActive }) => getNavCls({ isActive })}
                     >
-                      <item.icon className="w-4 h-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                       <item.icon className="w-4 h-4" />
+                       {!shouldCollapse && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
