@@ -368,17 +368,17 @@ Status: ${finalTrack.status}
           title: title || finalTrack.choices?.[0]?.title || `AI Track ${genre.charAt(0).toUpperCase()}${genre.slice(1)}`,
           lyrics: processedLyrics,
           description: `Mureka AI generated ${genre} track using ${model} model with ${mood} mood`,
-          audio_url: finalTrack.choices?.[0]?.audio_url,
+          audio_url: finalTrack.choices?.[0]?.url,
           duration: finalTrack.choices?.[0]?.duration || duration,
           genre_tags: [genre, mood, tempo].filter(Boolean),
           style_prompt: style,
           project_id: projectId,
-          artist_id: artistId,
+          track_number: 1,
           metadata: {
             mureka_task_id: finalTrack.id,
             model: finalTrack.model,
             mureka_response: finalTrack,
-            generation_id: generation?.id,
+            generation_id: generationRecord?.id,
             genre: genre,
             mood: mood,
             tempo: tempo,
@@ -405,11 +405,11 @@ Status: ${finalTrack.status}
         console.log('Track created:', newTrack.id);
 
         // Обновляем generation с track_id
-        if (generation?.id) {
+        if (generationRecord?.id) {
           await supabase
             .from('ai_generations')
             .update({ track_id: newTrack.id })
-            .eq('id', generation.id);
+            .eq('id', generationRecord.id);
         }
       }
     }
@@ -421,7 +421,7 @@ Status: ${finalTrack.status}
         mureka: finalTrack,
         track: trackRecord,
         generation: generationRecord,
-        audio_url: finalTrack.choices?.[0]?.audio_url,
+        audio_url: finalTrack.choices?.[0]?.url,
         title: finalTrack.choices?.[0]?.title || title,
         duration: finalTrack.choices?.[0]?.duration || duration,
         lyrics: processedLyrics,
