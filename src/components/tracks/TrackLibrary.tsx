@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackSync } from '@/hooks/useTrackSync';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,8 @@ import {
   Clock,
   CloudDownload,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 
 interface Track {
@@ -22,7 +24,7 @@ interface Track {
   duration?: number;
   audio_url?: string;
   created_at: string;
-  metadata?: any; // Используем any для metadata вместо строгой типизации
+  metadata?: any;
   ai_generations?: Array<{
     id: string;
     service: string;
@@ -40,8 +42,10 @@ interface TrackLibraryProps {
 export function TrackLibrary({ onPlayTrack, onSelectTrack, searchQuery = '' }: TrackLibraryProps) {
   const { user } = useAuth();
   const { syncTracks, downloadSingleTrack, isSyncing } = useTrackSync();
+  const { toast } = useToast();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   // Загрузка треков
   useEffect(() => {
@@ -83,12 +87,92 @@ export function TrackLibrary({ onPlayTrack, onSelectTrack, searchQuery = '' }: T
         return;
       }
 
-      setTracks(data || []);
+      setTracks((data as any) || []);
     } catch (error) {
       console.error('Error in loadTracks:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const checkPendingGenerations = async () => {
+    try {
+      setCheckingStatus(true);
+      console.log('Checking pending generations...');
+      
+      // Получаем все processing генерации
+      const { data: pendingGens, error } = await supabase
+        .from('ai_generations')
+        .select('id, service, external_id, metadata')
+        .eq('status', 'processing')
+        .not('external_id', 'is', null);
+
+      if (error) throw error;
+
+      console.log('Found pending generations:', pendingGens?.length);
+      let updatedCount = 0;
+
+      // Проверяем статус каждой генерации
+      for (const gen of pendingGens || []) {
+        if (gen.service === 'suno' && gen.external_id) {
+          try {
+            const { data: statusData, error: statusError } = await supabase.functions.invoke('get-suno-record-info', {
+              body: { taskId: gen.external_id }
+            });
+
+            if (!statusError && statusData?.code === 200 && statusData?.data?.length > 0) {
+              const trackData = statusData.data[0];
+              
+              // Обновляем статус генерации
+              await supabase
+                .from('ai_generations')
+                .update({
+                  status: 'completed',
+                  result_url: trackData.audio_url,
+                  metadata: {
+                    ...(typeof gen.metadata === 'object' && gen.metadata ? gen.metadata : {}),
+                    suno_track_data: trackData
+                  },
+                  completed_at: new Date().toISOString()
+                })
+                .eq('id', gen.id);
+
+              updatedCount++;
+              console.log('Updated generation status:', gen.id);
+            }
+          } catch (err) {
+            console.error('Error checking generation status:', gen.id, err);
+          }
+        }
+      }
+
+      toast({
+        title: "Проверка завершена",
+        description: `Обновлено статусов: ${updatedCount}`,
+      });
+
+      // Перезагружаем треки
+      await loadTracks();
+
+    } catch (error: any) {
+      console.error('Error checking pending generations:', error);
+      toast({
+        title: "Ошибка проверки",
+        description: error.message || "Не удалось проверить статусы генераций",
+        variant: "destructive",
+      });
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  const handleSyncAndLoad = async () => {
+    // Сначала проверяем статусы
+    await checkPendingGenerations();
+    // Затем синхронизируем готовые треки
+    await syncTracks();
+    // Перезагружаем список
+    await loadTracks();
   };
 
   // Фильтрация треков по поисковому запросу
@@ -158,14 +242,25 @@ export function TrackLibrary({ onPlayTrack, onSelectTrack, searchQuery = '' }: T
           }
         </p>
         {!searchQuery && (
-          <Button 
-            onClick={syncTracks} 
-            disabled={isSyncing}
-            className="flex items-center gap-2"
-          >
-            <CloudDownload className="h-4 w-4" />
-            Загрузить треки
-          </Button>
+          <div className="flex gap-2 justify-center">
+            <Button 
+              onClick={handleSyncAndLoad} 
+              disabled={isSyncing || checkingStatus}
+              className="flex items-center gap-2"
+            >
+              <CloudDownload className="h-4 w-4" />
+              {isSyncing || checkingStatus ? "Загрузка..." : "Загрузить треки"}
+            </Button>
+            <Button 
+              onClick={checkPendingGenerations} 
+              disabled={checkingStatus || isSyncing}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${checkingStatus ? 'animate-spin' : ''}`} />
+              Проверить статусы
+            </Button>
+          </div>
         )}
       </div>
     );
