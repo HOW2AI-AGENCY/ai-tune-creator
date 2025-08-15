@@ -6,6 +6,7 @@ import { GenerationSidebar, MusicService } from "@/features/ai-generation/compon
 import { GenerationFeed, GenerationItem } from "@/features/ai-generation/components/GenerationFeed";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
+import { useSunoStatusPolling } from '@/features/ai-generation/hooks/useSunoStatusPolling';
 
 interface Option { id: string; name: string }
 
@@ -21,12 +22,98 @@ export default function AIGeneration() {
   const [selectedArtistId, setSelectedArtistId] = useState<string>("all");
   const [selectedTrackId, setSelectedTrackId] = useState<string>("none");
   const [selectedVersion, setSelectedVersion] = useState<number | undefined>(undefined);
+  const [currentTaskId, setCurrentTaskId] = useState<string>("");
 
   // Data
   const [projects, setProjects] = useState<Option[]>([]);
   const [artists, setArtists] = useState<Option[]>([]);
   const [generations, setGenerations] = useState<GenerationItem[]>([]);
   const [tracks, setTracks] = useState<{ id: string; name: string; projectId: string; currentVersion: number; trackNumber: number }[]>([]);
+
+  // Polling hook для отслеживания прогресса
+  const { isPolling } = useSunoStatusPolling({
+    taskId: currentTaskId,
+    enabled: !!currentTaskId,
+    onComplete: (data) => {
+      console.log("Generation completed:", data);
+      setCurrentTaskId("");
+      setIsGenerating(false);
+      fetchGenerations(); // Обновляем список
+    },
+    onError: (error) => {
+      console.error("Generation failed:", error);
+      setCurrentTaskId("");
+      setIsGenerating(false);
+    }
+  });
+
+  const fetchGenerations = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from("ai_generations")
+      .select("id, prompt, service, status, result_url, created_at, track_id")
+      .order("created_at", { ascending: false });
+
+    if (error) return;
+    const rows = data || [];
+
+    // Collect track ids
+    const trackIds = Array.from(new Set(rows.map(r => r.track_id).filter(Boolean))) as string[];
+
+    // Map of track meta
+    const trackMeta: Record<string, { title?: string; projectId?: string; projectName?: string; artistId?: string; artistName?: string }> = {};
+
+    if (trackIds.length > 0) {
+      const { data: tracksData } = await supabase
+        .from("tracks")
+        .select("id, title, project_id, projects(id, title, artists(id, name))")
+        .in("id", trackIds);
+
+      (tracksData || []).forEach((t: any) => {
+        trackMeta[t.id] = {
+          title: t.title,
+          projectId: t.project_id,
+          projectName: t.projects?.title,
+          artistId: t.projects?.artists?.id,
+          artistName: t.projects?.artists?.name,
+        };
+      });
+    }
+
+    // Group by groupId (track_id or self id)
+    const groups: Record<string, any[]> = {};
+    rows.forEach(r => {
+      const gid = r.track_id || r.id;
+      groups[gid] = groups[gid] || [];
+      groups[gid].push(r);
+    });
+
+    const items: GenerationItem[] = [];
+    Object.entries(groups).forEach(([gid, arr]) => {
+      arr.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      arr.forEach((r: any, idx: number) => {
+        const meta = trackMeta[gid] || {};
+        items.push({
+          id: r.id,
+          groupId: gid,
+          version: idx + 1,
+          prompt: r.prompt,
+          service: (r.service as "suno" | "mureka"),
+          status: r.status,
+          createdAt: r.created_at,
+          resultUrl: r.result_url || undefined,
+          title: meta.title,
+          projectName: meta.projectName,
+          artistName: meta.artistName,
+          trackId: r.track_id || undefined,
+        });
+      });
+    });
+
+    // Newest groups first will be handled in feed
+    setGenerations(items);
+  };
 
   useEffect(() => {
     if (!user) {
@@ -53,72 +140,6 @@ export default function AIGeneration() {
         id: p.id,
         name: p.artists?.name ? `${p.title} (${p.artists.name})` : p.title,
       })));
-    };
-
-    const fetchGenerations = async () => {
-      const { data, error } = await supabase
-        .from("ai_generations")
-        .select("id, prompt, service, status, result_url, created_at, track_id")
-        .order("created_at", { ascending: false });
-
-      if (error) return;
-      const rows = data || [];
-
-      // Collect track ids
-      const trackIds = Array.from(new Set(rows.map(r => r.track_id).filter(Boolean))) as string[];
-
-      // Map of track meta
-      const trackMeta: Record<string, { title?: string; projectId?: string; projectName?: string; artistId?: string; artistName?: string }> = {};
-
-      if (trackIds.length > 0) {
-        const { data: tracksData } = await supabase
-          .from("tracks")
-          .select("id, title, project_id, projects(id, title, artists(id, name))")
-          .in("id", trackIds);
-
-        (tracksData || []).forEach((t: any) => {
-          trackMeta[t.id] = {
-            title: t.title,
-            projectId: t.project_id,
-            projectName: t.projects?.title,
-            artistId: t.projects?.artists?.id,
-            artistName: t.projects?.artists?.name,
-          };
-        });
-      }
-
-      // Group by groupId (track_id or self id)
-      const groups: Record<string, any[]> = {};
-      rows.forEach(r => {
-        const gid = r.track_id || r.id;
-        groups[gid] = groups[gid] || [];
-        groups[gid].push(r);
-      });
-
-      const items: GenerationItem[] = [];
-      Object.entries(groups).forEach(([gid, arr]) => {
-        arr.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        arr.forEach((r: any, idx: number) => {
-          const meta = trackMeta[gid] || {};
-          items.push({
-            id: r.id,
-            groupId: gid,
-            version: idx + 1,
-            prompt: r.prompt,
-            service: (r.service as "suno" | "mureka"),
-            status: r.status,
-            createdAt: r.created_at,
-            resultUrl: r.result_url || undefined,
-            title: meta.title,
-            projectName: meta.projectName,
-            artistName: meta.artistName,
-            trackId: r.track_id || undefined,
-          });
-        });
-      });
-
-      // Newest groups first will be handled in feed
-      setGenerations(items);
     };
 
     fetchMeta();
@@ -223,16 +244,21 @@ export default function AIGeneration() {
       console.log("Generation response:", data);
 
       if (data?.success) {
-        toast({ 
-          title: "Генерация запущена", 
-          description: `Трек генерируется с помощью ${selectedService}. Task ID: ${data.data?.task_id || 'unknown'}` 
-        });
+        const taskId = data.data?.task_id;
+        if (taskId) {
+          setCurrentTaskId(taskId);
+          toast({ 
+            title: "Генерация запущена", 
+            description: `Трек генерируется с помощью ${selectedService}. Отслеживаем прогресс...` 
+          });
+        } else {
+          toast({ 
+            title: "Генерация запущена", 
+            description: `Трек генерируется с помощью ${selectedService}` 
+          });
+          setIsGenerating(false);
+        }
         setPrompt("");
-        
-        // Обновляем список генераций через некоторое время
-        setTimeout(() => {
-          window.location.reload(); // Временное решение для обновления UI
-        }, 2000);
       } else {
         throw new Error(data?.error || 'Не удалось запустить генерацию');
       }
@@ -240,7 +266,9 @@ export default function AIGeneration() {
       console.error("Generation error:", e);
       toast({ title: "Ошибка генерации", description: e.message || "Не удалось отправить запрос", variant: "destructive" });
     } finally {
-      setIsGenerating(false);
+      if (!currentTaskId) {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -274,15 +302,20 @@ export default function AIGeneration() {
       console.log("Quick generation response:", data);
 
       if (data?.success) {
-        toast({ 
-          title: "Генерация запущена", 
-          description: `Версия v${opts.nextVersion} генерируется с помощью ${opts.service}` 
-        });
-        
-        // Обновляем список генераций через некоторое время
-        setTimeout(() => {
-          window.location.reload(); // Временное решение для обновления UI
-        }, 2000);
+        const taskId = data.data?.task_id;
+        if (taskId) {
+          setCurrentTaskId(taskId);
+          toast({ 
+            title: "Генерация запущена", 
+            description: `Версия v${opts.nextVersion} генерируется с помощью ${opts.service}. Отслеживаем прогресс...` 
+          });
+        } else {
+          toast({ 
+            title: "Генерация запущена", 
+            description: `Версия v${opts.nextVersion} генерируется с помощью ${opts.service}` 
+          });
+          setIsGenerating(false);
+        }
       } else {
         throw new Error(data?.error || 'Не удалось запустить быструю генерацию');
       }
@@ -290,7 +323,9 @@ export default function AIGeneration() {
       console.error("Quick generation error:", e);
       toast({ title: "Ошибка генерации", description: e.message || "Не удалось отправить запрос", variant: "destructive" });
     } finally {
-      setIsGenerating(false);
+      if (!currentTaskId) {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -302,6 +337,12 @@ export default function AIGeneration() {
           <span className="hidden sm:inline">ИИ Генерация</span>
           <span className="sm:hidden">ИИ</span>
         </h1>
+        {isPolling && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+            Отслеживаем прогресс...
+          </div>
+        )}
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
@@ -312,7 +353,7 @@ export default function AIGeneration() {
             selectedService={selectedService}
             setSelectedService={setSelectedService}
             onGenerate={handleGenerate}
-            isGenerating={isGenerating}
+            isGenerating={isGenerating || isPolling}
             projects={projects}
             artists={artists}
             selectedProjectId={selectedProjectId}
