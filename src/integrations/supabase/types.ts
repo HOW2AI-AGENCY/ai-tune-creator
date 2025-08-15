@@ -157,31 +157,52 @@ export type Database = {
       artists: {
         Row: {
           avatar_url: string | null
+          banner_url: string | null
+          bio: string | null
+          contact_info: Json | null
           created_at: string
           description: string | null
+          genre: string | null
           id: string
+          is_active: boolean
           metadata: Json | null
           name: string
+          social_links: Json | null
+          type: string
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          banner_url?: string | null
+          bio?: string | null
+          contact_info?: Json | null
           created_at?: string
           description?: string | null
+          genre?: string | null
           id?: string
+          is_active?: boolean
           metadata?: Json | null
           name: string
+          social_links?: Json | null
+          type?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          banner_url?: string | null
+          bio?: string | null
+          contact_info?: Json | null
           created_at?: string
           description?: string | null
+          genre?: string | null
           id?: string
+          is_active?: boolean
           metadata?: Json | null
           name?: string
+          social_links?: Json | null
+          type?: string
           updated_at?: string
           user_id?: string
         }
@@ -415,6 +436,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      promo_materials: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          entity_id: string
+          entity_type: string
+          file_name: string
+          file_size: number | null
+          file_type: string
+          file_url: string
+          id: string
+          is_primary: boolean
+          metadata: Json | null
+          mime_type: string | null
+          tags: string[] | null
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          entity_id: string
+          entity_type: string
+          file_name: string
+          file_size?: number | null
+          file_type: string
+          file_url: string
+          id?: string
+          is_primary?: boolean
+          metadata?: Json | null
+          mime_type?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          entity_id?: string
+          entity_type?: string
+          file_name?: string
+          file_size?: number | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          is_primary?: boolean
+          metadata?: Json | null
+          mime_type?: string | null
+          tags?: string[] | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       reference_research: {
         Row: {
