@@ -59,30 +59,64 @@ export function LyricsDrawer({ isOpen, onClose, track, onPlay }: LyricsDrawerPro
           lyricsText = lyricsObj.lyrics || lyricsObj.text || track.lyrics;
         }
 
-        // Обрабатываем SUNO.AI теги для лучшего отображения
+        // Форматируем лирику в SUNO стиле
         const processedLyrics = lyricsText
-          // Структурные теги
-          .replace(/\[Intro\]/gi, '🎵 [Вступление]')
-          .replace(/\[Verse\s*(\d*)\]/gi, '📝 [Куплет $1]')
-          .replace(/\[Chorus\]/gi, '🎤 [Припев]')
-          .replace(/\[Bridge\]/gi, '🌉 [Переход]')
-          .replace(/\[Outro\]/gi, '🎵 [Завершение]')
-          // Вокальные эффекты  
-          .replace(/\{main_vox\}/gi, '🎙️')
-          .replace(/\{backing_vox\}/gi, '🎶')
-          .replace(/\{harmonies\}/gi, '🎵')
+          // Структурные теги в квадратных скобках
+          .replace(/\[Intro\]/gi, '[Intro]')
+          .replace(/\[Verse\s*(\d*)\]/gi, '[Verse $1]')
+          .replace(/\[Chorus\]/gi, '[Chorus]')
+          .replace(/\[Bridge\]/gi, '[Bridge]')
+          .replace(/\[Outro\]/gi, '[Outro]')
+          .replace(/\[Pre-Chorus\]/gi, '[Pre-Chorus]')
+          .replace(/\[Post-Chorus\]/gi, '[Post-Chorus]')
+          .replace(/\[Breakdown\]/gi, '[Breakdown]')
+          .replace(/\[Drop\]/gi, '[Drop]')
+          .replace(/\[Build\]/gi, '[Build]')
+          .replace(/\[Hook\]/gi, '[Hook]')
+          .replace(/\[Refrain\]/gi, '[Refrain]')
+          // Инструментальные части
+          .replace(/\[Instrumental\]/gi, '[Instrumental]')
+          .replace(/\[Guitar Solo\]/gi, '[Guitar Solo]')
+          .replace(/\[Piano Solo\]/gi, '[Piano Solo]')
+          .replace(/\[Drums\]/gi, '[Drums]')
+          .replace(/\[Bass\]/gi, '[Bass]')
+          // Вокальные эффекты
+          .replace(/\[Whisper\]/gi, '[Whisper]')
+          .replace(/\[Shout\]/gi, '[Shout]')
+          .replace(/\[Scream\]/gi, '[Scream]')
+          .replace(/\[Hum\]/gi, '[Hum]')
+          .replace(/\[Harmonies\]/gi, '[Harmonies]')
+          .replace(/\[Ad-libs\]/gi, '[Ad-libs]')
           // Динамические эффекты
-          .replace(/\[!fade_in\]/gi, '↗️ [Нарастание]')
-          .replace(/\[!build_up\]/gi, '⬆️ [Подъем]')
-          .replace(/\[!drop\]/gi, '⬇️ [Спад]')
-          .replace(/\[!reverb\]/gi, '🔊 [Реверб]')
+          .replace(/\[Fade In\]/gi, '[Fade In]')
+          .replace(/\[Fade Out\]/gi, '[Fade Out]')
+          .replace(/\[Build Up\]/gi, '[Build Up]')
+          .replace(/\[Breakdown\]/gi, '[Breakdown]')
+          .replace(/\[Silence\]/gi, '[Silence]')
+          .replace(/\[Pause\]/gi, '[Pause]')
           // Эмоциональные маркеры
-          .replace(/\[Emotional\]/gi, '💫 [Эмоционально]')
-          .replace(/\[Intense\]/gi, '🔥 [Интенсивно]')
-          .replace(/\[Gentle\]/gi, '🌸 [Нежно]')
-          // Убираем лишние переносы и добавляем структуру
-          .replace(/\n\s*\n/g, '\n\n')
-          .trim();
+          .replace(/\[Emotional\]/gi, '[Emotional]')
+          .replace(/\[Intense\]/gi, '[Intense]')
+          .replace(/\[Gentle\]/gi, '[Gentle]')
+          .replace(/\[Powerful\]/gi, '[Powerful]')
+          .replace(/\[Soft\]/gi, '[Soft]')
+          .replace(/\[Loud\]/gi, '[Loud]')
+          // Разделяем на четверостишья
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .reduce((acc, line, index, array) => {
+            // Добавляем строку
+            acc.push(line);
+            
+            // Добавляем пустую строку после каждых 4 строк (если это не тег и не последняя строка)
+            if (!line.startsWith('[') && (index + 1) % 4 === 0 && index < array.length - 1) {
+              acc.push('');
+            }
+            
+            return acc;
+          }, [] as string[])
+          .join('\n');
 
         setParsedLyrics(processedLyrics);
       } catch (error) {
@@ -122,7 +156,7 @@ export function LyricsDrawer({ isOpen, onClose, track, onPlay }: LyricsDrawerPro
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-[400px] sm:w-[500px] p-0 overflow-hidden">
+      <SheetContent className="w-[400px] sm:w-[500px] p-0 flex flex-col max-h-screen">
         {track && (
           <>
             <SheetHeader className="p-6 pb-4 bg-gradient-to-r from-background to-accent/20">
@@ -180,8 +214,8 @@ export function LyricsDrawer({ isOpen, onClose, track, onPlay }: LyricsDrawerPro
               </div>
             </SheetHeader>
 
-            <div className="flex-1 overflow-hidden">
-              <ScrollArea className="h-full px-6">
+            <div className="flex-1 overflow-y-auto">
+              <div className="px-6 pb-6">
                 {/* Информация о треке */}
                 <Card className="mb-4">
                   <CardHeader className="pb-3">
@@ -244,10 +278,25 @@ export function LyricsDrawer({ isOpen, onClose, track, onPlay }: LyricsDrawerPro
                       Лирика
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                   <CardContent>
                     {parsedLyrics ? (
-                      <div className="whitespace-pre-line text-sm leading-relaxed font-mono">
-                        {parsedLyrics}
+                      <div className="whitespace-pre-line text-sm leading-relaxed">
+                        {parsedLyrics.split('\n').map((line, index) => {
+                          if (line.startsWith('[') && line.endsWith(']')) {
+                            return (
+                              <div key={index} className="font-bold text-primary bg-primary/10 px-2 py-1 rounded-md my-2 inline-block">
+                                {line}
+                              </div>
+                            );
+                          }
+                          return line ? (
+                            <div key={index} className="mb-1">
+                              {line}
+                            </div>
+                          ) : (
+                            <div key={index} className="h-3" />
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-center py-8 text-muted-foreground">
@@ -258,8 +307,7 @@ export function LyricsDrawer({ isOpen, onClose, track, onPlay }: LyricsDrawerPro
                   </CardContent>
                 </Card>
 
-                <div className="h-6" /> {/* Отступ снизу */}
-              </ScrollArea>
+              </div>
             </div>
           </>
         )}

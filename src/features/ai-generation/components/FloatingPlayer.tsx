@@ -203,10 +203,10 @@ export function FloatingPlayer({ isOpen, track, onClose, onShowLyrics }: Floatin
                 onClick={togglePlay}
                 disabled={isLoading || !track.audio_url}
                 size="icon"
-                className="h-10 w-10"
+                className="h-10 w-10 bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 {isLoading ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-r-transparent" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
                 ) : isPlaying ? (
                   <Pause className="h-5 w-5" />
                 ) : (
