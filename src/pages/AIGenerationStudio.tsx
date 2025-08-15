@@ -485,7 +485,7 @@ export default function AIGenerationStudio() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
           <GenerationContextPanel
             projects={projects}
             artists={artists}
