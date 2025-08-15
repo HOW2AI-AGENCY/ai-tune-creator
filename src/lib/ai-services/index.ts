@@ -7,6 +7,10 @@ export * from './types';
 export * from './base-service';
 export * from './service-registry';
 export * from './adapters';
-// Additional modules to be implemented
-// export * from './router';
-// export * from './config';
+
+// Core modules
+export * from './core/api-client';
+export * from './core/service-adapter';
+
+// Router
+export * from './router/service-router';
