@@ -17,6 +17,7 @@ import { ErrorHandler } from "./ErrorHandler";
 import { AIServiceStatusPanel } from "./AIServiceStatusPanel";
 import { quickPresets } from "../data/presets";
 import { GenerationParams, Option, QuickPreset } from "../types";
+import { useAIPromptProfiles } from "@/hooks/useAIPromptProfiles";
 
 interface TrackGenerationSidebarProps {
   projects: Option[];
@@ -78,6 +79,7 @@ export function TrackGenerationSidebar({
   const [previewParams, setPreviewParams] = useState<GenerationParams | null>(null);
   
   const { toast } = useToast();
+  const { activeProfile, getActiveProfileForService } = useAIPromptProfiles();
 
   const genres = [
     "Поп", "Рок", "Хип-хоп", "Электронная музыка", 
@@ -144,7 +146,22 @@ export function TrackGenerationSidebar({
 
   const handleConfirmGeneration = () => {
     if (previewParams) {
-      onGenerate(previewParams);
+      // Apply active prompt profile settings if available
+      const profileSettings = getActiveProfileForService(previewParams.service);
+      let finalParams = { ...previewParams };
+      
+      if (profileSettings) {
+        finalParams = {
+          ...finalParams,
+          stylePrompt: profileSettings.stylePrompt || finalParams.stylePrompt,
+          genreTags: [...(finalParams.genreTags || []), ...(profileSettings.genreTags || [])],
+          voiceStyle: profileSettings.voiceStyle || finalParams.voiceStyle,
+          language: profileSettings.language || finalParams.language,
+          tempo: profileSettings.tempo || finalParams.tempo
+        };
+      }
+      
+      onGenerate(finalParams);
       setShowPreview(false);
       setPreviewParams(null);
     }
@@ -189,9 +206,16 @@ export function TrackGenerationSidebar({
       )}
       
       <div className="p-4 space-y-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">Генерация трека</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">Генерация трека</h2>
+          </div>
+          {activeProfile && (
+            <Badge variant="outline" className="text-xs">
+              📝 {activeProfile.name}
+            </Badge>
+          )}
         </div>
 
         {/* Статус AI сервисов */}

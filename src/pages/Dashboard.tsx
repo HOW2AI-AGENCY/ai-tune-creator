@@ -1,204 +1,309 @@
-import { Music, Users, FolderOpen, Zap, TrendingUp, Clock } from "lucide-react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useTranslation } from "@/hooks/useTranslation";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { GenerationAnalytics } from "@/components/analytics/GenerationAnalytics";
+import { TestGenerationButton } from "@/components/test/TestGenerationButton";
+import { 
+  Music2, 
+  Users, 
+  FolderOpen, 
+  TrendingUp, 
+  Sparkles, 
+  Clock, 
+  Activity,
+  Settings,
+  BarChart3,
+  Zap
+} from "lucide-react";
 
 export default function Dashboard() {
-  const { t } = useTranslation();
-  
-  // Mock data - will be replaced with real data from Supabase
-  const stats = [
-    {
-      title: "Всего проектов",
-      value: "12",
-      description: "+2 за последний месяц",
-      icon: FolderOpen,
-      trend: "up"
-    },
-    {
-      title: "Артисты",
-      value: "5",
-      description: "+1 новый артист",
-      icon: Users,
-      trend: "up"
-    },
-    {
-      title: "ИИ генераций",
-      value: "47",
-      description: "+12 на этой неделе",
-      icon: Zap,
-      trend: "up"
-    },
-    {
-      title: "Треков создано",
-      value: "89",
-      description: "+23 завершено",
-      icon: Music,
-      trend: "up"
-    }
-  ];
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    tracks: 0,
+    projects: 0,
+    artists: 0,
+    generations: 0,
+    recentGenerations: [] as any[]
+  });
+  const [loading, setLoading] = useState(true);
 
-  const recentProjects = [
-    {
-      id: "1",
-      title: "Электронные мечты",
-      artist: "Digital Soundscapes",
-      status: "В работе",
-      progress: 75,
-      lastUpdated: "2 часа назад"
-    },
-    {
-      id: "2", 
-      title: "Эмбиент путешествие",
-      artist: "Zen Productions",
-      status: "Черновик",
-      progress: 30,
-      lastUpdated: "1 день назад"
-    },
-    {
-      id: "3",
-      title: "Рок возрождение",
-      artist: "Classic Vibes",
-      status: "Опубликован",
-      progress: 100,
-      lastUpdated: "3 дня назад"
-    }
-  ];
+  const loadStats = async () => {
+    if (!user) return;
 
-  const recentGenerations = [
-    {
-      id: "1",
-      prompt: "Электронный эмбиент трек с эфирным вокалом",
-      status: "завершен",
-      service: "suno",
-      createdAt: "1 час назад"
-    },
-    {
-      id: "2",
-      prompt: "Оптимистичная поп-песня с гитарными риффами",
-      status: "обрабатывается",
-      service: "mureka", 
-      createdAt: "3 часа назад"
-    },
-    {
-      id: "3",
-      prompt: "Джаз-фьюжн инструментальная композиция",
-      status: "завершен",
-      service: "suno",
-      createdAt: "5 часов назад"
+    try {
+      const [
+        tracksRes,
+        projectsRes,
+        artistsRes,
+        generationsRes
+      ] = await Promise.all([
+        supabase
+          .from('tracks')
+          .select('count', { count: 'exact', head: true }),
+        supabase
+          .from('projects')
+          .select('count', { count: 'exact', head: true }),
+        supabase
+          .from('artists')
+          .select('count', { count: 'exact', head: true }),
+        supabase
+          .from('ai_generations')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5)
+      ]);
+
+      setStats({
+        tracks: tracksRes.count || 0,
+        projects: projectsRes.count || 0,
+        artists: artistsRes.count || 0,
+        generations: generationsRes.data?.length || 0,
+        recentGenerations: generationsRes.data || []
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, [user]);
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays} дней назад`;
+    if (diffHours > 0) return `${diffHours} часов назад`;
+    return 'Только что';
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge variant="default" className="bg-green-500">Завершен</Badge>;
+      case 'processing':
+        return <Badge variant="secondary">Обрабатывается</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Ошибка</Badge>;
+      default:
+        return <Badge variant="outline">Неизвестно</Badge>;
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Добро пожаловать!</CardTitle>
+            <CardDescription>
+              Войдите в систему, чтобы увидеть вашу панель управления.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="container mx-auto p-6 space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Панель управления</h1>
+          <p className="text-muted-foreground">
+            Добро пожаловать в вашу музыкальную студию с ИИ
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <TestGenerationButton />
+          <Button asChild>
+            <a href="/generate">
+              <Sparkles className="mr-2 h-4 w-4" />
+              Создать музыку
+            </a>
+          </Button>
+        </div>
+      </div>
+
       {/* Welcome Section */}
-      <div className="bg-gradient-primary rounded-lg p-6 text-primary-foreground">
-        <h1 className="text-3xl font-bold mb-2">Добро пожаловать!</h1>
-        <p className="text-primary-foreground/80 mb-4">
-          Готовы создать потрясающую музыку сегодня? Давайте посмотрим, над чем вы работали.
+      <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 border border-primary/20">
+        <h2 className="text-2xl font-bold mb-2">Готовы создать что-то удивительное?</h2>
+        <p className="text-muted-foreground mb-4">
+          Используйте мощь ИИ для создания уникальной музыки. У вас уже есть {stats.tracks} треков и {stats.generations} генераций!
         </p>
-        <Button 
-          variant="secondary" 
-          className="bg-white/20 hover:bg-white/30 text-primary-foreground border-white/20"
-        >
-          <Zap className="mr-2 h-4 w-4" />
-          Создать новый трек
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild>
+            <a href="/generate">
+              <Sparkles className="mr-2 h-4 w-4" />
+              Новая генерация
+            </a>
+          </Button>
+          <Button variant="outline" asChild>
+            <a href="/tracks">Мои треки</a>
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="shadow-card hover:shadow-elevated transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Треков создано
+                </p>
+                <p className="text-3xl font-bold">{loading ? '...' : stats.tracks}</p>
+              </div>
+              <Music2 className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Проектов
+                </p>
+                <p className="text-3xl font-bold">{loading ? '...' : stats.projects}</p>
+              </div>
+              <FolderOpen className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Артистов
+                </p>
+                <p className="text-3xl font-bold">{loading ? '...' : stats.artists}</p>
+              </div>
+              <Users className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  ИИ генераций
+                </p>
+                <p className="text-3xl font-bold">{loading ? '...' : stats.generations}</p>
+              </div>
+              <Zap className="h-8 w-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Analytics Section */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Обзор</TabsTrigger>
+          <TabsTrigger value="analytics">Аналитика</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-4">
+          {/* Recent Activity */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Недавняя активность
+              </CardTitle>
+              <CardDescription>
+                Последние генерации ИИ и созданные треки
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground flex items-center">
-                <TrendingUp className="h-3 w-3 mr-1 text-success" />
-                {stat.description}
-              </p>
+              {loading ? (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-muted rounded w-1/2"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : stats.recentGenerations.length === 0 ? (
+                <div className="text-center py-8">
+                  <Zap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Пока нет генераций</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Создайте свою первую музыкальную композицию с помощью ИИ
+                  </p>
+                  <Button asChild>
+                    <a href="/generate">
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Начать генерацию
+                    </a>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {stats.recentGenerations.map((generation) => (
+                    <div key={generation.id} className="flex items-start justify-between p-4 rounded-lg border border-border hover:bg-accent/50 transition-colors">
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium">
+                          {generation.prompt.length > 80 
+                            ? `${generation.prompt.substring(0, 80)}...` 
+                            : generation.prompt
+                          }
+                        </p>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(generation.status)}
+                          <Badge variant="outline" className="text-xs">
+                            {generation.service}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground flex items-center">
+                          <Clock className="mr-1 h-3 w-3" />
+                          {formatTimeAgo(generation.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="flex gap-2 pt-4">
+                    <Button variant="outline" asChild className="flex-1">
+                      <a href="/tracks">Все треки</a>
+                    </Button>
+                    <Button asChild className="flex-1">
+                      <a href="/generate">
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Новая генерация
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Projects */}
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <FolderOpen className="mr-2 h-5 w-5" />
-              Последние проекты
-            </CardTitle>
-            <CardDescription>Ваши новейшие музыкальные проекты</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {recentProjects.map((project) => (
-              <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors">
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">{project.title}</h4>
-                    <span className="text-xs text-muted-foreground flex items-center">
-                      <Clock className="mr-1 h-3 w-3" />
-                      {project.lastUpdated}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{project.artist}</p>
-                  <div className="flex items-center gap-2">
-                    <Progress value={project.progress} className="flex-1 h-2" />
-                    <span className="text-xs text-muted-foreground">{project.progress}%</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-            <Button variant="outline" className="w-full">
-              Посмотреть все проекты
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Recent AI Generations */}
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Zap className="mr-2 h-5 w-5" />
-              Последние ИИ генерации
-            </CardTitle>
-            <CardDescription>Ваши новейшие треки, созданные ИИ</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {recentGenerations.map((generation) => (
-              <div key={generation.id} className="flex items-start justify-between p-3 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors">
-                <div className="space-y-1 flex-1">
-                  <p className="text-sm">{generation.prompt}</p>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      generation.status === 'завершен' ? 'bg-success/10 text-success' :
-                      generation.status === 'обрабатывается' ? 'bg-warning/10 text-warning' :
-                      'bg-muted text-muted-foreground'
-                    }`}>
-                      {generation.status}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{generation.service}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground flex items-center">
-                    <Clock className="mr-1 h-3 w-3" />
-                    {generation.createdAt}
-                  </span>
-                </div>
-              </div>
-            ))}
-            <Button variant="outline" className="w-full">
-              <Zap className="mr-2 h-4 w-4" />
-              Создать новый трек
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+        </TabsContent>
+        
+        <TabsContent value="analytics">
+          <GenerationAnalytics />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
