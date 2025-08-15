@@ -371,6 +371,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_inbox: boolean | null
           metadata: Json | null
           status: string
           title: string
@@ -384,6 +385,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_inbox?: boolean | null
           metadata?: Json | null
           status?: string
           title: string
@@ -397,6 +399,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_inbox?: boolean | null
           metadata?: Json | null
           status?: string
           title?: string
@@ -453,6 +456,41 @@ export type Database = {
             columns: ["project_note_id"]
             isOneToOne: false
             referencedRelation: "project_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      track_assets: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json | null
+          track_id: string
+          type: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          track_id: string
+          type: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          track_id?: string
+          type?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_assets_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
             referencedColumns: ["id"]
           },
         ]
@@ -615,6 +653,18 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      dedupe_track_title: {
+        Args: { p_project_id: string; p_title: string }
+        Returns: string
+      }
+      ensure_user_inbox: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
+      get_next_track_number: {
+        Args: { p_project_id: string }
+        Returns: number
       }
     }
     Enums: {
