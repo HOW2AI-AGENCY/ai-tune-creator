@@ -128,19 +128,26 @@ serve(async (req) => {
 
     // Подготавливаем данные согласно официальной документации SunoAPI.org
     let requestPrompt = prompt;
-    let customLyrics = "";
+    let requestLyrics = "";
     
-    // В кастомном режиме используем пользовательскую лирику если есть
-    if (mode === 'custom' && custom_lyrics && custom_lyrics.trim().length > 0) {
-      customLyrics = custom_lyrics;
-      // В кастомном режиме НЕ используем лирику как промпт, а передаем отдельно
+    // Логика разделения: если есть custom_lyrics, то это лирика для пения, а prompt - стиль
+    if (custom_lyrics && custom_lyrics.trim().length > 0) {
+      requestLyrics = custom_lyrics; // Что петь
+      requestPrompt = style || prompt || 'Pop, Electronic'; // Как звучать
+    } else if (make_instrumental) {
+      requestLyrics = ""; // Инструментал без слов
+      requestPrompt = prompt || style || 'Pop, Electronic';
+    } else {
+      // Если лирики нет, генерируем на основе промпта
+      requestLyrics = "";
+      requestPrompt = prompt || style || 'Pop, Electronic';
     }
     
     const sunoRequest: any = {
-      prompt: requestPrompt,
+      prompt: requestPrompt, // Описание стиля
       customMode: true,
-      lyrics: customLyrics || undefined, // Передаем лирику отдельно
-      style: style || 'Pop, Electronic',
+      lyrics: requestLyrics || undefined, // Текст для пения (если есть)
+      style: style || requestPrompt,
       title: title || `AI Generated ${new Date().toLocaleDateString('ru-RU')}`,
       instrumental: make_instrumental,
       model: model.replace('chirp-v', 'V').replace('-', '_'), // chirp-v3-5 -> V3_5

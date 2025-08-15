@@ -89,7 +89,7 @@ export function useTrackGenerationWithProgress() {
       if (params.service === 'suno') {
         const response = await supabase.functions.invoke('generate-suno-track', {
           body: {
-            prompt: params.prompt,
+            prompt: params.customLyrics ? params.stylePrompt || '' : params.prompt, // Если есть custom_lyrics, то prompt = style описание
             style: params.stylePrompt || '',
             title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
             tags: params.genreTags?.join(', ') || 'energetic, creative',
@@ -100,7 +100,7 @@ export function useTrackGenerationWithProgress() {
             projectId: params.projectId || null,
             artistId: params.artistId || null,
             mode: params.mode || 'quick',
-            custom_lyrics: params.customLyrics || '',
+            custom_lyrics: params.customLyrics || '', // Лирика отдельно
             voice_style: params.voiceStyle || '',
             language: params.language || 'ru',
             tempo: params.tempo || ''
@@ -123,8 +123,9 @@ export function useTrackGenerationWithProgress() {
       } else if (params.service === 'mureka') {
         const response = await supabase.functions.invoke('generate-mureka-track', {
           body: {
-            prompt: params.prompt,
-            lyrics: params.customLyrics || '',
+            prompt: params.customLyrics ? params.stylePrompt || '' : params.prompt, // Если есть custom_lyrics, то prompt = style описание
+            lyrics: params.customLyrics || '', // Лирика отдельно
+            custom_lyrics: params.customLyrics || '', // Дублируем для совместимости
             style: params.stylePrompt || '',
             duration: params.duration || 120,
             genre: params.genreTags?.[0] || 'electronic',
