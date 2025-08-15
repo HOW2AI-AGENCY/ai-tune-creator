@@ -162,17 +162,17 @@ serve(async (req) => {
       requestLyrics = lyrics;
       requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
     } else if (instrumental) {
-      // Instrumental track - no lyrics needed
-      requestLyrics = '';
+      // For instrumental tracks, provide minimal lyrics that indicate instrumental
+      requestLyrics = '[Instrumental]';
       requestPrompt = prompt || style || `${genre}, ${mood}, ${tempo}`;
     } else if (looksLikeLyrics(prompt)) {
       // The prompt field actually contains lyrics
       requestLyrics = prompt!;
       requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
     } else {
-      // No lyrics provided, keep lyrics empty to let service generate its own
-      requestLyrics = '';
-      requestPrompt = prompt || style || `${genre}, ${mood}, ${tempo}`;
+      // No lyrics provided, use prompt as lyrics since Mureka requires lyrics
+      requestLyrics = prompt || `Create a ${genre} song with ${mood} mood and ${tempo} tempo`;
+      requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
     }
     
     const murekaRequest: MurekaGenerationRequest = {
