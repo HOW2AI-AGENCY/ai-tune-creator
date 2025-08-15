@@ -124,9 +124,17 @@ export function useTrackGenerationWithProgress() {
         const response = await supabase.functions.invoke('generate-mureka-track', {
           body: {
             prompt: params.prompt,
+            lyrics: params.customLyrics || '',
+            style: params.stylePrompt || '',
             duration: params.duration || 120,
+            genre: params.genreTags?.[0] || 'electronic',
+            mood: params.genreTags?.[1] || 'energetic',
+            tempo: params.tempo || 'medium',
             instrumental: params.instrumental || false,
-            projectId: params.projectId || null
+            language: params.language || 'ru',
+            projectId: params.projectId || null,
+            artistId: params.artistId || null,
+            title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`
           }
         });
         
@@ -222,8 +230,50 @@ export function useTrackGenerationWithProgress() {
             ]
           });
         }, 30000);
+      } else if (params.service === 'mureka' && data.data?.audio_url) {
+        // Для Mureka - автоматически сохраняем трек в БД если есть аудио URL
+        try {
+          const saveResponse = await supabase.functions.invoke('save-mureka-track', {
+            body: {
+              generation_id: data.data.generation?.id,
+              audio_url: data.data.audio_url,
+              title: data.data.title,
+              duration: data.data.duration,
+              metadata: data.metadata
+            }
+          });
+
+          if (saveResponse.error) {
+            console.error('Error saving Mureka track:', saveResponse.error);
+            toast({
+              title: "Трек сгенерирован, но не сохранен",
+              description: "Трек создан, но возникла ошибка при сохранении в библиотеку",
+              variant: "destructive"
+            });
+          } else {
+            console.log('Mureka track saved successfully:', saveResponse.data);
+            toast({
+              title: "Трек сохранен в библиотеку",
+              description: "Трек успешно добавлен в вашу музыкальную коллекцию"
+            });
+          }
+        } catch (saveError) {
+          console.error('Save error:', saveError);
+        }
+
+        updateProgress({
+          progress: 100,
+          title: "Трек готов!",
+          subtitle: "Генерация и сохранение завершены",
+          steps: [
+            { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
+            { id: 'generate', label: 'Отправка в AI сервис', status: 'done' },
+            { id: 'process', label: 'Обработка трека', status: 'done' },
+            { id: 'save', label: 'Сохранение результата', status: 'done' }
+          ]
+        });
       } else {
-        // Мгновенное завершение для non-Suno сервисов
+        // Завершение для других случаев
         updateProgress({
           progress: 100,
           title: "Трек готов!",

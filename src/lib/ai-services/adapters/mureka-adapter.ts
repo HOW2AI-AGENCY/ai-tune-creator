@@ -55,10 +55,14 @@ export class MurekaAdapter extends BaseAIService {
   async generate(request: GenerationRequest): Promise<GenerationResponse> {
     await this.validateRequest(request);
     
+    // Fix: Don't use prompt as lyrics if no explicit lyrics provided
+    const hasExplicitLyrics = request.metadata?.lyrics && request.metadata.lyrics.trim().length > 0;
+    const isInstrumental = request.metadata?.instrumental === true;
+    
     const payload: MurekaGenerationRequest = {
-      lyrics: request.metadata?.lyrics || request.prompt || 'Generate lyrics for a song',
+      lyrics: hasExplicitLyrics ? request.metadata.lyrics : (isInstrumental ? '' : '[Verse]\nAI generated song\n[Chorus]\nCreated with artificial intelligence\n[Bridge]\nInnovative music generation'),
       model: request.metadata?.model || 'auto',
-      prompt: request.style || request.prompt,
+      prompt: request.style || request.prompt || 'Electronic music, medium tempo, energetic mood',
       stream: request.options?.stream || false
     };
 
