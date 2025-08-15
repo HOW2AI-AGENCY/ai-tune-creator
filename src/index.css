@@ -247,6 +247,77 @@ All colors MUST be HSL.
     background-clip: text;
   }
 
+  /* Mobile Native App Styles */
+  .pb-mobile-nav {
+    padding-bottom: 80px; /* Space for bottom nav */
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Native Mobile Animations */
+  .animate-slide-in-bottom {
+    animation: slideInBottom 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-bounce-subtle {
+    animation: bounceSubtle 0.6s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  @keyframes slideInBottom {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes bounceSubtle {
+    0% {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.02);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
   /* Lyrics Editor Specific Styles */
   .lyrics-editor {
     /* Custom styles for lyrics editing */
@@ -259,4 +330,5 @@ All colors MUST be HSL.
   .lyrics-line-number {
     @apply text-muted-foreground text-xs select-none;
   }
+}
 }

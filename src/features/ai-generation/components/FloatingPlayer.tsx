@@ -34,10 +34,11 @@ interface FloatingPlayerProps {
   isOpen: boolean;
   track: Track | null;
   onClose: () => void;
+  onPlayPause?: (playing: boolean) => void;
   onShowLyrics?: (track: Track) => void;
 }
 
-export function FloatingPlayer({ isOpen, track, onClose, onShowLyrics }: FloatingPlayerProps) {
+export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyrics }: FloatingPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -103,9 +104,11 @@ export function FloatingPlayer({ isOpen, track, onClose, onShowLyrics }: Floatin
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
+        onPlayPause?.(false);
       } else {
         await audioRef.current.play();
         setIsPlaying(true);
+        onPlayPause?.(true);
       }
     } catch (error) {
       console.error('Ошибка воспроизведения:', error);
@@ -156,7 +159,7 @@ export function FloatingPlayer({ isOpen, track, onClose, onShowLyrics }: Floatin
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-xl animate-slide-in-bottom safe-area-bottom">
       <audio ref={audioRef} preload="metadata" />
       
       <Card className="m-2 border-0 shadow-none bg-transparent">

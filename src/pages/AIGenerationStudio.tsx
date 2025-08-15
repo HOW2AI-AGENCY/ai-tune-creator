@@ -275,6 +275,10 @@ export default function AIGenerationStudio() {
     }
   };
 
+  const handlePlayerPlayPause = (playing: boolean) => {
+    setIsPlaying(playing);
+  };
+
   const handleTrackClick = (track: Track) => {
     setSelectedTrack(track);
     setIsTrackDetailsOpen(true);
@@ -442,6 +446,7 @@ export default function AIGenerationStudio() {
             track={currentPlayingTrack}
             isOpen={true}
             onClose={() => setCurrentPlayingTrack(null)}
+            onPlayPause={handlePlayerPlayPause}
           />
         )}
 
@@ -569,6 +574,7 @@ export default function AIGenerationStudio() {
           track={currentPlayingTrack}
           isOpen={true}
           onClose={() => setCurrentPlayingTrack(null)}
+          onPlayPause={handlePlayerPlayPause}
         />
       )}
     </div>
