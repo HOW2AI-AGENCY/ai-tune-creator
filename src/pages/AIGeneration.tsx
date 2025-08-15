@@ -166,15 +166,17 @@ export default function AIGeneration() {
         .from('tracks')
         .select(`
           *,
-          projects (
+          projects!inner (
             title,
             artist_id,
             is_inbox,
-            artists (
-              name
+            artists!inner (
+              name,
+              user_id
             )
           )
         `)
+        .eq('projects.artists.user_id', user.id)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -375,6 +377,57 @@ export default function AIGeneration() {
     setPlayerOpen(true);
   };
 
+  const handleDeleteTrack = async (trackId: string) => {
+    if (!user) return;
+    
+    try {
+      // Сначала проверяем, что трек принадлежит пользователю
+      const { data: trackData, error: fetchError } = await supabase
+        .from('tracks')
+        .select(`
+          id,
+          projects (
+            artist_id,
+            artists (
+              user_id
+            )
+          )
+        `)
+        .eq('id', trackId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Проверяем права доступа
+      if (trackData?.projects?.artists?.user_id !== user.id) {
+        throw new Error('У вас нет прав на удаление этого трека');
+      }
+
+      // Удаляем трек
+      const { error } = await supabase
+        .from('tracks')
+        .delete()
+        .eq('id', trackId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Трек удален",
+        description: "Трек успешно удален из базы данных"
+      });
+
+      // Обновляем список треков
+      fetchAllTracks();
+    } catch (error: any) {
+      console.error('Error deleting track:', error);
+      toast({
+        title: "Ошибка удаления",
+        description: error.message || "Не удалось удалить трек",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col">
       <header className="flex items-center justify-between p-4 sm:p-6 border-b">
@@ -456,39 +509,55 @@ export default function AIGeneration() {
                       </Card>
                     ) : (
                       <div className="grid gap-4">
-                        {allTracks.map((track) => (
-                          <Card key={track.id}>
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <h3 className="font-medium">{track.title}</h3>
-                                  <div className="text-sm text-muted-foreground">
-                                    {track.projects?.artists?.name && (
-                                      <span>{track.projects.artists.name}</span>
-                                    )}
-                                    {track.projects?.title && (
-                                      <span> • {track.projects.title}</span>
-                                    )}
-                                    {track.projects?.is_inbox && (
-                                      <span> • Inbox</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex gap-2">
-                                  {track.audio_url && (
-                                    <Button 
-                                      size="sm" 
-                                      onClick={() => handlePlayTrack(track)}
-                                      className="gap-2"
-                                    >
-                                      ▶️ Играть
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                         {allTracks.map((track) => (
+                           <Card key={track.id}>
+                             <CardContent className="p-4">
+                               <div className="flex items-center justify-between">
+                                 <div className="flex-1">
+                                   <div className="flex items-center gap-2 mb-1">
+                                     <h3 className="font-medium">{track.title}</h3>
+                                     {track.projects?.is_inbox && (
+                                       <span className="text-xs bg-muted px-2 py-1 rounded">Inbox</span>
+                                     )}
+                                     {!track.audio_url && (
+                                       <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                                         Не сгенерирован
+                                       </span>
+                                     )}
+                                   </div>
+                                   <div className="text-sm text-muted-foreground">
+                                     {track.projects?.artists?.name && (
+                                       <span>{track.projects.artists.name}</span>
+                                     )}
+                                     {track.projects?.title && (
+                                       <span> • {track.projects.title}</span>
+                                     )}
+                                   </div>
+                                 </div>
+                                 <div className="flex gap-2">
+                                   {track.audio_url ? (
+                                     <Button 
+                                       size="sm" 
+                                       onClick={() => handlePlayTrack(track)}
+                                       className="gap-2"
+                                     >
+                                       ▶️ Играть
+                                     </Button>
+                                   ) : (
+                                     <Button
+                                       variant="outline"
+                                       size="sm"
+                                       onClick={() => handleDeleteTrack(track.id)}
+                                       className="text-destructive hover:text-destructive"
+                                     >
+                                       Удалить
+                                     </Button>
+                                   )}
+                                 </div>
+                               </div>
+                             </CardContent>
+                           </Card>
+                         ))}
                       </div>
                     )}
                   </div>
