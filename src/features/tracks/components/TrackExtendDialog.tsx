@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Clock, Zap, Upload, Music, Sparkles, Image, FileText, FileAudio } from 'lucide-react';
+import { AlertTriangle, Clock, Zap, Upload, Music, Sparkles, Image, FileText, FileAudio, Music2, Video } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSunoRecordPolling } from '@/features/ai-generation/hooks/useSunoRecordPolling';
@@ -17,6 +17,8 @@ import { StyleBoostDialog } from '@/features/ai-generation/components/StyleBoost
 import { CoverGenerationDialog } from '@/features/ai-generation/components/CoverGenerationDialog';
 import { LyricsGenerationDialog } from '@/features/ai-generation/components/LyricsGenerationDialog';
 import { WAVConversionDialog } from '@/features/ai-generation/components/WAVConversionDialog';
+import { VocalSeparationDialog } from '@/features/ai-generation/components/VocalSeparationDialog';
+import { VideoGenerationDialog } from '@/features/ai-generation/components/VideoGenerationDialog';
 
 interface Track {
   id: string;
@@ -62,6 +64,8 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
   const [coverGenerationOpen, setCoverGenerationOpen] = useState(false);
   const [lyricsGenerationOpen, setLyricsGenerationOpen] = useState(false);
   const [wavConversionOpen, setWavConversionOpen] = useState(false);
+  const [vocalSeparationOpen, setVocalSeparationOpen] = useState(false);
+  const [videoGenerationOpen, setVideoGenerationOpen] = useState(false);
   const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
   
   const { toast } = useToast();
@@ -598,6 +602,27 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
                     WAV
                   </Button>
                 </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVocalSeparationOpen(true)}
+                    className="flex-1"
+                  >
+                    <Music2 className="h-4 w-4 mr-2" />
+                    Vocal Separation
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVideoGenerationOpen(true)}
+                    className="flex-1"
+                  >
+                    <Video className="h-4 w-4 mr-2" />
+                    Music Video
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -656,6 +681,18 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
               description: "Your track is ready for download in WAV format.",
             });
           }}
+        />
+        
+        <VocalSeparationDialog
+          open={vocalSeparationOpen}
+          onOpenChange={setVocalSeparationOpen}
+          track={track}
+        />
+        
+        <VideoGenerationDialog
+          open={videoGenerationOpen}
+          onOpenChange={setVideoGenerationOpen}
+          track={track}
         />
       </DialogContent>
     </Dialog>
