@@ -44,7 +44,7 @@ serve(async (req) => {
 
     const info = data.data;
     
-    // Map status to our standard format
+    // Map status to our standard format according to official API spec
     const isCompleted = info.successFlag === 'SUCCESS';
     const isFailed = ['CREATE_TASK_FAILED', 'GENERATE_MP4_FAILED', 'CALLBACK_EXCEPTION'].includes(info.successFlag);
     
@@ -57,7 +57,7 @@ serve(async (req) => {
       isFailed,
       completeTime: info.completeTime,
       createTime: info.createTime,
-      videoUrl: info.response?.mp4_url || null,
+      videoUrl: info.response?.videoUrl || null,
       errorCode: info.errorCode,
       errorMessage: info.errorMessage
     }), {
