@@ -135,9 +135,9 @@ serve(async (req) => {
       requestLyrics = '';
       requestPrompt = prompt || style || `${genre}, ${mood}, ${tempo}`;
     } else {
-      // Use prompt as style description, not as lyrics to sing
-      requestLyrics = `[Verse]\n${genre} song with ${mood} mood\n[Chorus]\n${style || 'original composition'}\n[Verse]\nCreated with AI\n[Outro]`;
-      requestPrompt = prompt || style || `${genre}, ${mood}, ${tempo}`;
+      // КРИТИЧНО: prompt должен стать лирикой, а style - описанием жанра
+      requestLyrics = prompt || `[Verse]\n${genre} song with ${mood} mood\n[Chorus]\n${style || 'original composition'}\n[Verse]\nCreated with AI\n[Outro]`;
+      requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
     }
     
     const murekaRequest: MurekaGenerationRequest = {

@@ -133,21 +133,21 @@ serve(async (req) => {
     // Логика разделения: если есть custom_lyrics, то это лирика для пения, а prompt - стиль
     if (custom_lyrics && custom_lyrics.trim().length > 0) {
       requestLyrics = custom_lyrics; // Что петь
-      requestPrompt = style || prompt || 'Pop, Electronic'; // Как звучать
+      requestPrompt = style || 'Pop, Electronic'; // Как звучать - стиль, а не промпт
     } else if (make_instrumental) {
       requestLyrics = ""; // Инструментал без слов
       requestPrompt = prompt || style || 'Pop, Electronic';
     } else {
-      // Если лирики нет, генерируем на основе промпта
-      requestLyrics = "";
-      requestPrompt = prompt || style || 'Pop, Electronic';
+      // КРИТИЧНО: если нет custom_lyrics, то prompt должен стать лирикой для пения!
+      // А стиль должен быть из style параметра или дефолтный
+      requestLyrics = prompt || "Create a song about this topic"; // Промпт становится лирикой
+      requestPrompt = style || 'Pop, Electronic'; // Стиль отдельно
     }
     
     const sunoRequest: any = {
-      prompt: requestPrompt, // Описание стиля
+      prompt: requestLyrics, // ЭТО КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ! prompt в Suno = что петь
       customMode: true,
-      lyrics: requestLyrics || undefined, // Текст для пения (если есть)
-      style: style || requestPrompt,
+      style: requestPrompt, // style = как звучать
       title: title || `AI Generated ${new Date().toLocaleDateString('ru-RU')}`,
       instrumental: make_instrumental,
       model: model.replace('chirp-v', 'V').replace('-', '_'), // chirp-v3-5 -> V3_5
