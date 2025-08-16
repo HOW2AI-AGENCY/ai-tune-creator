@@ -60,20 +60,39 @@ export const AuthForm = () => {
     const password = formData.get("password") as string;
 
     try {
+      console.log('Attempting sign in for:', email);
+      
+      // Clear any existing invalid tokens before signing in
+      localStorage.removeItem('supabase.auth.token');
+      
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error('Sign in error:', error);
         if (error.message.includes("Invalid login credentials")) {
           setError("Invalid email or password. Please check your credentials and try again.");
+        } else if (error.message.includes("Failed to fetch")) {
+          setError("Connection error. Please check your internet connection and try again.");
         } else {
           setError(error.message);
         }
+      } else {
+        console.log('Sign in successful');
+        toast({
+          title: "Welcome back!",
+          description: "You have been successfully signed in.",
+        });
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
+      console.error('Sign in exception:', err);
+      if (err instanceof Error && err.message.includes("Failed to fetch")) {
+        setError("Unable to connect to the server. Please check your internet connection.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
