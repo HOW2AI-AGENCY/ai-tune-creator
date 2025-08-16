@@ -391,6 +391,37 @@ export function GenerationContextPanel({
         </TabsContent>
 
         <TabsContent value="custom" className="space-y-4">
+          {/* Quick Templates */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Zap className="h-4 w-4" />
+                Быстрые шаблоны
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {quickPresets.slice(0, 6).map((preset) => (
+                  <Button
+                    key={preset.id}
+                    variant="outline"
+                    size="sm"
+                    className="h-auto p-2 flex flex-col items-start text-left"
+                    onClick={() => {
+                      setPrompt(preset.prompt);
+                      setSelectedService(preset.service);
+                    }}
+                  >
+                    <span className="text-xs font-medium">{preset.name}</span>
+                    <span className="text-xs text-muted-foreground truncate w-full">
+                      {preset.description}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Advanced Settings */}
           <Card>
             <CardHeader className="pb-3">
@@ -401,7 +432,51 @@ export function GenerationContextPanel({
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label className="text-xs text-muted-foreground">Описание трека</Label>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs text-muted-foreground">Описание трека</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={async () => {
+                      if (!prompt.trim()) {
+                        toast({
+                          title: "Введите описание",
+                          description: "Сначала добавьте базовое описание трека",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      
+                      try {
+                        const response = await fetch('/api/generate-style-prompt', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ prompt })
+                        });
+                        
+                        if (response.ok) {
+                          const data = await response.json();
+                          setPrompt(data.improvedPrompt || data.prompt);
+                          toast({
+                            title: "Промпт улучшен",
+                            description: "ИИ улучшил ваше описание"
+                          });
+                        }
+                      } catch (error) {
+                        toast({
+                          title: "Ошибка улучшения",
+                          description: "Не удалось улучшить промпт",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                    disabled={!prompt.trim()}
+                  >
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Улучшить
+                  </Button>
+                </div>
                 <Textarea
                   placeholder="Опишите стиль, настроение и характер трека..."
                   value={prompt}
