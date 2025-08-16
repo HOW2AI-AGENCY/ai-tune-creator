@@ -301,8 +301,21 @@ export function GenerationContextPanel({
                     setSelectedPresetId("");
                   }
                 }}
-                className="min-h-[100px] text-sm resize-none"
+                className={`text-sm resize-none ${
+                  inputType === 'lyrics' ? 'min-h-[300px]' : 'min-h-[120px]'
+                }`}
+                maxLength={inputType === 'lyrics' ? 55000 : 500}
               />
+              {(inputType === 'lyrics' || prompt.length > 400) && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>
+                    {inputType === 'lyrics' ? 'Лирика' : 'Промпт'} ({prompt.length}/{inputType === 'lyrics' ? '55000' : '500'})
+                  </span>
+                  {prompt.length > (inputType === 'lyrics' ? 50000 : 450) && (
+                    <span className="text-amber-500">Приближается лимит</span>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -393,8 +406,17 @@ export function GenerationContextPanel({
                   placeholder="Опишите стиль, настроение и характер трека..."
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-[80px] text-sm resize-none"
+                  className="min-h-[120px] text-sm resize-none"
+                  maxLength={500}
                 />
+                {prompt.length > 400 && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Промпт ({prompt.length}/500)</span>
+                    {prompt.length > 450 && (
+                      <span className="text-amber-500">Приближается лимит</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -403,8 +425,17 @@ export function GenerationContextPanel({
                   placeholder="Введите текст песни (опционально)..."
                   value={customLyrics}
                   onChange={(e) => setCustomLyrics(e.target.value)}
-                  className="min-h-[80px] text-sm resize-none"
+                  className="min-h-[300px] text-sm resize-none"
+                  maxLength={55000}
                 />
+                {customLyrics.length > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Лирика ({customLyrics.length}/55000)</span>
+                    {customLyrics.length > 50000 && (
+                      <span className="text-amber-500">Приближается лимит</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -413,7 +444,8 @@ export function GenerationContextPanel({
                   placeholder="Дополнительные указания по стилю..."
                   value={stylePrompt}
                   onChange={(e) => setStylePrompt(e.target.value)}
-                  className="min-h-[60px] text-sm resize-none"
+                  className="min-h-[80px] text-sm resize-none"
+                  maxLength={500}
                 />
               </div>
             </CardContent>
