@@ -102,9 +102,43 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
       setCurrentTime(0);
     };
 
-    const handleError = () => {
+    const handleError = (event: Event) => {
       setIsLoading(false);
       setIsPlaying(false);
+      
+      const audio = event.target as HTMLAudioElement;
+      const error = audio.error;
+      
+      let errorMessage = 'Ошибка воспроизведения аудио';
+      
+      if (error) {
+        switch (error.code) {
+          case MediaError.MEDIA_ERR_ABORTED:
+            errorMessage = 'Воспроизведение прервано пользователем';
+            break;
+          case MediaError.MEDIA_ERR_NETWORK:
+            errorMessage = 'Ошибка сети при загрузке аудио';
+            console.error('Network error loading audio:', track?.audio_url);
+            break;
+          case MediaError.MEDIA_ERR_DECODE:
+            errorMessage = 'Ошибка декодирования аудио файла';
+            console.error('Audio decode error:', track?.audio_url);
+            break;
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMessage = 'Формат аудио не поддерживается';
+            console.error('Unsupported audio format:', track?.audio_url);
+            break;
+          default:
+            errorMessage = `Неизвестная ошибка аудио (код: ${error.code})`;
+        }
+      }
+      
+      console.error('Audio playback error:', {
+        errorCode: error?.code,
+        errorMessage: error?.message,
+        trackUrl: track?.audio_url,
+        trackId: track?.id
+      });
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ConnectionDiagnostics } from "./ConnectionDiagnostics";
 
 export const AuthForm = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -179,6 +180,10 @@ export const AuthForm = () => {
               </form>
             </TabsContent>
           </Tabs>
+          
+          <div className="mt-6">
+            <ConnectionDiagnostics />
+          </div>
         </CardContent>
       </Card>
     </div>
