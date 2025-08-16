@@ -494,24 +494,26 @@ export function GenerationContextPanel({
                 )}
               </div>
 
-              <div>
-                <Label className="text-xs text-muted-foreground">Пользовательская лирика</Label>
-                <Textarea
-                  placeholder="Введите текст песни (опционально)..."
-                  value={customLyrics}
-                  onChange={(e) => setCustomLyrics(e.target.value)}
-                  className="min-h-[300px] text-sm resize-none"
-                  maxLength={55000}
-                />
-                {customLyrics.length > 0 && (
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Лирика ({customLyrics.length}/55000)</span>
-                    {customLyrics.length > 50000 && (
-                      <span className="text-amber-500">Приближается лимит</span>
-                    )}
-                  </div>
-                )}
-              </div>
+              {!instrumental && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Пользовательская лирика</Label>
+                  <Textarea
+                    placeholder="Введите текст песни (опционально)..."
+                    value={customLyrics}
+                    onChange={(e) => setCustomLyrics(e.target.value)}
+                    className="min-h-[300px] text-sm resize-none"
+                    maxLength={55000}
+                  />
+                  {customLyrics.length > 0 && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Лирика ({customLyrics.length}/55000)</span>
+                      {customLyrics.length > 50000 && (
+                        <span className="text-amber-500">Приближается лимит</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <Label className="text-xs text-muted-foreground">Стиль-промпт</Label>
