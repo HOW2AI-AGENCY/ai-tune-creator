@@ -114,30 +114,76 @@ export function GenerationContextPanel({
 
       if (error || !data) return;
 
+      console.log('Reference track data:', data);
+
       // Switch to custom mode for precise control
       setMode('custom');
 
-      if ((data as any).lyrics && (data as any).lyrics.trim().length > 0) {
-        setInputType('lyrics');
-        setPrompt((data as any).lyrics);
-        setInstrumental(false);
-      } else {
-        setInputType('description');
-        setPrompt((data as any).description || '');
+      // Parse description properly (might be JSON or plain text)
+      let cleanDescription = '';
+      if (data.description) {
+        try {
+          // Try to parse as JSON first
+          const parsed = JSON.parse(data.description);
+          if (typeof parsed === 'string') {
+            cleanDescription = parsed;
+          } else if (parsed && typeof parsed === 'object') {
+            // If it's an object, try to extract meaningful text
+            cleanDescription = parsed.prompt || parsed.description || parsed.text || JSON.stringify(parsed);
+          }
+        } catch {
+          // If parsing fails, use as plain text
+          cleanDescription = data.description;
+        }
       }
 
-      setStylePrompt((data as any).style_prompt || (data as any).description || '');
+      // Handle lyrics vs description
+      const hasLyrics = data.lyrics && typeof data.lyrics === 'string' && data.lyrics.trim().length > 0;
+      
+      if (hasLyrics) {
+        setInputType('lyrics');
+        setPrompt(data.lyrics.trim());
+        setInstrumental(false);
+        console.log('Applied lyrics:', data.lyrics);
+      } else {
+        setInputType('description');
+        setPrompt(cleanDescription);
+        console.log('Applied description:', cleanDescription);
+      }
 
-      if (Array.isArray((data as any).genre_tags) && (data as any).genre_tags.length > 0) {
-        setSelectedGenre(((data as any).genre_tags[0] || 'none').toString().toLowerCase());
-        if ((data as any).genre_tags[1]) {
-          setSelectedMood((data as any).genre_tags[1].toString().toLowerCase());
+      // Set style prompt
+      let cleanStylePrompt = '';
+      if (data.style_prompt) {
+        try {
+          const parsed = JSON.parse(data.style_prompt);
+          cleanStylePrompt = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+        } catch {
+          cleanStylePrompt = data.style_prompt;
+        }
+      } else if (cleanDescription) {
+        cleanStylePrompt = cleanDescription;
+      }
+      
+      setStylePrompt(cleanStylePrompt);
+
+      // Handle genre tags
+      if (Array.isArray(data.genre_tags) && data.genre_tags.length > 0) {
+        const firstTag = data.genre_tags[0]?.toString().toLowerCase();
+        if (firstTag && firstTag !== 'none') {
+          setSelectedGenre(firstTag);
+        }
+        
+        if (data.genre_tags[1]) {
+          const secondTag = data.genre_tags[1].toString().toLowerCase();
+          if (secondTag && secondTag !== 'none') {
+            setSelectedMood(secondTag);
+          }
         }
       }
 
       toast({
         title: 'Данные подставлены',
-        description: 'Лирика и стиль загружены из выбранного трека',
+        description: hasLyrics ? 'Лирика загружена из трека' : 'Описание загружено из трека',
       });
     } catch (e: any) {
       console.error('Failed to apply reference track', e);
