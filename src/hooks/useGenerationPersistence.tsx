@@ -136,15 +136,19 @@ export function useGenerationPersistence() {
           const result = statusResponse.data;
           
           if (result.completed || result.tracks?.length > 0) {
-            // Generation completed, trigger download and save
-            const track = result.tracks?.[0] || result;
-            await supabase.functions.invoke('download-and-save-track', {
-              body: {
-                generation_id: generation.generationId,
-                external_url: track.audioUrl || track.audio_url || track.result_url,
-                taskId: generation.taskId
-              }
-            });
+            // Generation completed, trigger download and save for all tracks
+            const tracks = result.tracks && Array.isArray(result.tracks) ? result.tracks : [result];
+            await Promise.all(
+              tracks.map((track: any) =>
+                supabase.functions.invoke('download-and-save-track', {
+                  body: {
+                    generation_id: generation.generationId,
+                    external_url: track.audioUrl || track.audio_url || track.result_url,
+                    taskId: generation.taskId
+                  }
+                })
+              )
+            );
 
             // Update progress to completed
             updateGeneration(generation.taskId, {

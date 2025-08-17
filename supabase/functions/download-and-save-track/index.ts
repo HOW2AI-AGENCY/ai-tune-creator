@@ -181,7 +181,7 @@ serve(async (req) => {
         .insert({
           title: trackTitle,
           audio_url: localAudioUrl,
-          duration: generation.metadata?.suno_track_data?.duration || null,
+          duration: (() => { const d = Number(generation.metadata?.suno_track_data?.duration); return Number.isFinite(d) ? Math.round(d) : null; })(),
           lyrics: generation.metadata?.suno_track_data?.lyric || '',
           description: `Generated with ${generation.service}`,
           genre_tags: [],

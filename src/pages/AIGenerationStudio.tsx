@@ -493,6 +493,7 @@ export default function AIGenerationStudio() {
           <FloatingPlayer
             track={currentPlayingTrack}
             isOpen={true}
+            playing={isPlaying}
             onClose={() => setCurrentPlayingTrack(null)}
             onPlayPause={handlePlayerPlayPause}
           />
@@ -628,6 +629,7 @@ export default function AIGenerationStudio() {
         <FloatingPlayer
           track={currentPlayingTrack}
           isOpen={true}
+          playing={isPlaying}
           onClose={() => setCurrentPlayingTrack(null)}
           onPlayPause={handlePlayerPlayPause}
         />

@@ -36,9 +36,10 @@ interface FloatingPlayerProps {
   onClose: () => void;
   onPlayPause?: (playing: boolean) => void;
   onShowLyrics?: (track: Track) => void;
+  playing?: boolean;
 }
 
-export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyrics }: FloatingPlayerProps) {
+export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyrics, playing }: FloatingPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -58,17 +59,17 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
       audioRef.current.src = track.audio_url;
       audioRef.current.load();
       
-      // Автозапуск воспроизведения
+      // Автозапуск воспроизведения (уважает внешний флаг playing)
       const handleLoadedData = () => {
+        setIsLoading(false);
+        if (playing === false) return;
         audioRef.current?.play()
           .then(() => {
             setIsPlaying(true);
-            setIsLoading(false);
             onPlayPause?.(true);
           })
           .catch((error) => {
             console.error('Ошибка автозапуска:', error);
-            setIsLoading(false);
           });
       };
       
@@ -81,7 +82,7 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
       console.warn('Трек без audio_url:', track);
       setIsLoading(false);
     }
-  }, [track?.id, track?.audio_url, onPlayPause]);
+  }, [track?.id, track?.audio_url, onPlayPause, playing]);
 
   // Обновление времени воспроизведения
   useEffect(() => {
@@ -154,6 +155,29 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
     };
   }, []);
 
+  // Синхронизация внешнего состояния воспроизведения
+  useEffect(() => {
+    if (!audioRef.current || !track?.audio_url) return;
+    if (playing === undefined) return;
+
+    const apply = async () => {
+      try {
+        if (playing && !isPlaying) {
+          await audioRef.current.play();
+          setIsPlaying(true);
+          onPlayPause?.(true);
+        } else if (!playing && isPlaying) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+          onPlayPause?.(false);
+        }
+      } catch (err) {
+        console.error('Sync play/pause error:', err);
+      }
+    };
+
+    apply();
+  }, [playing, track?.id]);
   const togglePlay = async () => {
     if (!audioRef.current || !track?.audio_url) return;
 
