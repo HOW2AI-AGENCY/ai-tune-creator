@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,7 @@ import { QuickPresetsSlider } from "./QuickPresetsSlider";
 import { quickPresets } from "../data/presets";
 import { GenerationParams, Option } from "../types";
 import { useAIPromptProfiles } from "@/hooks/useAIPromptProfiles";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GenerationContextPanelProps {
   projects: Option[];
@@ -65,6 +66,88 @@ export function GenerationContextPanel({
 
   const { toast } = useToast();
   const { getActiveProfileForService } = useAIPromptProfiles();
+
+  // Reference track (prefill) state
+  const [referenceTrackId, setReferenceTrackId] = useState<string>("none");
+  const [referenceTrackOptions, setReferenceTrackOptions] = useState<{id: string; name: string}[]>([]);
+
+  const loadReferenceTracks = async () => {
+    try {
+      let query = supabase
+        .from('tracks')
+        .select('id,title,updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(100);
+
+      if (!sendToInbox && selectedProjectId && selectedProjectId !== 'none') {
+        // Filter by project when выбран
+        // Most schemas use project_id FK
+        // If your schema differs, adjust to the correct FK column
+        // @ts-ignore
+        query = query.eq('project_id', selectedProjectId);
+      }
+
+      const { data, error } = await query as any;
+      if (!error && data) {
+        setReferenceTrackOptions(
+          (data as any[]).map((t) => ({ id: t.id, name: t.title || 'Без названия' }))
+        );
+      }
+    } catch (e) {
+      console.error('Failed to load reference tracks', e);
+    }
+  };
+
+  useEffect(() => {
+    loadReferenceTracks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProjectId, sendToInbox]);
+
+  const applyReferenceFromTrack = async (trackId: string) => {
+    if (!trackId || trackId === 'none') return;
+    try {
+      const { data, error } = await supabase
+        .from('tracks')
+        .select('id,title,lyrics,description,genre_tags,style_prompt')
+        .eq('id', trackId)
+        .single();
+
+      if (error || !data) return;
+
+      // Switch to custom mode for precise control
+      setMode('custom');
+
+      if ((data as any).lyrics && (data as any).lyrics.trim().length > 0) {
+        setInputType('lyrics');
+        setPrompt((data as any).lyrics);
+        setInstrumental(false);
+      } else {
+        setInputType('description');
+        setPrompt((data as any).description || '');
+      }
+
+      setStylePrompt((data as any).style_prompt || (data as any).description || '');
+
+      if (Array.isArray((data as any).genre_tags) && (data as any).genre_tags.length > 0) {
+        setSelectedGenre(((data as any).genre_tags[0] || 'none').toString().toLowerCase());
+        if ((data as any).genre_tags[1]) {
+          setSelectedMood((data as any).genre_tags[1].toString().toLowerCase());
+        }
+      }
+
+      toast({
+        title: 'Данные подставлены',
+        description: 'Лирика и стиль загружены из выбранного трека',
+      });
+    } catch (e: any) {
+      console.error('Failed to apply reference track', e);
+      toast({
+        title: 'Не удалось подставить данные',
+        description: e.message || 'Попробуйте другой трек',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const genres = [
     "Поп", "Рок", "Хип-хоп", "Электронная музыка", 
@@ -224,6 +307,33 @@ export function GenerationContextPanel({
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Prefill from existing track */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Загрузить из существующего трека</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Выберите трек</Label>
+          <Select
+            value={referenceTrackId}
+            onValueChange={async (v) => {
+              setReferenceTrackId(v);
+              await applyReferenceFromTrack(v);
+            }}
+          >
+            <SelectTrigger className="h-8">
+              <SelectValue placeholder="Недавние треки" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Не выбирать</SelectItem>
+              {referenceTrackOptions.map((t) => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
