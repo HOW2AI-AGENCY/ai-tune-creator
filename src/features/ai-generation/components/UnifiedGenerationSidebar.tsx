@@ -157,7 +157,7 @@ export function UnifiedGenerationSidebar({
 
     // Create canonical input
     const canonicalInput: CanonicalGenerationInput = {
-      description: inputType === 'description' ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
+      prompt: inputType === 'description' ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
       lyrics: inputType === 'lyrics' ? lyrics : undefined,
       tags,
       flags: {
