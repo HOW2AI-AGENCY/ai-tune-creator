@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { 
   Sparkles, 
@@ -26,26 +25,15 @@ import { Slider } from "@/components/ui/slider";
 import { AIServiceStatusPanel } from "@/features/ai-generation/components/AIServiceStatusPanel";
 import { quickPresets } from "@/features/ai-generation/data/presets";
 import { CanonicalGenerationInput } from "@/features/ai-generation/types/canonical";
-import { Option } from "@/features/ai-generation/types";
 
 interface SunoStyleGenerationFormProps {
-  projects: Option[];
-  artists: Option[];
-  tracks: Option[];
-  selectedTrack?: Option | null;
   onGenerate: (input: CanonicalGenerationInput) => void;
-  onTrackSelect?: (track: Option | null) => void;
   isGenerating: boolean;
   className?: string;
 }
 
 export function SunoStyleGenerationForm({
-  projects,
-  artists,
-  tracks,
-  selectedTrack,
   onGenerate,
-  onTrackSelect,
   isGenerating,
   className
 }: SunoStyleGenerationFormProps) {
@@ -62,9 +50,6 @@ export function SunoStyleGenerationForm({
   
   // Advanced settings
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [createNewSingle, setCreateNewSingle] = useState(true);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("none");
-  const [selectedArtistId, setSelectedArtistId] = useState<string>("none");
   const [instrumental, setInstrumental] = useState(false);
   const [duration, setDuration] = useState([120]);
   const [language, setLanguage] = useState("ru");
@@ -149,79 +134,6 @@ export function SunoStyleGenerationForm({
     );
   };
 
-  const handleProjectChange = (value: string) => {
-    setSelectedProjectId(value);
-    if (selectedTrack) {
-      onTrackSelect?.(null);
-    }
-    setLyrics('');
-    setDescription('');
-  };
-
-  const handleArtistChange = (value: string) => {
-    setSelectedArtistId(value);
-    if (selectedTrack) {
-      onTrackSelect?.(null);
-    }
-    setLyrics('');
-  };
-
-  const handleToggleCreateNew = (flag: boolean) => {
-    setCreateNewSingle(flag);
-    if (flag) {
-      onTrackSelect?.(null);
-      setSelectedProjectId('none');
-      setSelectedArtistId('none');
-      setLyrics('');
-      setDescription('');
-    }
-  };
-
-  const handleTrackSelect = (trackId: string) => {
-    if (trackId === 'none') {
-      onTrackSelect?.(null);
-      setCreateNewSingle(true);
-      setSelectedProjectId('none');
-      setSelectedArtistId('none');
-      setLyrics('');
-      setDescription('');
-      setSelectedTags([]);
-      setInputType('description');
-      return;
-    }
-
-    const track = tracks.find(t => t.id === trackId) as any;
-    if (!track) return;
-
-    onTrackSelect?.(track);
-    setCreateNewSingle(false);
-
-    // Автоподстановка контента
-    if (track.description) {
-      setDescription(track.description);
-      setInputType('description');
-      setLyrics('');
-    }
-    if (track.lyrics) {
-      const normalized = toSunoLyricsFormat(String(track.lyrics));
-      setLyrics(normalized);
-      if (!track.description) {
-        setInputType('lyrics');
-        setDescription('');
-      }
-    }
-
-    if (track.project_id) {
-      setSelectedProjectId(track.project_id);
-    }
-    if (track.artist_id) {
-      setSelectedArtistId(track.artist_id);
-    }
-
-    if (track.genre_tags && track.genre_tags.length > 0) {
-      setSelectedTags(track.genre_tags);
-    }
-  };
   const handleGenerate = () => {
     const mainContent = (!isCustomMode || inputType === 'description') ? description : lyrics;
     if (!mainContent.trim()) {
@@ -232,23 +144,24 @@ export function SunoStyleGenerationForm({
     if (selectedGenre && selectedGenre !== "auto") tags.push(selectedGenre);
     if (selectedMood && selectedMood !== "auto") tags.push(selectedMood);
 
+    // Context - всегда создаем новые треки без привязки
     const canonicalInput: CanonicalGenerationInput = {
-      description: (!isCustomMode || inputType === 'description') ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
-      lyrics: (isCustomMode && inputType === 'lyrics') ? lyrics : undefined,
+      prompt: (isCustomMode && inputType === 'lyrics') ? `Create music for lyrics: ${lyrics}` : description,
+      lyrics: (isCustomMode && inputType === 'lyrics') ? toSunoLyricsFormat(lyrics) : undefined,
       tags,
       flags: {
         instrumental,
         language,
-        duration: duration[0],
-        voiceStyle: vocalGender !== 'auto' ? vocalGender : undefined
+        duration: duration[0]
       },
-      mode: 'quick',
-      inputType: isCustomMode ? inputType : 'description',
+      mode: isCustomMode ? 'custom' : 'quick',
+      inputType: inputType,
       context: {
-        trackId: selectedTrack?.id,
-        projectId: createNewSingle ? undefined : (selectedProjectId !== "none" ? selectedProjectId : undefined),
-        artistId: createNewSingle ? undefined : (selectedArtistId !== "none" ? selectedArtistId : undefined),
-        useInbox: false
+        // Убираем привязку к существующим проектам/артистам/трекам
+        projectId: undefined,
+        artistId: undefined,
+        trackId: undefined,
+        useInbox: true
       },
       service: selectedService
     };
@@ -271,96 +184,6 @@ export function SunoStyleGenerationForm({
 
       {/* AI Service Status */}
       <AIServiceStatusPanel compact={true} />
-
-      {/* Context Selection */}
-      <Card className="border-2 border-accent/30 bg-gradient-subtle">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Music2 className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold">Контекст генерации</h3>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="create-new"
-                checked={createNewSingle}
-                onCheckedChange={handleToggleCreateNew}
-              />
-              <label htmlFor="create-new" className="text-sm font-medium">
-                Создать новый трек
-              </label>
-            </div>
-
-            {!createNewSingle && (
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Выбрать трек для редактирования</label>
-                  <Select value={selectedTrack?.id || "none"} onValueChange={handleTrackSelect}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите существующий трек" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[60] bg-popover">
-                      <SelectItem value="none">Не выбрано</SelectItem>
-                      {tracks.map(track => (
-                        <SelectItem key={track.id} value={track.id}>
-                          {track.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {!selectedTrack && (
-                  <>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Проект</label>
-                      <Select value={selectedProjectId} onValueChange={handleProjectChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выберите проект" />
-                        </SelectTrigger>
-                        <SelectContent className="z-[60] bg-popover">
-                          <SelectItem value="none">Не выбрано</SelectItem>
-                          {projects.map(project => (
-                            <SelectItem key={project.id} value={project.id}>
-                              {project.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Артист</label>
-                      <Select value={selectedArtistId} onValueChange={handleArtistChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выберите артиста" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Не выбрано</SelectItem>
-                          {artists.map(artist => (
-                            <SelectItem key={artist.id} value={artist.id}>
-                              {artist.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-            
-            {selectedTrack && (
-              <div className="p-3 bg-background/50 rounded-lg">
-                <div className="text-sm text-muted-foreground">
-                  Выбран трек: <span className="font-medium text-foreground">{selectedTrack.name}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Mode Selection */}
       <Card className="border-2 border-primary/20 bg-gradient-accent">
@@ -630,60 +453,6 @@ export function SunoStyleGenerationForm({
         <CollapsibleContent>
           <Card>
             <CardContent className="p-6 space-y-6">
-              {/* Project Context */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="create-single"
-                    checked={createNewSingle}
-                    onCheckedChange={handleToggleCreateNew}
-                  />
-                  <label htmlFor="create-single" className="text-sm font-medium">
-                    Создать новый сингл (ИИ выберет название)
-                  </label>
-                </div>
-
-                {!createNewSingle && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Проект</label>
-                      <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выберите проект" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Создать новый</SelectItem>
-                          {projects.map(project => (
-                            <SelectItem key={project.id} value={project.id}>
-                              {project.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Артист</label>
-                      <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выберите артиста" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Без артиста</SelectItem>
-                          {artists.map(artist => (
-                            <SelectItem key={artist.id} value={artist.id}>
-                              {artist.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
               {/* Music Settings */}
               <div className="space-y-4">
                 <div>

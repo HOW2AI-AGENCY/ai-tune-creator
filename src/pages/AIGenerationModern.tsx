@@ -206,7 +206,7 @@ export default function AIGenerationModern() {
     try {
       // Convert canonical input to legacy format for compatibility
       const legacyParams = {
-        prompt: input.description,
+        prompt: input.prompt,
         service: input.service,
         projectId: input.context?.projectId,
         artistId: input.context?.artistId,
@@ -380,30 +380,6 @@ export default function AIGenerationModern() {
           </div>
           
           <SunoStyleGenerationForm
-            projects={projects}
-            artists={artists}
-            tracks={allTracks.map(track => ({
-              id: track.id,
-              name: track.title,
-              description: track.description,
-              lyrics: track.lyrics,
-              genre_tags: track.genre_tags
-            }))}
-            selectedTrack={selectedTrack ? {
-              id: selectedTrack.id,
-              name: selectedTrack.title,
-              description: selectedTrack.description,
-              lyrics: selectedTrack.lyrics,
-              genre_tags: selectedTrack.genre_tags
-            } : null}
-            onTrackSelect={(track) => {
-              if (!track) {
-                setSelectedTrack(null);
-                return;
-              }
-              const foundTrack = allTracks.find(t => t.id === track.id);
-              setSelectedTrack(foundTrack || null);
-            }}
             onGenerate={handleGenerate}
             isGenerating={isGenerating}
             className="space-y-4"
