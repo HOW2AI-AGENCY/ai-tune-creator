@@ -50,8 +50,8 @@ export function SunoStyleGenerationForm({
   const [selectedService, setSelectedService] = useState<'suno' | 'mureka'>('suno');
   
   // Style and mood
-  const [selectedGenre, setSelectedGenre] = useState("");
-  const [selectedMood, setSelectedMood] = useState("");
+  const [selectedGenre, setSelectedGenre] = useState("auto");
+  const [selectedMood, setSelectedMood] = useState("auto");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   
   // Advanced settings
@@ -105,8 +105,8 @@ export function SunoStyleGenerationForm({
     }
 
     const tags = [...selectedTags];
-    if (selectedGenre) tags.push(selectedGenre);
-    if (selectedMood) tags.push(selectedMood);
+    if (selectedGenre && selectedGenre !== "auto") tags.push(selectedGenre);
+    if (selectedMood && selectedMood !== "auto") tags.push(selectedMood);
 
     const canonicalInput: CanonicalGenerationInput = {
       description: inputType === 'description' ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
@@ -246,7 +246,7 @@ export function SunoStyleGenerationForm({
                   <SelectValue placeholder="Выберите жанр" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Авто</SelectItem>
+                  <SelectItem value="auto">Авто</SelectItem>
                   {genres.map(genre => (
                     <SelectItem key={genre} value={genre}>{genre}</SelectItem>
                   ))}
@@ -260,7 +260,7 @@ export function SunoStyleGenerationForm({
                   <SelectValue placeholder="Выберите настроение" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Авто</SelectItem>
+                  <SelectItem value="auto">Авто</SelectItem>
                   {moods.map(mood => (
                     <SelectItem key={mood} value={mood}>{mood}</SelectItem>
                   ))}
@@ -486,8 +486,8 @@ export function SunoStyleGenerationForm({
             setLyrics("");
             setSelectedPreset("");
             setSelectedTags([]);
-            setSelectedGenre("");
-            setSelectedMood("");
+            setSelectedGenre("auto");
+            setSelectedMood("auto");
           }}
           className="text-muted-foreground"
         >
