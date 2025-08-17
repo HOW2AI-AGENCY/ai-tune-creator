@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { GenerationSidebar, MusicService } from "@/features/ai-generation/components/GenerationSidebar";
+import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
+import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
+import type { GenerationParams } from "@/features/ai-generation/types";
 import { GenerationFeed } from "@/features/ai-generation/components/GenerationFeed";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,18 +13,17 @@ import { AIServiceStatusBanner } from "@/components/ai-generation/AIServiceStatu
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
-import { useSunoStatusPolling } from '@/features/ai-generation/hooks/useSunoStatusPolling';
+
 
 interface Option { id: string; name: string }
+
+type MusicService = 'suno' | 'mureka';
 
 export default function AIGeneration() {
   const { user } = useAuth();
   const { toast } = useToast();
 
   // Sidebar state
-  const [prompt, setPrompt] = useState("");
-  const [selectedService, setSelectedService] = useState<MusicService>("suno");
-  const [isGenerating, setIsGenerating] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [selectedArtistId, setSelectedArtistId] = useState<string>("all");
   const [selectedTrackId, setSelectedTrackId] = useState<string>("none");
@@ -42,21 +43,7 @@ export default function AIGeneration() {
   const [currentTrack, setCurrentTrack] = useState<any | null>(null);
 
   // Polling hook для отслеживания прогресса
-  const { isPolling } = useSunoStatusPolling({
-    taskId: currentTaskId,
-    enabled: !!currentTaskId,
-    onComplete: (data) => {
-      console.log("Generation completed:", data);
-      setCurrentTaskId("");
-      setIsGenerating(false);
-      fetchGenerations(); // Обновляем список
-    },
-    onError: (error) => {
-      console.error("Generation failed:", error);
-      setCurrentTaskId("");
-      setIsGenerating(false);
-    }
-  });
+  const { generateTrack, isGenerating, generationProgress } = useTrackGenerationWithProgress();
 
   const fetchGenerations = async () => {
     if (!user) return;
@@ -242,132 +229,20 @@ export default function AIGeneration() {
     return Array.from({ length: t.currentVersion }, (_, i) => t.currentVersion - i);
   }, [tracks, selectedTrackId]);
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+  const handleGenerate = async (params: GenerationParams) => {
     if (!user) {
       toast({ title: "Требуется вход", description: "Войдите, чтобы генерировать треки", variant: "destructive" });
       return;
     }
-    if (!selectedProjectId || !selectedTrackId || !selectedVersion) {
-      toast({ title: "Укажите проект, трек и версию", description: "Выберите проект, трек и версию для генерации", variant: "destructive" });
-      return;
-    }
-    setIsGenerating(true);
     try {
-      console.log("=== TRACK GENERATION START ===");
-      console.log("Service:", selectedService);
-      console.log("Track ID:", selectedTrackId);
-      console.log("Version:", selectedVersion);
-      console.log("Params:", {
-        prompt,
-        service: selectedService,
-        trackId: selectedTrackId,
-        projectId: selectedProjectId,
-        mode: "custom"
-      });
-
-      // Выбираем правильную Edge Function в зависимости от сервиса
-      const functionName = selectedService === 'suno' ? 'generate-suno-track' : 'generate-mureka-track';
-      
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: {
-          prompt,
-          trackId: selectedTrackId,
-          projectId: selectedProjectId,
-          mode: "custom",
-          service: selectedService
-        }
-      });
-
-      if (error) throw error;
-
-      console.log("Generation response:", data);
-
-      if (data?.success) {
-        const taskId = data.data?.task_id;
-        if (taskId) {
-          setCurrentTaskId(taskId);
-          toast({ 
-            title: "Генерация запущена", 
-            description: `Трек генерируется с помощью ${selectedService}. Отслеживаем прогресс...` 
-          });
-        } else {
-          toast({ 
-            title: "Генерация запущена", 
-            description: `Трек генерируется с помощью ${selectedService}` 
-          });
-          setIsGenerating(false);
-        }
-        setPrompt("");
-      } else {
-        throw new Error(data?.error || 'Не удалось запустить генерацию');
-      }
+      await generateTrack(params);
+      await fetchGenerations();
+      await fetchAllTracks();
     } catch (e: any) {
       console.error("Generation error:", e);
-      toast({ title: "Ошибка генерации", description: e.message || "Не удалось отправить запрос", variant: "destructive" });
-    } finally {
-      if (!currentTaskId) {
-        setIsGenerating(false);
-      }
     }
   };
 
-  const handleQuickGenerate = async (opts: { trackId: string; nextVersion: number; prompt: string; service: MusicService }) => {
-    if (!user) {
-      toast({ title: "Требуется вход", description: "Войдите, чтобы генерировать треки", variant: "destructive" });
-      return;
-    }
-    setIsGenerating(true);
-    try {
-      console.log("=== QUICK GENERATION START ===");
-      console.log("Service:", opts.service);
-      console.log("Track ID:", opts.trackId);
-      console.log("Next Version:", opts.nextVersion);
-      console.log("Prompt:", opts.prompt);
-
-      // Выбираем правильную Edge Function в зависимости от сервиса
-      const functionName = opts.service === 'suno' ? 'generate-suno-track' : 'generate-mureka-track';
-      
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: {
-          prompt: opts.prompt,
-          trackId: opts.trackId,
-          mode: "quick",
-          service: opts.service
-        }
-      });
-
-      if (error) throw error;
-
-      console.log("Quick generation response:", data);
-
-      if (data?.success) {
-        const taskId = data.data?.task_id;
-        if (taskId) {
-          setCurrentTaskId(taskId);
-          toast({ 
-            title: "Генерация запущена", 
-            description: `Версия v${opts.nextVersion} генерируется с помощью ${opts.service}. Отслеживаем прогресс...` 
-          });
-        } else {
-          toast({ 
-            title: "Генерация запущена", 
-            description: `Версия v${opts.nextVersion} генерируется с помощью ${opts.service}` 
-          });
-          setIsGenerating(false);
-        }
-      } else {
-        throw new Error(data?.error || 'Не удалось запустить быструю генерацию');
-      }
-    } catch (e: any) {
-      console.error("Quick generation error:", e);
-      toast({ title: "Ошибка генерации", description: e.message || "Не удалось отправить запрос", variant: "destructive" });
-    } finally {
-      if (!currentTaskId) {
-        setIsGenerating(false);
-      }
-    }
-  };
 
   const handlePlayTrack = (track: any) => {
     if (!track.audio_url) {
@@ -436,7 +311,7 @@ export default function AIGeneration() {
           <span className="hidden sm:inline">ИИ Генерация</span>
           <span className="sm:hidden">ИИ</span>
         </h1>
-        {isPolling && (
+        {isGenerating && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
             Отслеживаем прогресс...
@@ -450,25 +325,12 @@ export default function AIGeneration() {
             <AIServiceStatusBanner />
             <TaskQueuePanel className="lg:max-h-80 overflow-auto" />
           </div>
-          <GenerationSidebar
-            prompt={prompt}
-            setPrompt={setPrompt}
-            selectedService={selectedService}
-            setSelectedService={setSelectedService}
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating || isPolling}
+          <TrackGenerationSidebar
             projects={projects}
             artists={artists}
-            selectedProjectId={selectedProjectId}
-            setSelectedProjectId={setSelectedProjectId}
-            selectedArtistId={selectedArtistId}
-            setSelectedArtistId={setSelectedArtistId}
-            trackOptions={trackOptions}
-            versionOptions={versionOptions}
-            selectedTrackId={selectedTrackId}
-            setSelectedTrackId={setSelectedTrackId}
-            selectedVersion={selectedVersion}
-            setSelectedVersion={setSelectedVersion}
+            onGenerate={handleGenerate}
+            isGenerating={isGenerating}
+            generationProgress={generationProgress}
           />
         </div>
 
