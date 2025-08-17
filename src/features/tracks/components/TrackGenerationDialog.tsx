@@ -172,12 +172,21 @@ export function TrackGenerationDialog({
       return;
     }
 
-    await generateConcept({
-      stylePrompt: formData.stylePrompt,
-      genreTags: formData.genreTags.split(',').map(tag => tag.trim()).filter(tag => tag),
-      artistInfo,
-      projectInfo
-    });
+    try {
+      await generateConcept({
+        stylePrompt: formData.stylePrompt,
+        genreTags: formData.genreTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+        artistInfo,
+        projectInfo
+      });
+    } catch (error: any) {
+      console.error('Ошибка генерации концепции:', error);
+      toast({
+        title: "Ошибка генерации",
+        description: error.message || "Не удалось сгенерировать концепцию",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleGenerateStylePrompt = async () => {

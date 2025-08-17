@@ -73,18 +73,18 @@ export default function AIGenerationModern() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Data states
+  // Data states - Initialize with empty arrays
   const [projects, setProjects] = useState<Option[]>([]);
   const [artists, setArtists] = useState<Option[]>([]);
   const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [generations, setGenerations] = useState<Generation[]>([]);
   
-  // UI states
-  const [playerOpen, setPlayerOpen] = useState(false);
+  // UI states - Initialize with safe defaults
+  const [playerOpen, setPlayerOpen] = useState<boolean>(false);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
-  const [expandedTracks, setExpandedTracks] = useState<Set<string>>(new Set());
+  const [expandedTracks, setExpandedTracks] = useState<Set<string>>(() => new Set());
 
   // Generation hook
   const { generateTrack, isGenerating, generationProgress } = useTrackGenerationWithProgress();
