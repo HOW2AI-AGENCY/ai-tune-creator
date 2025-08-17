@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -20,9 +20,12 @@ import {
   ChevronRight,
   Eye,
   Download,
-  FileText
+  FileText,
+  RefreshCw
 } from "lucide-react";
 import { CanonicalGenerationInput } from "@/features/ai-generation/types/canonical";
+import { SyncProgressNotification } from '@/components/ui/sync-progress-notification';
+import { useTrackDeletion } from '@/hooks/useTrackDeletion';
 
 interface Option { id: string; name: string }
 
@@ -85,9 +88,11 @@ export default function AIGenerationModern() {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [expandedTracks, setExpandedTracks] = useState<Set<string>>(() => new Set());
+  const [showSyncProgress, setShowSyncProgress] = useState(false);
 
   // Generation hook
   const { generateTrack, isGenerating, generationProgress } = useTrackGenerationWithProgress();
+  const { deleteTrack } = useTrackDeletion();
 
   const fetchAllTracks = async () => {
     if (!user) return;
@@ -193,7 +198,7 @@ export default function AIGenerationModern() {
   }, [user]);
 
   const handleGenerate = async (input: CanonicalGenerationInput) => {
-    if (!user) {
+  if (!user) {
       toast({ title: "Требуется вход", description: "Войдите, чтобы генерировать треки", variant: "destructive" });
       return;
     }
@@ -328,6 +333,19 @@ export default function AIGenerationModern() {
       : String(stylePrompt);
   };
 
+  const handleTrackPlay = useCallback((track: Track) => {
+    setCurrentTrack(track);
+    setPlayerOpen(true);
+  }, []);
+
+  const handleSyncTracks = useCallback(() => {
+    setShowSyncProgress(true);
+  }, []);
+
+  const handleSyncComplete = useCallback(() => {
+    setShowSyncProgress(false);
+    fetchAllTracks(); // Refresh tracks after sync
+  }, []);
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -402,12 +420,30 @@ export default function AIGenerationModern() {
               <p className="text-muted-foreground">Всего: {allTracks.length}</p>
             </div>
             
-            {isGenerating && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                Генерируем трек...
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchAllTracks}
+                disabled={false}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Обновить
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncTracks}
+                disabled={showSyncProgress}
+              >
+                {showSyncProgress ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Синхронизация
+              </Button>
+            </div>
           </div>
 
           {allTracks.length === 0 ? (
@@ -424,8 +460,11 @@ export default function AIGenerationModern() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {allTracks.map((track) => (
-                <Card key={track.id} className="hover:shadow-md transition-shadow">
+              {/* Filter to show only tracks with audio */}
+              {allTracks
+                .filter(track => track.audio_url) // Only show tracks with generated music
+                .map((track) => (
+                  <Card key={track.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="space-y-4">
                       {/* Track Header */}
@@ -632,6 +671,11 @@ export default function AIGenerationModern() {
         isOpen={playerOpen}
         track={currentTrack}
         onClose={() => setPlayerOpen(false)}
+      />
+      {/* Sync Progress Notification */}
+      <SyncProgressNotification
+        isVisible={showSyncProgress}
+        onComplete={handleSyncComplete}
       />
     </div>
   );
