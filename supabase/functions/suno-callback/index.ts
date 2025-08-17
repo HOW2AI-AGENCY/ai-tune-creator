@@ -170,7 +170,7 @@ serve(async (req) => {
             title: track.title,
             audio_url: track.audio_url, // Пока внешний URL
             duration: track.duration,
-            lyrics: track.lyric || null,
+            lyrics: track.prompt || track.lyric || null, // ← ИСПРАВЛЕНО: prompt содержит лирику
             metadata: {
               ...generation.metadata,
               suno_track_id: track.id,
@@ -209,13 +209,37 @@ serve(async (req) => {
           }
         }
 
+        // Генерируем smart title из лирики если нужно
+        let smartTitle = track.title;
+        if (track.title === 'AI Generated Track 17.08.2025' || !track.title) {
+          const lyrics = track.prompt || track.lyric;
+          if (lyrics) {
+            // Ищем первую строку после [Куплет], [Verse], [Intro] и т.д.
+            const lyricsMatch = lyrics.match(/\[(?:Куплет|Verse|Intro|Интро|Припев|Chorus)\s*\d*\]?\s*\n(.+)/i);
+            if (lyricsMatch && lyricsMatch[1]) {
+              smartTitle = lyricsMatch[1].trim().slice(0, 50);
+            } else {
+              // Используем первую содержательную строку
+              const lines = lyrics.split('\n').filter(line => 
+                line.trim() && 
+                !line.includes('[') && 
+                !line.toLowerCase().includes('создай') &&
+                line.length > 10
+              );
+              if (lines.length > 0) {
+                smartTitle = lines[0].trim().slice(0, 50);
+              }
+            }
+          }
+        }
+
         // Дедуплицируем название трека
-        let finalTitle = track.title;
+        let finalTitle = smartTitle;
         if (projectId) {
           const { data: dedupedTitle, error: dedupError } = await supabase
             .rpc('dedupe_track_title', { 
               p_project_id: projectId, 
-              p_title: track.title 
+              p_title: smartTitle 
             });
           
           if (!dedupError && dedupedTitle) {
@@ -242,7 +266,7 @@ serve(async (req) => {
             track_number: trackNumber,
             audio_url: track.audio_url, // Пока внешний URL
             duration: track.duration,
-            lyrics: track.lyric || track.prompt || '',
+            lyrics: track.prompt || track.lyric || '', // ← ИСПРАВЛЕНО: prompt содержит лирику
             description: track.prompt || `Generated with ${track.model_name}`,
             genre_tags: track.tags ? track.tags.split(', ').filter(Boolean) : [],
             style_prompt: track.style || '',

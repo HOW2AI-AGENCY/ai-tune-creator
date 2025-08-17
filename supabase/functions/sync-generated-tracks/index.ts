@@ -144,9 +144,37 @@ serve(async (req) => {
       try {
         console.log(`Creating/updating track for generation ${gen.id}`);
         
+        // Извлекаем лирику из Suno track data
+        const sunoTrackData = gen.metadata?.suno_track_data;
+        const extractedLyrics = sunoTrackData?.prompt || sunoTrackData?.lyric || null;
+        
+        // Генерируем умное название из лирики или используем из Suno
+        let smartTitle = gen.metadata?.title || 'Сгенерированный трек';
+        if (sunoTrackData?.title && sunoTrackData.title !== 'AI Generated Track 17.08.2025') {
+          smartTitle = sunoTrackData.title;
+        } else if (extractedLyrics) {
+          // Извлекаем первую строку после [Куплет] или [Verse] как название
+          const lyricsMatch = extractedLyrics.match(/\[(?:Куплет|Verse|Intro|Интро)\s*\d*\]?\s*\n(.+)/i);
+          if (lyricsMatch && lyricsMatch[1]) {
+            smartTitle = lyricsMatch[1].trim().slice(0, 50);
+          } else {
+            // Используем первую осмысленную строку
+            const lines = extractedLyrics.split('\n').filter(line => 
+              line.trim() && 
+              !line.includes('[') && 
+              !line.toLowerCase().includes('создай') &&
+              line.length > 10
+            );
+            if (lines.length > 0) {
+              smartTitle = lines[0].trim().slice(0, 50);
+            }
+          }
+        }
+
         const trackData = {
-          title: gen.metadata?.title || gen.prompt?.slice(0, 50) || 'Сгенерированный трек',
+          title: smartTitle,
           description: gen.prompt || null,
+          lyrics: extractedLyrics, // ← КРИТИЧЕСКИ ВАЖНО: сохраняем лирику!
           audio_url: gen.result_url,
           project_id: inboxProject,
           track_number: await getNextTrackNumber(supabase, inboxProject),
@@ -157,7 +185,9 @@ serve(async (req) => {
             generated_by_ai: true,
             ai_service: gen.service,
             suno_id: gen.metadata?.suno_id || gen.external_id,
-            suno_task_id: gen.metadata?.suno_task_id || gen.external_id
+            suno_task_id: gen.metadata?.suno_task_id || gen.external_id,
+            image_url: sunoTrackData?.image_url || sunoTrackData?.sourceImageUrl, // Обложка
+            original_title_generated: smartTitle !== (gen.metadata?.title || 'Сгенерированный трек')
           },
           genre_tags: gen.metadata?.tags || [],
           style_prompt: gen.metadata?.style || null,
