@@ -994,7 +994,7 @@ export function useDeleteTrack() {
       // Очищаем кеш удаленного трека
       queryClient.removeQueries({ queryKey: tracksQueryKeys.detail(trackId) });
       
-      dispatch({ type: 'TRACK_DELETE', payload: { id: trackId } });
+      dispatch({ type: 'TRACK_DELETE', payload: trackId });
       
       toast({
         title: "✅ Трек удален",
