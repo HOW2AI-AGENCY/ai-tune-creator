@@ -129,7 +129,7 @@ export function GenerationContextPanel({
       artistId: sendToInbox ? undefined : (selectedArtistId !== "none" ? selectedArtistId : undefined),
       genreTags,
       mode,
-      customLyrics: inputType === 'lyrics' ? prompt : (mode === 'custom' ? customLyrics : undefined),
+      customLyrics: inputType === 'lyrics' ? prompt : (mode === 'custom' && customLyrics ? customLyrics : undefined),
       tempo: tempo !== "none" ? tempo : undefined,
       duration: duration[0],
       instrumental,

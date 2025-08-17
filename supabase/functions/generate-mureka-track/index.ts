@@ -170,8 +170,8 @@ serve(async (req) => {
       requestLyrics = prompt!;
       requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
     } else {
-      // No lyrics provided, use prompt as lyrics since Mureka requires lyrics
-      requestLyrics = prompt || `Create a ${genre} song with ${mood} mood and ${tempo} tempo`;
+      // No lyrics provided - generate placeholder lyrics request
+      requestLyrics = `Sing about: ${prompt || 'a beautiful song'}`;
       requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
     }
     

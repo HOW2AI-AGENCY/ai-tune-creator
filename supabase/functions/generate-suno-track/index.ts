@@ -187,13 +187,17 @@ serve(async (req) => {
     const sunoRequest: any = {
       prompt: requestPrompt, // Описание стиля / содержания
       customMode: true,
-      lyrics: requestLyrics || undefined, // Текст для пения (если есть)
       style: style || requestPrompt,
       title: title || `AI Generated ${new Date().toLocaleDateString('ru-RU')}`,
       instrumental: make_instrumental,
       model: model.replace('chirp-v', 'V').replace('-', '_'), // chirp-v3-5 -> V3_5
       callBackUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/suno-callback` // Наш callback endpoint
     };
+
+    // Добавляем lyrics только если есть текст для пения
+    if (requestLyrics && requestLyrics.trim().length > 0) {
+      sunoRequest.lyrics = requestLyrics;
+    }
 
     // Добавляем дополнительные параметры для кастомного режима
     if (mode === 'custom') {
@@ -366,7 +370,7 @@ serve(async (req) => {
           .insert({
             title: generatedTrack.title || title || 'AI Generated Track',
             track_number: 1,
-            lyrics: generatedTrack.lyric || (mode === 'custom' && custom_lyrics ? custom_lyrics : prompt),
+            lyrics: requestLyrics || (mode === 'custom' && custom_lyrics ? custom_lyrics : ''),
             description: generatedTrack.gpt_description_prompt || prompt,
             audio_url: null,
             genre_tags: tags.split(', ').filter(Boolean),
