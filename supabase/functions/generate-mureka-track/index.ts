@@ -701,20 +701,48 @@ serve(async (req) => {
     let finalProjectId = requestBody.projectId;
     let finalArtistId = requestBody.artistId;
     
-    if (requestBody.useInbox || (!requestBody.projectId && !requestBody.artistId)) {
-      console.log('[INBOX] Используем inbox логику');
+    if (!requestBody.projectId && !requestBody.artistId) {
+      console.log('[SINGLE] Создаем новый single проект');
+      
+      // Генерируем умное название с помощью AI
+      let singleTitle = 'AI Generated Single';
+      try {
+        const { data: titleResult, error: titleError } = await supabase
+          .functions.invoke('generate-with-llm', {
+            body: {
+              prompt: `Generate a concise, creative title for a music single based on:
+              "${requestBody.prompt || requestBody.lyrics || 'Musical creation'}"
+              
+              Style: ${requestBody.style || 'Various'}
+              Instrumental: ${requestBody.instrumental ? 'Yes' : 'No'}
+              
+              Return ONLY the title, no quotes or extra text. Make it catchy and appropriate for a music single.`,
+              maxTokens: 20
+            }
+          });
+
+        if (!titleError && titleResult?.data?.generatedText) {
+          singleTitle = titleResult.data.generatedText.trim().replace(/['"]/g, '');
+        }
+      } catch (titleError) {
+        console.warn('[SINGLE] Не удалось сгенерировать название:', titleError);
+      }
       
       try {
-        const { data: inboxProjectId, error: inboxError } = await supabase
-          .rpc('ensure_user_inbox', { p_user_id: userId });
+        const { data: singleProjectId, error: singleError } = await supabase
+          .rpc('ensure_single_project', {
+            p_user_id: userId,
+            p_title: singleTitle,
+            p_description: `Generated from: ${requestBody.prompt || requestBody.lyrics || 'AI creation'}`
+          });
         
-        if (inboxError) {
-          console.error('[INBOX] Ошибка создания inbox:', inboxError);
-          throw new Error('Не удалось создать inbox проект');
+        if (singleError) {
+          console.error('[SINGLE] Ошибка создания single проекта:', singleError);
+          throw new Error('Не удалось создать single проект');
         }
         
-        finalProjectId = inboxProjectId;
-        console.log(`[INBOX] Используем inbox проект: ${finalProjectId}`);
+        finalProjectId = singleProjectId;
+        console.log(`[SINGLE] Создан single проект: ${finalProjectId}`);
       } catch (error) {
         console.error('[INBOX] Критическая ошибка:', error);
         throw new Error('Ошибка при работе с inbox');

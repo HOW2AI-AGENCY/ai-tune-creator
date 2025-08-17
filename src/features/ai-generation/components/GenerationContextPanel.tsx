@@ -266,7 +266,7 @@ export function GenerationContextPanel({
       language,
       stylePrompt: stylePrompt || undefined,
       inputType,
-      useInbox: sendToInbox
+      useInbox: false
     };
 
     // Apply prompt profile if available
