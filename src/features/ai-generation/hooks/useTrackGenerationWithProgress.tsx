@@ -30,6 +30,7 @@ interface GenerationParams {
   voiceStyle?: string;
   language?: string;
   stylePrompt?: string;
+  inputType?: 'description' | 'lyrics'; // Добавляем inputType
 }
 
 export function useTrackGenerationWithProgress() {
@@ -104,7 +105,7 @@ export function useTrackGenerationWithProgress() {
             projectId: params.projectId || null,
             artistId: params.artistId || null,
             mode: params.customLyrics ? 'custom' : (params.mode || 'quick'),
-            custom_lyrics: params.customLyrics || '', // Лирика отдельно
+            custom_lyrics: (params.inputType === 'lyrics' && params.customLyrics) ? params.customLyrics : '', // Лирика в правильном формате
             voice_style: params.voiceStyle || '',
             language: params.language || 'ru',
             tempo: params.tempo || ''

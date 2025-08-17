@@ -175,7 +175,22 @@ export function SunoStyleGenerationForm({
       service: selectedService
     };
 
-    onGenerate(canonicalInput);
+    // Преобразуем в старый формат для совместимости
+    const legacyParams = {
+      prompt: canonicalInput.description,
+      service: canonicalInput.service,
+      customLyrics: canonicalInput.lyrics,
+      inputType: canonicalInput.inputType,
+      genreTags: canonicalInput.tags,
+      instrumental: canonicalInput.flags.instrumental,
+      language: canonicalInput.flags.language,
+      duration: canonicalInput.flags.duration,
+      projectId: canonicalInput.context.projectId,
+      artistId: canonicalInput.context.artistId,
+      mode: canonicalInput.mode
+    };
+
+    onGenerate(legacyParams as any);
   };
 
   return (
@@ -365,7 +380,27 @@ export function SunoStyleGenerationForm({
             placeholder={
               inputType === 'description'
                 ? "Например: энергичный поп-трек о летней любви с гитарными соло..."
-                : "Введите текст песни полностью..."
+                : inputType === 'lyrics'
+                ? `Введите текст песни в формате Suno AI:
+
+[Verse 1]
+Твой текст первого куплета
+
+[Chorus]
+Твой текст припева
+
+[Verse 2]
+Твой текст второго куплета
+
+[Chorus]
+Твой текст припева
+
+[Bridge]
+Твой текст бриджа
+
+[Outro]
+Твой текст концовки`
+                : "Введите текст..."
             }
             value={inputType === 'description' ? description : lyrics}
             onChange={(e) => {
@@ -376,7 +411,10 @@ export function SunoStyleGenerationForm({
               }
               setSelectedPreset("");
             }}
-            className="min-h-[120px] text-base border-2 focus:border-primary/50 transition-colors resize-none"
+            className={inputType === 'lyrics' 
+              ? "min-h-[300px] text-base border-2 focus:border-primary/50 transition-colors resize-none font-mono text-sm leading-relaxed"
+              : "min-h-[120px] text-base border-2 focus:border-primary/50 transition-colors resize-none"
+            }
           />
 
           <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
@@ -384,7 +422,7 @@ export function SunoStyleGenerationForm({
               {inputType === 'description' ? description.length : lyrics.length} символов
             </span>
             <span>
-              {inputType === 'description' ? 'Макс. 500' : 'Макс. 3000'}
+              {inputType === 'description' ? 'Макс. 500' : 'Макс. 3000 (формат Suno: [Verse], [Chorus], [Bridge])'}
             </span>
           </div>
         </CardContent>
