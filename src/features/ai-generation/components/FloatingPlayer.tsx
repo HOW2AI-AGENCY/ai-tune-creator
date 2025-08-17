@@ -162,13 +162,19 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
         audioRef.current.pause();
         setIsPlaying(false);
         onPlayPause?.(false);
+        console.log("Audio paused successfully");
       } else {
-        await audioRef.current.play();
-        setIsPlaying(true);
-        onPlayPause?.(true);
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+          setIsPlaying(true);
+          onPlayPause?.(true);
+          console.log("Audio played successfully");
+        }
       }
-    } catch (error) {
-      console.error('Ошибка воспроизведения:', error);
+    } catch (error: any) {
+      console.error("Play/pause error:", error);
+      setIsLoading(false);
       setIsPlaying(false);
     }
   };

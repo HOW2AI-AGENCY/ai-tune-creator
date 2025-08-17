@@ -1,1 +1,4 @@
 project_id = "zwbhlfhwymbmvioaikvs"
+
+[functions.update-processing-status]
+verify_jwt = false

@@ -48,12 +48,25 @@ export default function AIGeneration() {
   const fetchGenerations = async () => {
     if (!user) return;
     
+    console.log("Fetching generations...");
+    
+    // Сначала пытаемся обновить старые статусы
+    try {
+      await supabase.functions.invoke('update-processing-status');
+      console.log("Processing statuses updated");
+    } catch (updateError) {
+      console.warn("Could not update processing statuses:", updateError);
+    }
+    
     const { data, error } = await supabase
       .from("ai_generations")
       .select("id, prompt, service, status, result_url, created_at, track_id")
       .order("created_at", { ascending: false });
 
-    if (error) return;
+    if (error) {
+      console.error("Error fetching generations:", error);
+      return;
+    }
     const rows = data || [];
 
     // Collect track ids
@@ -238,11 +251,13 @@ export default function AIGeneration() {
       await generateTrack(params);
       // Принудительно обновляем данные после генерации
       console.log("Generation completed, refreshing data...");
-      await Promise.all([
-        fetchGenerations(),
-        fetchAllTracks()
-      ]);
-      console.log("Data refreshed successfully");
+      setTimeout(async () => {
+        await Promise.all([
+          fetchGenerations(),
+          fetchAllTracks()
+        ]);
+        console.log("Data refreshed successfully");
+      }, 1000);
     } catch (e: any) {
       console.error("Generation error:", e);
     }
