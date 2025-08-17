@@ -87,15 +87,25 @@ serve(async (req) => {
 
     // Проверяем какие генерации нуждаются в создании треков
     for (const gen of generations || []) {
+      console.log(`Checking generation ${gen.id}: ${gen.metadata?.title || gen.prompt?.slice(0, 30)}`);
+      
       // Проверяем есть ли уже трек для этой генерации
-      const { data: existingTrack } = await supabase
+      const { data: existingTrack, error: trackError } = await supabase
         .from('tracks')
         .select('id, audio_url')
         .eq('metadata->>generation_id', gen.id)
         .single();
 
+      console.log(`Generation ${gen.id} existing track:`, existingTrack, trackError?.message);
+
+      if (!existingTrack && !trackError?.message?.includes('not found')) {
+        console.error(`Error checking track for generation ${gen.id}:`, trackError);
+        continue;
+      }
+
       if (!existingTrack) {
         // Нет трека - нужно создать
+        console.log(`Generation ${gen.id} needs track creation`);
         toCreateTracks.push(gen);
         
         // Если URL внешний и не скачан - добавляем в очередь на скачивание
@@ -113,11 +123,20 @@ serve(async (req) => {
         }
       } else if (!existingTrack.audio_url && gen.result_url) {
         // Трек есть, но без audio_url - нужно обновить
+        console.log(`Generation ${gen.id} needs track update (missing audio_url)`);
         toCreateTracks.push({ ...gen, existing_track_id: existingTrack.id });
+      } else {
+        console.log(`Generation ${gen.id} already has track with audio_url`);
       }
     }
 
     console.log(`Found ${toCreateTracks.length} tracks to create/update`);
+    console.log(`Track actions needed:`, toCreateTracks.map(t => ({ 
+      id: t.id, 
+      title: t.metadata?.title || t.prompt?.slice(0, 30),
+      action: t.existing_track_id ? 'update' : 'create',
+      has_result_url: !!t.result_url
+    })));
     console.log(`Found ${toDownload.length} tracks to download`);
 
     // Создаем/обновляем треки в базе данных
