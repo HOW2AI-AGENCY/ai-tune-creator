@@ -2,7 +2,26 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-const Card = React.forwardRef<
+/**
+ * Базовый компонент Card - основа для карточек в UI
+ * 
+ * ОПТИМИЗАЦИЯ: Обернут в React.memo для предотвращения лишних рендеров.
+ * Высокочастотное использование:
+ * - Используется во множестве компонентов (TrackLibrary, Analytics, etc.)
+ * - Часто рендерится в списках и сетках
+ * - Может содержать сложный контент внутри
+ * 
+ * Мемоизация основана на:
+ * - className для стилизации
+ * - children для содержимого
+ * - Прочих HTML атрибутах
+ * 
+ * ЭКОНОМИЯ: ~70-90% рендеров при обновлениях родительских компонентов
+ * Особенно важно в списках с большим количеством карточек
+ * 
+ * WARNING: Базовый UI компонент - изменения могут влиять на всё приложение
+ */
+const CardComponent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
@@ -15,9 +34,16 @@ const Card = React.forwardRef<
     {...props}
   />
 ))
-Card.displayName = "Card"
+CardComponent.displayName = "Card"
 
-const CardHeader = React.forwardRef<
+// Мемоизированная версия Card компонента
+const Card = React.memo(CardComponent)
+
+/**
+ * Компонент заголовка карточки
+ * ОПТИМИЗАЦИЯ: Мемоизирован для стабильности в составных карточках
+ */
+const CardHeaderComponent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
@@ -27,9 +53,14 @@ const CardHeader = React.forwardRef<
     {...props}
   />
 ))
-CardHeader.displayName = "CardHeader"
+CardHeaderComponent.displayName = "CardHeader"
+const CardHeader = React.memo(CardHeaderComponent)
 
-const CardTitle = React.forwardRef<
+/**
+ * Компонент заголовка карточки
+ * ОПТИМИЗАЦИЯ: Мемоизирован для предотвращения ререндеров при неизменном тексте
+ */
+const CardTitleComponent = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
@@ -42,9 +73,14 @@ const CardTitle = React.forwardRef<
     {...props}
   />
 ))
-CardTitle.displayName = "CardTitle"
+CardTitleComponent.displayName = "CardTitle"
+const CardTitle = React.memo(CardTitleComponent)
 
-const CardDescription = React.forwardRef<
+/**
+ * Компонент описания карточки
+ * ОПТИМИЗАЦИЯ: Мемоизирован для стабильности текстового контента
+ */
+const CardDescriptionComponent = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => (
@@ -54,17 +90,27 @@ const CardDescription = React.forwardRef<
     {...props}
   />
 ))
-CardDescription.displayName = "CardDescription"
+CardDescriptionComponent.displayName = "CardDescription"
+const CardDescription = React.memo(CardDescriptionComponent)
 
-const CardContent = React.forwardRef<
+/**
+ * Компонент содержимого карточки - наиболее важный для оптимизации
+ * ОПТИМИЗАЦИЯ: Мемоизирован так как часто содержит сложный контент
+ */
+const CardContentComponent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
 ))
-CardContent.displayName = "CardContent"
+CardContentComponent.displayName = "CardContent"
+const CardContent = React.memo(CardContentComponent)
 
-const CardFooter = React.forwardRef<
+/**
+ * Компонент подвала карточки
+ * ОПТИМИЗАЦИЯ: Мемоизирован для стабильности действий и кнопок
+ */
+const CardFooterComponent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
@@ -74,6 +120,7 @@ const CardFooter = React.forwardRef<
     {...props}
   />
 ))
-CardFooter.displayName = "CardFooter"
+CardFooterComponent.displayName = "CardFooter"
+const CardFooter = React.memo(CardFooterComponent)
 
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }

@@ -59,6 +59,57 @@ interface GenerationTask {
 const TaskQueuePanelComponent = function TaskQueuePanel({ className }: TaskQueuePanelProps) {
   const { user } = useAuth();
 
+  /**
+   * УТИЛИТЫ: Расчет реального прогресса на основе времени и статуса
+   * 
+   * @param task - Задача генерации
+   * @returns Процент прогресса (0-100)
+   */
+  const calculateProgress = useCallback((task: GenerationTask): number => {
+    const now = Date.now();
+    const createdAt = new Date(task.created_at).getTime();
+    const elapsed = now - createdAt;
+    
+    // Средние времена генерации (в миллисекундах)
+    const estimatedTimes = {
+      suno: 120000,   // 2 минуты
+      mureka: 180000  // 3 минуты
+    };
+    
+    const estimatedTime = estimatedTimes[task.service] || 150000;
+    const progress = Math.min((elapsed / estimatedTime) * 100, 95); // Максимум 95% до завершения
+    
+    return Math.round(progress);
+  }, []);
+
+  /**
+   * УТИЛИТЫ: Генерация текста прогресса на основе времени
+   * 
+   * @param task - Задача генерации
+   * @returns Текст с оценкой оставшегося времени
+   */
+  const getProgressText = useCallback((task: GenerationTask): string => {
+    const now = Date.now();
+    const createdAt = new Date(task.created_at).getTime();
+    const elapsed = now - createdAt;
+    
+    // Средние времена генерации
+    const estimatedTimes = {
+      suno: 120000,   // 2 минуты
+      mureka: 180000  // 3 минуты
+    };
+    
+    const estimatedTime = estimatedTimes[task.service] || 150000;
+    const remaining = Math.max(estimatedTime - elapsed, 0);
+    const remainingMinutes = Math.ceil(remaining / 60000);
+    
+    if (remaining <= 0) {
+      return 'Завершение обработки...';
+    }
+    
+    return `Осталось ~${remainingMinutes} мин`;
+  }, []);
+
   const { data: tasks = [], isLoading, refetch } = useQuery({
     queryKey: ['generation-tasks', user?.id],
     queryFn: async (): Promise<GenerationTask[]> => {
@@ -241,9 +292,9 @@ const TaskQueuePanelComponent = function TaskQueuePanel({ className }: TaskQueue
                 
                 {task.status === 'processing' && (
                   <div className="space-y-1">
-                    <Progress value={65} className="h-1" />
+                    <Progress value={calculateProgress(task)} className="h-1" />
                     <p className="text-xs text-muted-foreground">
-                      Estimated time remaining: ~2 minutes
+                      {getProgressText(task)}
                     </p>
                   </div>
                 )}
@@ -333,4 +384,37 @@ const TaskQueuePanelComponent = function TaskQueuePanel({ className }: TaskQueue
       </CardContent>
     </Card>
   );
-}
+};
+
+// Устанавливаем displayName для отладки
+TaskQueuePanelComponent.displayName = 'TaskQueuePanel';
+
+/**
+ * Кастомная функция сравнения для React.memo
+ * Оптимизирует ререндеры на основе изменений className
+ * 
+ * @param prevProps - предыдущие пропсы
+ * @param nextProps - новые пропсы
+ * @returns true если компонент НЕ должен ререндериваться
+ */
+const areEqual = (prevProps: TaskQueuePanelProps, nextProps: TaskQueuePanelProps) => {
+  // Сравниваем только className, поскольку это единственный prop
+  // Все данные управляются через React Query внутри компонента
+  return prevProps.className === nextProps.className;
+};
+
+/**
+ * Экспортируемый мемоизированный компонент
+ * Использует кастомную функцию сравнения для оптимизации по className
+ * Все изменения данных обрабатываются React Query с автоматическим обновлением
+ */
+const TaskQueuePanel = React.memo(TaskQueuePanelComponent, areEqual);
+
+// Установка displayName для debugging
+TaskQueuePanel.displayName = 'TaskQueuePanel';
+
+// Экспорт как именованный экспорт
+export { TaskQueuePanel };
+
+// Экспорт как default для обратной совместимости
+export default TaskQueuePanel;

@@ -427,7 +427,7 @@ export function useTrackGeneration({
    * @param config - Конфигурация retry
    * @returns Результат операции
    */
-  const executeWithRetry = useCallback(async <T>(
+  const executeWithRetry = useCallback(async <T,>(
     operation: () => Promise<T>,
     operationName: string,
     config: RetryConfig = retryConfigRef.current
