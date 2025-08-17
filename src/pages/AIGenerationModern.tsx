@@ -19,7 +19,8 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
-  Download
+  Download,
+  FileText
 } from "lucide-react";
 import { CanonicalGenerationInput } from "@/features/ai-generation/types/canonical";
 
@@ -51,7 +52,7 @@ interface Track {
 interface TrackVersion {
   id: string;
   version_number: number;
-  audio_url: string;
+  audio_url?: string; // Made optional since some versions may only have text changes
   change_description?: string;
   created_at: string;
   metadata?: any;
@@ -261,7 +262,21 @@ export default function AIGenerationModern() {
     });
   };
 
-  // Format text fields properly
+  // Determine version type and status
+  const getVersionInfo = (version: TrackVersion) => {
+    const hasAudio = !!version.audio_url;
+    const isProcessing = version.metadata?.status === 'processing' || version.metadata?.status === 'pending';
+    
+    return {
+      type: hasAudio ? 'audio' : 'prompt',
+      status: hasAudio ? 'ready' : (isProcessing ? 'processing' : 'draft'),
+      canPlay: hasAudio,
+      icon: hasAudio ? Music : FileText,
+      statusText: hasAudio ? 'Музыка готова' : (isProcessing ? 'Генерируется...' : 'Только текст'),
+      statusColor: hasAudio ? 'text-green-600' : (isProcessing ? 'text-orange-600' : 'text-muted-foreground')
+    };
+  };
+
   const formatDescription = (description: any): string => {
     if (!description) return 'Нет описания';
     
@@ -495,34 +510,81 @@ export default function AIGenerationModern() {
                         >
                           <CollapsibleContent className="space-y-2 pt-2 border-t">
                             <h4 className="font-medium text-sm">Версии трека:</h4>
-                            {track.versions.map((version) => (
-                              <div key={version.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                                <div>
-                                  <div className="font-medium">Версия {version.version_number}</div>
-                                  {version.change_description && (
-                                    <div className="text-sm text-muted-foreground">
-                                      {version.change_description}
+                            {track.versions.map((version) => {
+                              const versionInfo = getVersionInfo(version);
+                              const VersionIcon = versionInfo.icon;
+                              
+                              return (
+                                <div key={version.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                  <div className="flex items-start gap-3 flex-1">
+                                    <div className="flex-shrink-0 mt-1">
+                                      <VersionIcon className="h-4 w-4 text-muted-foreground" />
                                     </div>
-                                  )}
-                                  <div className="text-xs text-muted-foreground">
-                                    {new Date(version.created_at).toLocaleDateString('ru-RU')}
+                                    
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-medium">Версия {version.version_number}</span>
+                                        <Badge 
+                                          variant={versionInfo.type === 'audio' ? 'default' : 'secondary'}
+                                          className="text-xs"
+                                        >
+                                          {versionInfo.type === 'audio' ? 'Музыка' : 'Текст'}
+                                        </Badge>
+                                      </div>
+                                      
+                                      <div className={`text-xs ${versionInfo.statusColor} mb-1`}>
+                                        {versionInfo.statusText}
+                                      </div>
+                                      
+                                      {version.change_description && (
+                                        <div className="text-sm text-muted-foreground line-clamp-2">
+                                          {version.change_description}
+                                        </div>
+                                      )}
+                                      
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        {new Date(version.created_at).toLocaleDateString('ru-RU', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex gap-2 flex-shrink-0">
+                                    {versionInfo.canPlay ? (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handlePlayTrack(version, true)}
+                                        className="h-8 px-2"
+                                      >
+                                        <Play className="h-3 w-3 mr-1" />
+                                        Играть
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          // Show version details or allow editing
+                                          toast({
+                                            title: "Текстовая версия",
+                                            description: "Эта версия содержит только изменения промпта/лирики"
+                                          });
+                                        }}
+                                        className="h-8 px-2"
+                                      >
+                                        <Eye className="h-3 w-3 mr-1" />
+                                        Детали
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
-                                
-                                <div className="flex gap-2">
-                                  {version.audio_url && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handlePlayTrack(version, true)}
-                                    >
-                                      <Headphones className="h-3 w-3 mr-1" />
-                                      Играть
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </CollapsibleContent>
                         </Collapsible>
                       )}
