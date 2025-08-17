@@ -139,7 +139,7 @@ export function TrackGenerationSidebar({
       language,
       stylePrompt: stylePrompt || undefined,
       inputType,
-      useInbox: false
+      useInbox: sendToInbox
     };
 
     setPreviewParams(params);

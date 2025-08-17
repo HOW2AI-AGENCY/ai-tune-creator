@@ -61,7 +61,7 @@ export function UnifiedGenerationSidebar({
   // Context
   const [selectedProjectId, setSelectedProjectId] = useState<string>("none");
   const [selectedArtistId, setSelectedArtistId] = useState<string>("none");
-  const [createNewSingle, setCreateNewSingle] = useState(false);
+  const [useInbox, setUseInbox] = useState(false);
   
   // Standardized tags
   const [genreTags, setGenreTags] = useState<string[]>([]);
@@ -157,7 +157,7 @@ export function UnifiedGenerationSidebar({
 
     // Create canonical input
     const canonicalInput: CanonicalGenerationInput = {
-      prompt: inputType === 'description' ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
+      description: inputType === 'description' ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
       lyrics: inputType === 'lyrics' ? lyrics : undefined,
       tags,
       flags: {
@@ -170,9 +170,9 @@ export function UnifiedGenerationSidebar({
       mode,
       inputType,
       context: {
-        projectId: createNewSingle ? undefined : (selectedProjectId !== "none" ? selectedProjectId : undefined),
-        artistId: createNewSingle ? undefined : (selectedArtistId !== "none" ? selectedArtistId : undefined),
-        useInbox: false
+        projectId: useInbox ? undefined : (selectedProjectId !== "none" ? selectedProjectId : undefined),
+        artistId: useInbox ? undefined : (selectedArtistId !== "none" ? selectedArtistId : undefined),
+        useInbox
       },
       service: selectedService
     };
@@ -206,7 +206,7 @@ export function UnifiedGenerationSidebar({
                     <HelpCircle className="h-3 w-3 text-muted-foreground" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Выберите существующий проект или создайте новый сингл</p>
+                    <p>Выберите проект и артиста или отправьте в Inbox</p>
                   </TooltipContent>
                 </Tooltip>
               </CardTitle>
@@ -214,16 +214,16 @@ export function UnifiedGenerationSidebar({
             <CardContent className="space-y-3">
               <div className="flex items-center space-x-2">
                 <Switch
-                  id="create-single"
-                  checked={createNewSingle}
-                  onCheckedChange={setCreateNewSingle}
+                  id="use-inbox"
+                  checked={useInbox}
+                  onCheckedChange={setUseInbox}
                 />
-                <Label htmlFor="create-single" className="text-xs text-muted-foreground">
-                  Создать новый сингл (AI выберет название)
+                <Label htmlFor="use-inbox" className="text-xs text-muted-foreground">
+                  Отправить в Inbox (без привязки к проекту)
                 </Label>
               </div>
 
-              {!createNewSingle && (
+              {!useInbox && (
                 <>
                   <div>
                     <Label className="text-xs text-muted-foreground">Проект</Label>
@@ -232,7 +232,7 @@ export function UnifiedGenerationSidebar({
                         <SelectValue placeholder="Выберите проект" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Создать новый сингл</SelectItem>
+                        <SelectItem value="none">Без проекта</SelectItem>
                         {projects.map(project => (
                           <SelectItem key={project.id} value={project.id}>
                             {project.name}

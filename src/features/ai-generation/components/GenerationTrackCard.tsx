@@ -152,10 +152,6 @@ export function GenerationTrackCard({
               }}
               variant="compact"
               onPlay={() => onPlay?.(generation.result_url!)}
-              onDelete={async () => {
-                // Handle track deletion here
-                toast.success('Трек удален');
-              }}
             />
           </div>
         </CardContent>

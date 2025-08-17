@@ -50,7 +50,6 @@ interface TrackActionButtonsProps {
   track: Track;
   variant?: 'compact' | 'full' | 'dropdown';
   onPlay?: (track: Track) => void;
-  onDelete?: () => void;
   isPlaying?: boolean;
   showLabels?: boolean;
   className?: string;
@@ -60,7 +59,6 @@ export function TrackActionButtons({
   track,
   variant = 'full',
   onPlay,
-  onDelete,
   isPlaying = false,
   showLabels = false,
   className = ''
@@ -92,11 +90,7 @@ export function TrackActionButtons({
   };
 
   const handleDelete = async () => {
-    if (onDelete) {
-      onDelete();
-    } else {
-      await deleteTrack(track.id, true); // Soft delete by default
-    }
+    await deleteTrack(track.id, true); // Soft delete by default
     setShowDeleteDialog(false);
   };
 

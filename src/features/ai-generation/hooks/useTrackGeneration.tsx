@@ -362,17 +362,7 @@ export function useTrackGeneration({
    */
   const generateCacheKey = useCallback((functionName: string, params: any): string => {
     const sortedParams = JSON.stringify(params, Object.keys(params).sort());
-    // Use btoa with proper Unicode handling for Russian text
-    try {
-      return `${functionName}:${btoa(unescape(encodeURIComponent(sortedParams))).slice(0, 32)}`;
-    } catch (error) {
-      // Fallback to simple hash if btoa fails
-      console.warn('Failed to encode cache key, using fallback hash');
-      return `${functionName}:${Math.abs(sortedParams.split('').reduce((a, b) => {
-        a = ((a << 5) - a) + b.charCodeAt(0);
-        return a & a;
-      }, 0)).toString(16).slice(0, 32)}`;
-    }
+    return `${functionName}:${btoa(sortedParams).slice(0, 32)}`;
   }, []);
 
   /**

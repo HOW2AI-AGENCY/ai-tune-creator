@@ -499,59 +499,31 @@ serve(async (req) => {
     let finalProjectId = projectId;
     let finalArtistId = artistId;
 
-    // Если контекст не указан, создаем новый single проект
-    if (!projectId && !artistId) {
-      console.log('Создаем новый single проект для генерации');
+    // Если useInbox = true или контекст не указан, используем inbox логику
+    if (useInbox || (!projectId && !artistId)) {
+      console.log('Используем inbox логику, useInbox:', useInbox);
       
-      // Генерируем умное название с помощью AI
-      let singleTitle = 'AI Generated Single';
       try {
-        const { data: titleResult, error: titleError } = await supabase
-          .functions.invoke('generate-with-llm', {
-            body: {
-              prompt: `Generate a concise, creative title for a music single based on this prompt:
-              "${prompt}"
-              
-              Style: ${style || 'Various'}
-              Instrumental: ${make_instrumental ? 'Yes' : 'No'}
-              
-              Return ONLY the title, no quotes or extra text. Make it catchy and appropriate for a music single.`,
-              maxTokens: 20
-            }
-          });
-
-        if (!titleError && titleResult?.data?.generatedText) {
-          singleTitle = titleResult.data.generatedText.trim().replace(/['"]/g, '');
-        }
-      } catch (titleError) {
-        console.warn('Не удалось сгенерировать название, используем стандартное:', titleError);
-      }
-
-      try {
-        const singlePromise = supabase.rpc('ensure_single_project', {
-          p_user_id: user.id,
-          p_title: singleTitle,
-          p_description: `Generated from prompt: ${prompt.substring(0, 100)}...`
-        });
-        const singleTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Single project timeout')), TIMEOUT_CONFIG.DB_OPERATION)
+        const inboxPromise = supabase.rpc('ensure_user_inbox', { p_user_id: user.id });
+        const inboxTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Inbox timeout')), TIMEOUT_CONFIG.DB_OPERATION)
         );
         
-        const { data: singleProjectId, error: singleError } = await Promise.race([
-          singlePromise,
-          singleTimeout
+        const { data: inboxProjectId, error: inboxError } = await Promise.race([
+          inboxPromise,
+          inboxTimeout
         ]) as any;
 
-        if (singleError) {
-          console.error('Ошибка создания single проекта:', singleError);
-          throw new Error('Не удалось создать single проект');
+        if (inboxError) {
+          console.error('Ошибка создания inbox:', inboxError);
+          throw new Error('Не удалось создать inbox проект');
         }
 
-        finalProjectId = singleProjectId;
-        console.log('Создан single проект:', finalProjectId);
+        finalProjectId = inboxProjectId;
+        console.log('Используем inbox проект:', finalProjectId);
       } catch (error) {
-        console.error('Ошибка при создании single проекта:', error);
-        throw new Error('Ошибка при создании single проекта');
+        console.error('Ошибка при работе с inbox:', error);
+        throw new Error('Ошибка при создании inbox проекта');
       }
     }
 

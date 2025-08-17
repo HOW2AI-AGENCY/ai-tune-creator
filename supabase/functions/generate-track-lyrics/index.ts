@@ -90,66 +90,49 @@ serve(async (req) => {
       throw new Error(`API key not found for provider: ${provider}`);
     }
 
-    // Создаем улучшенный промпт для генерации лирики в читаемом формате
-    const systemPrompt = customPrompt || `Ты — опытный русскоязычный сонграйтер и продюсер. Пиши зрелые, образные тексты без клише и пустых фраз.
-
-ВАЖНО: Отвечай в читаемом формате с английскими тегами в квадратных скобках. НЕ используй JSON!
-
-ТРЕБОВАНИЯ К КАЧЕСТВУ:
-- Язык: русский (естественный, без англицизмов, если не обусловлено стилем)
-- Структура и объем:
-  • [INTRO] 2–4 строки
-  • Каждый [VERSE] 8–12 строк, смыслово насыщен, с внутренними/многосложными рифмами
-  • [CHORUS] 4–8 строк, запоминающийся хук, воспеваемость, ритм
-  • [BRIDGE] 4–6 строк с новым поворотом смысла/мелодии
-  • [OUTRO] 2–4 строки (вариация/эхо идеи)
-- Тематика и глубина: избегай общих мест вроде «Эй, жизнь — игра». Используй конкретику, образы, детали, контекст.
-- Ритмика/рифма: внутренние рифмы, ассонансы, аллитерации. Без «детсадовых» парных рифм на протяжении всего текста.
-- Тональность: зрелая, уверенная; без инфантильных «эй» в начале куплетов.
-- Контент должен соответствовать СТИЛЮ и ЖАНРАМ ниже.
-
-ФОРМАТ ОТВЕТА (каждый блок с новой строки):
-[INTRO]
-текст интро
-
-[VERSE 1]
-первая строка куплета
-вторая строка куплета
-третья строка куплета
-четвертая строка куплета
-
-[CHORUS]
-первая строка припева
-вторая строка припева
-третья строка припева
-четвертая строка припева
-
-[VERSE 2]
-новый куплет с развитием темы
-
-[CHORUS]
-повтор припева
-
-[BRIDGE]
-текст бриджа
-
-[CHORUS]
-финальный припев
-
-[OUTRO]
-завершающие строки
-
-КОНТЕКСТ:
+    // Создаем улучшенный промпт для генерации лирики с SUNO AI тегами  
+    const systemPrompt = customPrompt || `Here is the user's prompt for creating a song:
+<user_prompt>
 СТИЛЬ: ${stylePrompt}
-ЖАНРЫ: ${genreTags.join(', ')}${artistInfo.name ? `\nАРТИСТ: ${artistInfo.name}` : ''}`
+ЖАНРЫ: ${genreTags.join(', ')}
+${artistInfo.name ? `ИСПОЛНИТЕЛЬ: ${artistInfo.name}` : ''}
+</user_prompt>
 
-    const userPrompt = `Создай лирику для трека в читаемом формате:
+Ты мирового класса музыкальный продюсер, автор песен и маркетинговый эксперт. Создай вирусный хит используя формат SUNO.AI для ИИ-генерации музыки.
+
+ВАЖНО: Отвечай СТРОГО в формате JSON без дополнительного текста.
+
+ОБЯЗАТЕЛЬНАЯ СТРУКТУРА JSON:
+{
+  "lyrics": "Полный текст песни с тегами SUNO.AI в формате [Intro], [Verse], [Chorus], {main_vox}, [!fade_in] и т.д.",
+  "structure": ["intro", "verse", "chorus", "verse", "chorus", "bridge", "chorus", "outro"],
+  "mood": "Конкретное описание настроения песни",
+  "themes": ["тема1", "тема2", "тема3"],
+  "suno_tags": ["BPM: 140", "Genre: Hip-Hop", "Mood: Energetic", "Style: Russian Rap"]
+}
+
+ТРЕБОВАНИЯ К ЛИРИКЕ:
+- Используй теги SUNO.AI: [Intro], [Verse], [Chorus], [Bridge], [Outro]
+- Добавляй вокальные теги: {main_vox}, {backing_vox}, {harmonies}
+- Используй эффекты: [!fade_in], [!build_up], [!drop], [!reverb]
+- Эмоциональные маркеры: [Emotional], [Intense], [Gentle]
+- Создай запоминающиеся хуки и припевы
+- Текст на русском языке для русского рэпа`;
+
+    const userPrompt = `Создай лирику для трека в формате SUNO.AI:
 
 ${existingLyrics ? `ОСНОВА: ${existingLyrics}
 
-Создай улучшенную версию.` : 'Создай новую лирику для трека.'}
+Создай улучшенную версию с SUNO AI тегами.` : 'Создай новую лирику с тегами SUNO.AI для максимального вирусного потенциала.'}
 
-Верни только текст лирики в указанном формате без дополнительных пояснений.`;
+ОБЯЗАТЕЛЬНЫЕ ЭЛЕМЕНТЫ:
+1. Структурные теги: [Intro], [Verse], [Chorus], [Bridge], [Outro]
+2. Вокальные эффекты: {main_vox}, {backing_vox}
+3. Динамические эффекты: [!fade_in], [!build_up], [!drop]
+4. Эмоциональные маркеры: [Emotional], [Intense]
+5. Запоминающиеся хуки для TikTok/Reels
+
+Верни только JSON без пояснений.`;
 
     // Формируем запрос в зависимости от провайдера
     if (provider === 'anthropic') {
@@ -207,8 +190,32 @@ ${existingLyrics ? `ОСНОВА: ${existingLyrics}
       generatedText = data.choices[0].message.content;
     }
 
-    // Возвращаем лирику в читаемом формате (не JSON)
-    const result = generatedText.trim();
+    // Парсим JSON ответ
+    let result;
+    try {
+      // Пытаемся извлечь JSON из ответа
+      const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
+    } catch (parseError) {
+      console.log('Failed to parse JSON, using fallback format');
+      // Если не удалось распарсить JSON, создаем структуру вручную
+      result = {
+        lyrics: `[Intro]\n{main_vox}\n${generatedText.substring(0, 200)}...\n\n[Verse]\n{main_vox}\n...\n\n[Chorus]\n{main_vox}\n...`,
+        structure: ["intro", "verse", "chorus", "verse", "chorus", "bridge", "chorus", "outro"],
+        mood: `${genreTags[0] || 'Энергичное'} настроение`,
+        themes: genreTags.length > 0 ? genreTags : ["Городская жизнь", "Личные переживания", "Социальные темы"],
+        suno_tags: [
+          "BPM: 140",
+          `Genre: ${genreTags[0] || 'Hip-Hop'}`,
+          "Mood: Energetic",
+          "Language: Russian"
+        ]
+      };
+    }
 
     // TODO: Добавить валидацию сгенерированного контента
     // FIXME: Улучшить обработку ошибок парсинга

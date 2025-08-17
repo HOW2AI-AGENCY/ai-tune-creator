@@ -96,19 +96,17 @@ export function GenerationFeed({ onPlay, onDownload }: GenerationFeedProps) {
         />
       ))}
       
-      {/* Show completed generations with audio only */}
-      {generations
-        .filter(generation => generation.status === 'completed' && generation.result_url)
-        .map((generation) => (
-          <GenerationTrackCard
-            key={generation.id}
-            generation={generation}
-            onCheckStatus={checkGenerationStatus}
-            onPlay={onPlay}
-            onDownload={onDownload}
-            isRefreshing={isRefreshing}
-          />
-        ))}
+      {/* Show completed generations */}
+      {generations.map((generation) => (
+        <GenerationTrackCard
+          key={generation.id}
+          generation={generation}
+          onCheckStatus={checkGenerationStatus}
+          onPlay={onPlay}
+          onDownload={onDownload}
+          isRefreshing={isRefreshing}
+        />
+      ))}
     </div>
   );
 }

@@ -83,7 +83,7 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
       overallProgress: 0,
       steps: Object.values(STANDARD_STEPS).map(step => ({ ...step })),
       title: `Генерация ${service === 'suno' ? 'Suno AI' : 'Mureka'}`,
-      subtitle: input.prompt.slice(0, 60) + (input.prompt.length > 60 ? '...' : ''),
+      subtitle: input.description.slice(0, 60) + (input.description.length > 60 ? '...' : ''),
       metadata: { input }
     };
   }, []);

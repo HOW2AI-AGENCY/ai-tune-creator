@@ -11,7 +11,6 @@ import { useTrackGeneration } from "@/features/ai-generation/hooks/useTrackGener
 import { LyricsAnalysisReport } from './LyricsAnalysisReport';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { formatLyricsReadable } from "@/lib/lyrics-formatter";
 import { 
   Loader2, 
   Sparkles, 
@@ -173,21 +172,12 @@ export function TrackGenerationDialog({
       return;
     }
 
-    try {
-      await generateConcept({
-        stylePrompt: formData.stylePrompt,
-        genreTags: formData.genreTags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        artistInfo,
-        projectInfo
-      });
-    } catch (error: any) {
-      console.error('Ошибка генерации концепции:', error);
-      toast({
-        title: "Ошибка генерации",
-        description: error.message || "Не удалось сгенерировать концепцию",
-        variant: "destructive"
-      });
-    }
+    await generateConcept({
+      stylePrompt: formData.stylePrompt,
+      genreTags: formData.genreTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+      artistInfo,
+      projectInfo
+    });
   };
 
   const handleGenerateStylePrompt = async () => {
@@ -234,19 +224,17 @@ export function TrackGenerationDialog({
         formData.genreTags.split(',').map(tag => tag.trim()).filter(tag => tag)
       );
       
-      if (improved?.improved_lyrics) {
-        const formattedLyrics = formatLyricsReadable(improved.improved_lyrics);
-        
+      if (improved) {
         // Обновляем лирику новой улучшенной версией
         setGeneratedData(prev => ({ 
           ...prev, 
-          lyrics: formattedLyrics,
+          lyrics: { ...prev.lyrics, improved_text: improved },
           analysis: null // Сбрасываем анализ, так как лирика изменилась
         }));
         
         // Предлагаем обновить базу данных
-        promptUpdateTrackWithLyrics(formattedLyrics);
-        onGenerated('lyrics', formattedLyrics);
+        promptUpdateTrackWithLyrics(improved);
+        onGenerated('lyrics', { ...generatedData.lyrics, improved_text: improved });
       }
     } catch (error) {
       console.error('Lyrics improvement failed:', error);
@@ -254,7 +242,19 @@ export function TrackGenerationDialog({
   };
 
   const extractLyricsText = (lyricsData: any) => {
-    return formatLyricsReadable(lyricsData);
+    if (typeof lyricsData === 'string') return lyricsData;
+    
+    if (lyricsData?.song?.structure) {
+      return lyricsData.song.structure.map((part: any) => 
+        `[${part.tag.replace(/[\[\]]/g, '').toUpperCase()}]\n${part.lyrics}`
+      ).join('\n\n');
+    }
+    
+    if (lyricsData?.lyrics) {
+      return lyricsData.lyrics;
+    }
+    
+    return JSON.stringify(lyricsData, null, 2);
   };
 
   const copyToClipboard = (text: string) => {
@@ -263,38 +263,6 @@ export function TrackGenerationDialog({
       title: "Скопировано",
       description: "Текст скопирован в буфер обмена"
     });
-  };
-
-  const handleTitleClick = async (title: string) => {
-    if (!trackId) {
-      copyToClipboard(title);
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('tracks')
-        .update({ title })
-        .eq('id', trackId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Название обновлено",
-        description: `Название трека изменено на "${title}"`
-      });
-
-      onGenerated('concept', { ...generatedData.concept, applied_title: title });
-    } catch (error) {
-      console.error('Error updating track title:', error);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось обновить название трека",
-        variant: "destructive"
-      });
-      // Fallback to copying
-      copyToClipboard(title);
-    }
   };
 
   const saveAiResult = async (type: 'lyrics' | 'concept' | 'analysis', data: any, comment?: string) => {
@@ -354,52 +322,11 @@ export function TrackGenerationDialog({
     }
   };
 
-  const handleSaveClick = async (type: 'lyrics' | 'concept' | 'analysis') => {
+  const handleSaveClick = (type: 'lyrics' | 'concept' | 'analysis') => {
     const data = type === 'lyrics' ? generatedData.lyrics : 
                  type === 'concept' ? generatedData.concept : 
                  generatedData.analysis;
-    
-    // Save to AI generations table
-    await saveAiResult(type, data);
-    
-    // Also update the track directly in the tracks table
-    if (trackId && type === 'lyrics') {
-      try {
-        const { error } = await supabase
-          .from('tracks')
-          .update({
-            lyrics: formatLyricsReadable(data),
-            metadata: {
-              last_ai_update: new Date().toISOString(),
-              ai_generated: true
-            }
-          })
-          .eq('id', trackId);
-          
-        if (error) throw error;
-      } catch (error) {
-        console.error('Error updating track lyrics:', error);
-      }
-    }
-    
-    if (trackId && type === 'concept' && data?.description) {
-      try {
-        const { error } = await supabase
-          .from('tracks')
-          .update({
-            description: data.description,
-            metadata: {
-              concept_generated: true,
-              last_concept_update: new Date().toISOString()
-            }
-          })
-          .eq('id', trackId);
-          
-        if (error) throw error;
-      } catch (error) {
-        console.error('Error updating track concept:', error);
-      }
-    }
+    saveAiResult(type, data);
   };
 
   const promptUpdateTrackWithLyrics = (improvedLyrics: string) => {
@@ -709,9 +636,9 @@ export function TrackGenerationDialog({
                       </div>
                     </CardHeader>
                     <CardContent>
-                       <div className="whitespace-pre-wrap font-mono text-sm bg-muted/50 p-4 rounded-lg max-h-60 overflow-y-auto">
-                         {formatLyricsReadable(generatedData.lyrics)}
-                       </div>
+                      <div className="whitespace-pre-wrap font-mono text-sm bg-muted/50 p-4 rounded-lg max-h-60 overflow-y-auto">
+                        {generatedData.lyrics.improved_text || extractLyricsText(generatedData.lyrics)}
+                      </div>
                       
                       {(generatedData.lyrics.mood || generatedData.lyrics.song?.mood) && (
                         <div className="mt-4">
@@ -824,14 +751,14 @@ export function TrackGenerationDialog({
                       {(generatedData.concept.title_suggestions || generatedData.concept.TITLE_SUGGESTIONS) && (
                         <div>
                           <p className="text-sm font-medium">Предложения названий:</p>
-                           <div className="flex flex-wrap gap-1 mt-1">
-                             {(generatedData.concept.title_suggestions || generatedData.concept.TITLE_SUGGESTIONS).map((title: string, index: number) => (
-                               <Badge key={index} variant="outline" className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                                      onClick={() => handleTitleClick(title)}>
-                                 {title}
-                               </Badge>
-                             ))}
-                           </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {(generatedData.concept.title_suggestions || generatedData.concept.TITLE_SUGGESTIONS).map((title: string, index: number) => (
+                              <Badge key={index} variant="outline" className="cursor-pointer"
+                                     onClick={() => copyToClipboard(title)}>
+                                {title}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
                       )}
 

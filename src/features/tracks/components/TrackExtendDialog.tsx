@@ -500,7 +500,7 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
                           <SelectValue placeholder="Auto" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="auto">Auto</SelectItem>
+                          <SelectItem value="">Auto</SelectItem>
                           <SelectItem value="m">Male</SelectItem>
                           <SelectItem value="f">Female</SelectItem>
                         </SelectContent>
