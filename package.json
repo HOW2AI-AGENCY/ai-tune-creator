@@ -89,7 +89,7 @@
     "vite": "^7.1.2"
   },
   "description": "> Современная платформа для создания музыки с помощью искусственного интеллекта",
-  "main": "eslint.config.js",
+  "main": "index.js",
   "directories": {
     "doc": "docs"
   },

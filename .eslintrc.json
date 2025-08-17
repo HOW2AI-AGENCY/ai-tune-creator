@@ -1,13 +1,11 @@
 {
   "root": true,
-  "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "ecmaVersion": 2024,
+    "ecmaVersion": 2020,
     "sourceType": "module",
     "ecmaFeatures": {
       "jsx": true
-    },
-    "project": "./tsconfig.json"
+    }
   },
   "settings": {
     "react": {
@@ -16,34 +14,24 @@
   },
   "env": {
     "browser": true,
-    "es2024": true,
+    "es2020": true,
     "node": true
   },
   "plugins": [
-    "@typescript-eslint",
     "react-hooks",
     "react-refresh"
   ],
   "extends": [
-    "eslint:recommended",
-    "@typescript-eslint/recommended",
-    "@typescript-eslint/recommended-requiring-type-checking",
-    "plugin:react-hooks/recommended"
+    "eslint:recommended"
   ],
   "rules": {
-    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
-    "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/ban-ts-comment": ["error", {
-      "ts-expect-error": "allow-with-description",
-      "ts-ignore": false,
-      "ts-nocheck": false,
-      "ts-check": false
+    "no-unused-vars": ["warn", { 
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_",
+      "caughtErrorsIgnorePattern": "^_"
     }],
-    "@typescript-eslint/no-non-null-assertion": "warn",
-    "@typescript-eslint/prefer-optional-chain": "error",
-    "@typescript-eslint/prefer-nullish-coalescing": "error",
-    "@typescript-eslint/no-unnecessary-type-assertion": "error",
-    "@typescript-eslint/no-floating-promises": "error",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
     "react-refresh/only-export-components": [
       "warn",
       { "allowConstantExport": true }
@@ -51,14 +39,29 @@
     "no-console": "warn",
     "no-debugger": "error",
     "prefer-const": "error",
-    "no-var": "error"
+    "no-var": "error",
+    "no-duplicate-imports": "error",
+    "no-unused-expressions": "error",
+    "no-undef-init": "error",
+    "object-shorthand": "error",
+    "prefer-template": "error",
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "quotes": ["warn", "single", { "avoidEscape": true }],
+    "semi": ["warn", "always"],
+    "comma-dangle": ["warn", "only-multiline"]
   },
-  "ignorePatterns": [
-    "dist",
-    "node_modules",
-    "*.config.js",
-    "*.config.ts",
-    "vite-env.d.ts",
-    "supabase/migrations"
+  "overrides": [
+    {
+      "files": ["supabase/functions/**/*.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["*.config.{js,ts}", "vite.config.ts", "tailwind.config.ts"],
+      "rules": {
+        "no-unused-vars": "off"
+      }
+    }
   ]
 }

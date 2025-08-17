@@ -9,12 +9,83 @@
     "paths": {
       "@/*": ["./src/*"]
     },
+    // ====================================
+    // СТРОГАЯ ТИПИЗАЦИЯ TYPESCRIPT
+    // ====================================
+    // Включаем strict mode для повышения качества кода
+    // Это помогает выявлять потенциальные ошибки на этапе компиляции
+    "strict": true,
+    
+    // Запрещаем неявный any тип
+    // Все типы должны быть явно указаны
     "noImplicitAny": true,
-    "noUnusedParameters": true,
-    "skipLibCheck": true,
-    "allowJs": true,
+    
+    // Включаем строгую проверку null и undefined
+    // Помогает избежать runtime ошибок типа "Cannot read property of null"
+    "strictNullChecks": true,
+    
+    // Строгая проверка функций
+    // Обеспечивает правильную типизацию параметров функций
+    "strictFunctionTypes": true,
+    
+    // Строгая проверка bind, call, apply
+    "strictBindCallApply": true,
+    
+    // Строгая проверка свойств классов
+    "strictPropertyInitialization": true,
+    
+    // Проверка неиспользуемых локальных переменных
     "noUnusedLocals": true,
-    "strictNullChecks": false,
-    "strict": false
+    
+    // Проверка неиспользуемых параметров функций
+    "noUnusedParameters": true,
+    
+    // Разрешаем недостижимый код (отключаем проверку для совместимости)
+    "allowUnreachableCode": false,
+    
+    // Проверка на fallthrough в switch statements
+    "noFallthroughCasesInSwitch": true,
+    
+    // Проверка возвращаемых значений функций
+    "noImplicitReturns": true,
+    
+    // ====================================
+    // СОВМЕСТИМОСТЬ И ПРОИЗВОДИТЕЛЬНОСТЬ
+    // ====================================
+    // Пропускаем проверку типов в .d.ts файлах для ускорения компиляции
+    "skipLibCheck": true,
+    
+    // Разрешаем JavaScript файлы для совместимости с существующим кодом
+    "allowJs": true,
+    
+    // Разрешаем синтетические default импорты для лучшей совместимости с модулями
+    "allowSyntheticDefaultImports": true,
+    
+    // Включаем esModuleInterop для лучшей совместимости с CommonJS модулями
+    "esModuleInterop": true,
+    
+    // Принудительно используем согласованный регистр в именах файлов
+    "forceConsistentCasingInFileNames": true,
+    
+    // ====================================
+    // ДОПОЛНИТЕЛЬНЫЕ ПРОВЕРКИ КАЧЕСТВА
+    // ====================================
+    // Проверяем что все пути к модулям разрешаются
+    "moduleResolution": "node",
+    
+    // Указываем целевую версию ECMAScript
+    "target": "ES2020",
+    
+    // Указываем модульную систему
+    "module": "ESNext",
+    
+    // Включаем поддержку JSX для React компонентов
+    "jsx": "react-jsx",
+    
+    // Включаем декораторы если используются
+    "experimentalDecorators": true,
+    
+    // Включаем поддержку метаданных для декораторов
+    "emitDecoratorMetadata": true
   }
 }

@@ -2,19 +2,88 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Базовый in-memory rate limiter (per function instance)
-const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
-const RATE_LIMIT_MAX = 10; // 10 requests per window для Mureka
-const rateMap = new Map<string, { count: number; reset: number }>();
+/**
+ * Mureka AI Track Generation Edge Function
+ * 
+ * Этот Edge Function обеспечивает интеграцию с Mureka AI API для генерации музыкальных треков.
+ * Включает в себя полноценную обработку ошибок, retry логику, rate limiting и мониторинг.
+ * 
+ * @version 2.0.0
+ * @author AI Music Platform Team
+ */
 
+// ==========================================
+// КОНФИГУРАЦИЯ И КОНСТАНТЫ
+// ==========================================
+
+// CORS заголовки для обеспечения кросс-доменных запросов
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface MurekaGenerationRequest {
+// Конфигурация Rate Limiting
+// Mureka имеет более высокие лимиты, чем Suno
+const RATE_LIMIT_WINDOW = 10 * 60 * 1000; // 10 минут
+const RATE_LIMIT_MAX = 10; // 10 запросов на окно
+const RATE_LIMIT_CLEANUP_INTERVAL = 5 * 60 * 1000; // Очистка каждые 5 минут
+
+// Конфигурация Retry логики
+const MAX_RETRY_ATTEMPTS = 3; // Максимум 3 попытки
+const INITIAL_RETRY_DELAY = 1000; // Начальная задержка 1 секунда
+const MAX_RETRY_DELAY = 10000; // Максимальная задержка 10 секунд
+
+// Конфигурация Polling для отслеживания статуса генерации
+const POLLING_INTERVAL = 3000; // Проверка каждые 3 секунды
+const MAX_POLLING_ATTEMPTS = 100; // Максимум 100 попыток (5 минут)
+
+// Конфигурация Timeouts
+const API_TIMEOUT = 30000; // 30 секунд для API вызовов
+const DB_TIMEOUT = 10000; // 10 секунд для операций с БД
+const AUTH_TIMEOUT = 5000; // 5 секунд для проверки аутентификации
+
+// Поддерживаемые модели Mureka
+const SUPPORTED_MODELS = ['auto', 'mureka-6', 'mureka-7', 'mureka-o1'] as const;
+
+// ==========================================
+// ТИПЫ И ИНТЕРФЕЙСЫ
+// ==========================================
+
+/**
+ * Интерфейс для входящего запроса на генерацию трека
+ */
+interface TrackGenerationRequest {
+  prompt?: string;
+  lyrics?: string;
+  model?: typeof SUPPORTED_MODELS[number];
+  style?: string;
+  duration?: number;
+  genre?: string;
+  mood?: string;
+  instruments?: string[];
+  tempo?: string;
+  key?: string;
+  trackId?: string | null;
+  projectId?: string | null;
+  artistId?: string | null;
+  title?: string;
+  mode?: 'quick' | 'custom' | 'advanced';
+  custom_lyrics?: string;
+  instrumental?: boolean;
+  language?: string;
+  reference_id?: string | null;
+  vocal_id?: string | null;
+  melody_id?: string | null;
+  stream?: boolean;
+  useInbox?: boolean;
+}
+
+/**
+ * Интерфейс для запроса к Mureka API
+ */
+interface MurekaAPIRequest {
   lyrics: string;
-  model?: 'auto' | 'mureka-6' | 'mureka-7' | 'mureka-o1';
+  model?: typeof SUPPORTED_MODELS[number];
   prompt?: string;
   reference_id?: string;
   vocal_id?: string;
@@ -22,7 +91,10 @@ interface MurekaGenerationRequest {
   stream?: boolean;
 }
 
-interface MurekaTaskResponse {
+/**
+ * Интерфейс для ответа от Mureka API
+ */
+interface MurekaAPIResponse {
   id: string;
   created_at: number;
   finished_at?: number;
@@ -36,448 +108,885 @@ interface MurekaTaskResponse {
   }>;
 }
 
-// T-059: Edge Function для генерации треков через Mureka AI
+/**
+ * Интерфейс для rate limiting записи
+ */
+interface RateLimitEntry {
+  count: number;
+  reset: number;
+  lastCleanup?: number;
+}
+
+// ==========================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЕ
+// ==========================================
+
+// Map для хранения rate limit данных по пользователям
+// Использует in-memory хранилище для быстрого доступа
+const rateLimitMap = new Map<string, RateLimitEntry>();
+
+// Последняя очистка устаревших записей
+let lastGlobalCleanup = Date.now();
+
+// ==========================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ==========================================
+
+/**
+ * Очистка устаревших записей rate limiting для оптимизации памяти
+ * Удаляет записи, срок действия которых истек
+ */
+function cleanupRateLimitMap(): void {
+  const now = Date.now();
+  
+  // Выполняем глобальную очистку только раз в RATE_LIMIT_CLEANUP_INTERVAL
+  if (now - lastGlobalCleanup < RATE_LIMIT_CLEANUP_INTERVAL) {
+    return;
+  }
+  
+  console.log(`[CLEANUP] Очистка rate limit map. Текущий размер: ${rateLimitMap.size}`);
+  
+  let cleaned = 0;
+  for (const [userId, entry] of rateLimitMap.entries()) {
+    if (now > entry.reset) {
+      rateLimitMap.delete(userId);
+      cleaned++;
+    }
+  }
+  
+  console.log(`[CLEANUP] Удалено ${cleaned} устаревших записей. Новый размер: ${rateLimitMap.size}`);
+  lastGlobalCleanup = now;
+}
+
+/**
+ * Проверка rate limit для пользователя
+ * Возвращает true если лимит не превышен, false если превышен
+ * 
+ * @param userId - ID пользователя для проверки
+ * @returns Объект с результатом проверки и временем до сброса
+ */
+function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
+  cleanupRateLimitMap();
+  
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  
+  if (!entry || now > entry.reset) {
+    // Создаем новую запись или сбрасываем существующую
+    rateLimitMap.set(userId, { 
+      count: 1, 
+      reset: now + RATE_LIMIT_WINDOW,
+      lastCleanup: now 
+    });
+    return { allowed: true };
+  }
+  
+  if (entry.count >= RATE_LIMIT_MAX) {
+    // Лимит превышен
+    const retryAfter = Math.ceil((entry.reset - now) / 1000);
+    console.log(`[RATE_LIMIT] Пользователь ${userId} превысил лимит. Retry after: ${retryAfter}s`);
+    return { allowed: false, retryAfter };
+  }
+  
+  // Увеличиваем счетчик
+  entry.count++;
+  return { allowed: true };
+}
+
+/**
+ * Извлечение User ID из JWT токена
+ * Безопасно декодирует токен и извлекает subject
+ * 
+ * @param authHeader - Заголовок Authorization
+ * @returns User ID или 'anonymous' если токен невалидный
+ */
+function extractUserId(authHeader: string | null): string {
+  if (!authHeader) return 'anonymous';
+  
+  try {
+    const token = authHeader.replace('Bearer ', '');
+    const parts = token.split('.');
+    
+    if (parts.length !== 3) {
+      console.warn('[AUTH] Невалидный формат JWT токена');
+      return 'anonymous';
+    }
+    
+    const payload = JSON.parse(atob(parts[1]));
+    return payload.sub || 'anonymous';
+  } catch (error) {
+    console.error('[AUTH] Ошибка парсинга JWT токена:', error);
+    return 'anonymous';
+  }
+}
+
+/**
+ * Определяет, является ли ошибка временной и можно ли повторить запрос
+ * 
+ * @param error - Объект ошибки или статус код
+ * @returns true если ошибка временная
+ */
+function isRetryableError(error: any): boolean {
+  // Статус коды, при которых имеет смысл повторить запрос
+  const retryableStatusCodes = [408, 429, 500, 502, 503, 504];
+  
+  if (typeof error === 'number') {
+    return retryableStatusCodes.includes(error);
+  }
+  
+  if (error?.status) {
+    return retryableStatusCodes.includes(error.status);
+  }
+  
+  // Сетевые ошибки также считаем временными
+  const errorMessage = error?.message?.toLowerCase() || '';
+  return errorMessage.includes('network') || 
+         errorMessage.includes('timeout') ||
+         errorMessage.includes('fetch');
+}
+
+/**
+ * Вычисляет задержку для retry с exponential backoff и jitter
+ * 
+ * @param attempt - Номер попытки (начиная с 0)
+ * @returns Задержка в миллисекундах
+ */
+function calculateRetryDelay(attempt: number): number {
+  // Exponential backoff: delay = min(initial * 2^attempt, maxDelay)
+  const exponentialDelay = Math.min(
+    INITIAL_RETRY_DELAY * Math.pow(2, attempt),
+    MAX_RETRY_DELAY
+  );
+  
+  // Добавляем jitter для предотвращения "thundering herd"
+  const jitter = Math.random() * 0.3 * exponentialDelay;
+  
+  return Math.floor(exponentialDelay + jitter);
+}
+
+/**
+ * Выполняет fetch запрос с timeout
+ * 
+ * @param url - URL для запроса
+ * @param options - Опции fetch
+ * @param timeout - Timeout в миллисекундах
+ * @returns Response или ошибка timeout
+ */
+async function fetchWithTimeout(
+  url: string, 
+  options: RequestInit, 
+  timeout: number = API_TIMEOUT
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      throw new Error(`Запрос превысил timeout в ${timeout}ms`);
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Валидация входящего запроса на генерацию
+ * Проверяет обязательные поля и корректность данных
+ * 
+ * @param request - Объект запроса
+ * @throws Error если валидация не пройдена
+ */
+function validateRequest(request: TrackGenerationRequest): void {
+  // Проверка модели
+  if (request.model && !SUPPORTED_MODELS.includes(request.model)) {
+    throw new Error(`Неподдерживаемая модель: ${request.model}. Доступны: ${SUPPORTED_MODELS.join(', ')}`);
+  }
+  
+  // Проверка длительности
+  if (request.duration && (request.duration < 10 || request.duration > 480)) {
+    throw new Error('Длительность должна быть от 10 до 480 секунд');
+  }
+  
+  // Проверка режима
+  if (request.mode && !['quick', 'custom', 'advanced'].includes(request.mode)) {
+    throw new Error('Неверный режим. Доступны: quick, custom, advanced');
+  }
+  
+  // Проверка взаимоисключающих параметров
+  const controlParams = [request.reference_id, request.vocal_id, request.melody_id].filter(Boolean);
+  if (controlParams.length > 1) {
+    throw new Error('Можно использовать только один из параметров: reference_id, vocal_id, melody_id');
+  }
+  
+  // Проверка наличия контента для генерации
+  const hasContent = request.prompt || request.lyrics || request.custom_lyrics || request.instrumental;
+  if (!hasContent && !controlParams.length) {
+    throw new Error('Необходимо указать prompt, lyrics, custom_lyrics или установить instrumental=true');
+  }
+  
+  // Проверка длины текстов
+  if (request.prompt && request.prompt.length > 2000) {
+    throw new Error('Prompt не должен превышать 2000 символов');
+  }
+  
+  if (request.lyrics && request.lyrics.length > 5000) {
+    throw new Error('Lyrics не должны превышать 5000 символов');
+  }
+  
+  if (request.custom_lyrics && request.custom_lyrics.length > 5000) {
+    throw new Error('Custom lyrics не должны превышать 5000 символов');
+  }
+}
+
+/**
+ * Определяет, содержит ли текст структуру лирики
+ * 
+ * @param text - Текст для проверки
+ * @returns true если текст похож на лирику
+ */
+function looksLikeLyrics(text?: string): boolean {
+  if (!text) return false;
+  
+  const lowerText = text.toLowerCase();
+  
+  // Проверяем, что это не команда генерации
+  if (lowerText.includes('создай') || 
+      lowerText.includes('сгенерируй') || 
+      lowerText.includes('generate') ||
+      lowerText.includes('create')) {
+    return false;
+  }
+  
+  // Проверяем наличие структурных элементов лирики
+  const hasStructure = /\[?(verse|chorus|bridge|intro|outro|куплет|припев|бридж)\]?/i.test(text);
+  const hasNewlines = /\n/.test(text);
+  const wordCount = text.split(/\s+/).length;
+  
+  return hasStructure || hasNewlines || wordCount > 12;
+}
+
+/**
+ * Подготавливает данные для запроса к Mureka API
+ * Разделяет prompt и lyrics, обрабатывает различные режимы
+ * 
+ * @param request - Входящий запрос
+ * @returns Объект с разделенными lyrics и prompt
+ */
+function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string; prompt: string } {
+  let lyrics = '';
+  let prompt = '';
+  
+  // Формируем базовый prompt из параметров стиля
+  const stylePrompt = request.style || 
+    `${request.genre || 'electronic'}, ${request.mood || 'energetic'}, ${request.tempo || 'medium'}`;
+  
+  if (request.custom_lyrics && request.custom_lyrics.trim().length > 0) {
+    // Пользователь предоставил явную лирику
+    lyrics = request.custom_lyrics;
+    prompt = stylePrompt;
+  } else if (request.lyrics && request.lyrics.trim().length > 0) {
+    // Лирика в поле lyrics
+    lyrics = request.lyrics;
+    prompt = stylePrompt;
+  } else if (request.instrumental) {
+    // Инструментальный трек
+    lyrics = '[Instrumental]';
+    prompt = request.prompt || stylePrompt;
+  } else if (looksLikeLyrics(request.prompt)) {
+    // Поле prompt содержит лирику
+    lyrics = request.prompt!;
+    prompt = stylePrompt;
+  } else {
+    // Нет лирики - генерируем placeholder
+    lyrics = `Sing about: ${request.prompt || 'a beautiful song'}`;
+    prompt = stylePrompt;
+  }
+  
+  return { lyrics, prompt };
+}
+
+/**
+ * Создает форматированную лирику с метаданными Mureka
+ * 
+ * @param request - Входящий запрос
+ * @param lyrics - Обработанная лирика
+ * @param response - Ответ от Mureka API
+ * @returns Форматированная строка с лирикой и метаданными
+ */
+function formatLyricsWithMetadata(
+  request: TrackGenerationRequest,
+  lyrics: string,
+  response: MurekaAPIResponse
+): string {
+  const metadata = [
+    `[Generated by Mureka AI - Model: ${response.model}]`,
+    request.instrumental ? '[Instrumental Track]' : lyrics,
+    '',
+    '[Metadata]',
+    `[Model: ${response.model}]`,
+    `[Style: ${request.style || 'Default'}]`,
+    `[Genre: ${request.genre || 'electronic'}]`,
+    `[Mood: ${request.mood || 'energetic'}]`,
+    `[Tempo: ${request.tempo || 'medium'}]`,
+    `[Key: ${request.key || 'C'}]`
+  ];
+  
+  if (request.instruments?.length) {
+    metadata.push(`[Instruments: ${request.instruments.join(', ')}]`);
+  }
+  
+  if (request.instrumental) {
+    metadata.push('[Instrumental: Yes]');
+  }
+  
+  if (request.language && request.language !== 'ru') {
+    metadata.push(`[Language: ${request.language}]`);
+  }
+  
+  if (request.reference_id) {
+    metadata.push(`[Reference ID: ${request.reference_id}]`);
+  }
+  
+  if (request.vocal_id) {
+    metadata.push(`[Vocal ID: ${request.vocal_id}]`);
+  }
+  
+  if (request.melody_id) {
+    metadata.push(`[Melody ID: ${request.melody_id}]`);
+  }
+  
+  if (request.stream) {
+    metadata.push('[Streaming Enabled]');
+  }
+  
+  metadata.push(
+    '',
+    '{mureka_generation}',
+    'Track created with Mureka AI using official API v1',
+    `Model: ${response.model}`,
+    `Task ID: ${response.id}`,
+    `Status: ${response.status}`,
+    '{/mureka_generation}'
+  );
+  
+  return metadata.join('\n');
+}
+
+/**
+ * Выполняет запрос к Mureka API с retry логикой
+ * 
+ * @param requestBody - Тело запроса для Mureka API
+ * @param apiKey - API ключ
+ * @returns Ответ от Mureka API
+ */
+async function callMurekaAPIWithRetry(
+  requestBody: MurekaAPIRequest,
+  apiKey: string
+): Promise<MurekaAPIResponse> {
+  let lastError: any;
+  
+  for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+    try {
+      console.log(`[API] Попытка ${attempt + 1}/${MAX_RETRY_ATTEMPTS} вызова Mureka API`);
+      
+      const response = await fetchWithTimeout(
+        'https://api.mureka.ai/v1/song/generate',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        },
+        API_TIMEOUT
+      );
+      
+      // Логируем статус ответа
+      console.log(`[API] Получен ответ со статусом: ${response.status}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`[API] Успешно создана задача: ${data.id}`);
+        return data;
+      }
+      
+      // Обработка ошибок API
+      const errorText = await response.text();
+      console.error(`[API] Ошибка от Mureka API: ${response.status} - ${errorText}`);
+      
+      // Проверяем, стоит ли повторять запрос
+      if (!isRetryableError(response.status)) {
+        throw new Error(`Mureka API error: ${response.status} - ${errorText}`);
+      }
+      
+      lastError = new Error(`HTTP ${response.status}: ${errorText}`);
+      
+    } catch (error: any) {
+      console.error(`[API] Ошибка при вызове Mureka API:`, error.message);
+      lastError = error;
+      
+      // Если это не временная ошибка, прекращаем попытки
+      if (!isRetryableError(error)) {
+        throw error;
+      }
+    }
+    
+    // Вычисляем задержку перед следующей попыткой
+    if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+      const delay = calculateRetryDelay(attempt);
+      console.log(`[RETRY] Ожидание ${delay}ms перед следующей попыткой...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  // Все попытки исчерпаны
+  throw lastError || new Error('Не удалось выполнить запрос к Mureka API после всех попыток');
+}
+
+/**
+ * Выполняет polling для отслеживания статуса генерации
+ * 
+ * @param taskId - ID задачи для отслеживания
+ * @param apiKey - API ключ
+ * @returns Финальный статус задачи
+ */
+async function pollMurekaStatus(
+  taskId: string,
+  apiKey: string
+): Promise<MurekaAPIResponse> {
+  const pendingStatuses = ['preparing', 'queued', 'running', 'streaming'];
+  let attempts = 0;
+  
+  console.log(`[POLLING] Начинаем отслеживание статуса задачи: ${taskId}`);
+  
+  while (attempts < MAX_POLLING_ATTEMPTS) {
+    attempts++;
+    
+    try {
+      const response = await fetchWithTimeout(
+        `https://api.mureka.ai/v1/song/query/${taskId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+        API_TIMEOUT
+      );
+      
+      if (response.ok) {
+        const data: MurekaAPIResponse = await response.json();
+        console.log(`[POLLING] Попытка ${attempts}/${MAX_POLLING_ATTEMPTS}: статус = ${data.status}`);
+        
+        // Проверяем, завершена ли генерация
+        if (!pendingStatuses.includes(data.status)) {
+          console.log(`[POLLING] Генерация завершена со статусом: ${data.status}`);
+          return data;
+        }
+      } else {
+        console.warn(`[POLLING] Ошибка получения статуса: ${response.status}`);
+      }
+    } catch (error) {
+      console.error(`[POLLING] Ошибка при проверке статуса:`, error);
+    }
+    
+    // Ждем перед следующей попыткой
+    await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+  }
+  
+  throw new Error(`Превышено время ожидания генерации (${MAX_POLLING_ATTEMPTS * POLLING_INTERVAL / 1000} секунд)`);
+}
+
+// ==========================================
+// ОСНОВНАЯ ФУНКЦИЯ EDGE FUNCTION
+// ==========================================
+
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // ====================================
+  // 1. ОБРАБОТКА CORS
+  // ====================================
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-
-  // Extract user id from verified JWT for rate limiting
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const token = authHeader.replace('Bearer ', '');
-  const jwtPayload = token.split('.')[1];
-  const userId = jwtPayload ? JSON.parse(atob(jwtPayload)).sub as string : 'anonymous';
-
-  // Rate limit per user
-  const now = Date.now();
-  const rl = rateMap.get(userId);
-  if (!rl || now > rl.reset) {
-    rateMap.set(userId, { count: 1, reset: now + RATE_LIMIT_WINDOW });
-  } else if (rl.count >= RATE_LIMIT_MAX) {
-    return new Response(JSON.stringify({ 
-      error: 'Rate limit exceeded. Mureka AI generation limited to 10 requests per 15 minutes.',
-      retryAfter: Math.ceil((rl.reset - now) / 1000)
-    }), {
-      status: 429,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } else {
-    rl.count++;
-  }
-
+  
+  const startTime = Date.now();
+  
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    );
-
-    const { 
-      prompt,
-      lyrics,
-      model = "auto",
-      style = "",
-      duration = 120, // Default 120 seconds (2 minutes)
-      genre = "electronic",
-      mood = "energetic", 
-      instruments = [],
-      tempo = "medium",
-      key = "C",
-      trackId = null,
-      projectId = null,
-      artistId = null,
-      title = "",
-      mode = "quick",
-      custom_lyrics = "",
-      instrumental = false,
-      language = "ru",
-      reference_id = null,
-      vocal_id = null,
-      melody_id = null,
-      stream = false,
-      useInbox = false
-    } = await req.json();
-
-    // Handle context (inbox logic)
-    let finalProjectId = projectId;
-    let finalArtistId = artistId;
-
-    // If useInbox is true or no context provided, use inbox logic
-    if (useInbox || (!projectId && !artistId)) {
-      console.log('Using inbox logic, useInbox:', useInbox);
-      
-      const { data: inboxProjectId, error: inboxError } = await supabase
-        .rpc('ensure_user_inbox', { p_user_id: userId });
-
-      if (inboxError) {
-        console.error('Failed to ensure inbox:', inboxError);
-        throw new Error('Failed to create inbox project');
-      }
-
-      finalProjectId = inboxProjectId;
-      console.log('Using inbox project:', finalProjectId);
-    }
-
-    console.log('Generating Mureka track with params:', { 
-      prompt: prompt ? prompt.substring(0, 100) + '...' : '[using custom lyrics]',
-      style, 
-      duration,
-      genre,
-      mood,
-      tempo,
-      mode,
-      custom_lyrics: custom_lyrics ? custom_lyrics.substring(0, 50) + '...' : '',
-      instrumental,
-      language,
-      useInbox,
-      finalProjectId,
-      finalArtistId
-    });
-
-    // Получаем Mureka API ключи
-    const murekaApiKey = Deno.env.get('MUREKA_API_KEY');
-    const murekaApiUrl = Deno.env.get('MUREKA_API_URL') || 'https://api.mureka.com';
-
-    if (!murekaApiKey) {
-      throw new Error('MUREKA_API_KEY not configured');
-    }
-
-    // Fix: Separate lyrics and prompt handling
-    let requestLyrics = '';
-    let requestPrompt = '';
-
-    const looksLikeLyrics = (text?: string) => {
-      if (!text) return false;
-      const t = text.toLowerCase();
-      if (t.includes('создай') || t.includes('сгенерируй')) return false;
-      return /\[?(verse|chorus|bridge|intro|outro|куплет|припев|бридж)\]?/i.test(text) || /\n/.test(text) || text.split(/\s+/).length > 12;
-    };
+    // ====================================
+    // 2. ИЗВЛЕЧЕНИЕ USER ID И RATE LIMITING
+    // ====================================
+    const authHeader = req.headers.get('Authorization');
+    const userId = extractUserId(authHeader);
     
-    if (custom_lyrics && custom_lyrics.trim().length > 0) {
-      // User provided explicit lyrics
-      requestLyrics = custom_lyrics;
-      requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
-    } else if (lyrics && lyrics.trim().length > 0) {
-      // User provided lyrics in lyrics field
-      requestLyrics = lyrics;
-      requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
-    } else if (instrumental) {
-      // For instrumental tracks, provide minimal lyrics that indicate instrumental
-      requestLyrics = '[Instrumental]';
-      requestPrompt = prompt || style || `${genre}, ${mood}, ${tempo}`;
-    } else if (looksLikeLyrics(prompt)) {
-      // The prompt field actually contains lyrics
-      requestLyrics = prompt!;
-      requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
-    } else {
-      // No lyrics provided - generate placeholder lyrics request
-      requestLyrics = `Sing about: ${prompt || 'a beautiful song'}`;
-      requestPrompt = style || `${genre}, ${mood}, ${tempo}`;
+    console.log(`[REQUEST] Новый запрос от пользователя: ${userId}`);
+    
+    // Проверка rate limit
+    const rateLimitCheck = checkRateLimit(userId);
+    if (!rateLimitCheck.allowed) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Превышен лимит запросов',
+        message: `Mureka AI генерация ограничена ${RATE_LIMIT_MAX} запросами за ${RATE_LIMIT_WINDOW / 60000} минут`,
+        retryAfter: rateLimitCheck.retryAfter,
+        service: 'mureka'
+      }), {
+        status: 429,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Retry-After': String(rateLimitCheck.retryAfter)
+        },
+      });
     }
     
-    const murekaRequest: MurekaGenerationRequest = {
-      lyrics: requestLyrics,
-      model,
-      prompt: requestPrompt,
-      stream
-    };
-
-    // Add control options (mutually exclusive)
-    if (reference_id) {
-      murekaRequest.reference_id = reference_id;
-      delete murekaRequest.prompt; // Cannot use prompt with reference_id
-    } else if (vocal_id) {
-      murekaRequest.vocal_id = vocal_id;
-      delete murekaRequest.prompt; // Cannot use prompt with vocal_id
-    } else if (melody_id) {
-      murekaRequest.melody_id = melody_id;
-      delete murekaRequest.prompt; // Cannot use prompt with melody_id
-    }
-
-    console.log('Making request to Mureka API with official endpoint');
+    // ====================================
+    // 3. ПАРСИНГ И ВАЛИДАЦИЯ ЗАПРОСА
+    // ====================================
+    let requestBody: TrackGenerationRequest;
     
-    // Call Mureka API to create track using official endpoint
-    const murekaResponse = await fetch('https://api.mureka.ai/v1/song/generate', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${murekaApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(murekaRequest),
-    });
-
-    if (!murekaResponse.ok) {
-      const errorText = await murekaResponse.text();
-      console.error('Mureka API Error:', errorText);
-      throw new Error(`Mureka API error: ${murekaResponse.status} ${errorText}`);
+    try {
+      requestBody = await req.json();
+    } catch (error) {
+      console.error('[PARSE] Ошибка парсинга JSON:', error);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Невалидный JSON в теле запроса',
+        service: 'mureka'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-
-    const murekaData: MurekaTaskResponse = await murekaResponse.json();
-    console.log('Mureka API Response received:', murekaData.id, murekaData.status);
-
-    if (!murekaData || !murekaData.id) {
-      throw new Error('Invalid response from Mureka AI');
+    
+    // Валидация входных данных
+    try {
+      validateRequest(requestBody);
+    } catch (error: any) {
+      console.error('[VALIDATION] Ошибка валидации:', error.message);
+      return new Response(JSON.stringify({
+        success: false,
+        error: error.message,
+        service: 'mureka'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-
-    // Poll for completion using official endpoint
-    let finalTrack = murekaData;
-    if (['preparing', 'queued', 'running', 'streaming'].includes(murekaData.status)) {
-      console.log('Track is processing, starting polling...');
+    
+    // ====================================
+    // 4. ИНИЦИАЛИЗАЦИЯ SUPABASE КЛИЕНТА
+    // ====================================
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase конфигурация не найдена');
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // ====================================
+    // 5. ОБРАБОТКА INBOX ЛОГИКИ
+    // ====================================
+    let finalProjectId = requestBody.projectId;
+    let finalArtistId = requestBody.artistId;
+    
+    if (requestBody.useInbox || (!requestBody.projectId && !requestBody.artistId)) {
+      console.log('[INBOX] Используем inbox логику');
       
-      // Polling until completion (max 5 minutes)
-      const maxAttempts = 60; // 60 attempts every 5 seconds = 5 minutes
-      let attempts = 0;
-      
-      while (attempts < maxAttempts && ['preparing', 'queued', 'running', 'streaming'].includes(finalTrack.status)) {
-        await new Promise(resolve => setTimeout(resolve, 5000)); // 5 seconds
+      try {
+        const { data: inboxProjectId, error: inboxError } = await supabase
+          .rpc('ensure_user_inbox', { p_user_id: userId });
         
-        const statusResponse = await fetch(`https://api.mureka.ai/v1/song/query/${murekaData.id}`, {
-          headers: {
-            'Authorization': `Bearer ${murekaApiKey}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (statusResponse.ok) {
-          finalTrack = await statusResponse.json();
-          console.log(`Polling attempt ${attempts + 1}:`, finalTrack.status);
+        if (inboxError) {
+          console.error('[INBOX] Ошибка создания inbox:', inboxError);
+          throw new Error('Не удалось создать inbox проект');
         }
         
-        attempts++;
+        finalProjectId = inboxProjectId;
+        console.log(`[INBOX] Используем inbox проект: ${finalProjectId}`);
+      } catch (error) {
+        console.error('[INBOX] Критическая ошибка:', error);
+        throw new Error('Ошибка при работе с inbox');
       }
     }
-
-    // Create processed lyrics with Mureka-specific metadata
-    const processedLyrics = instrumental ? 
-      `[Generated by Mureka AI - Model: ${model}]
-[Instrumental Track]
-
-[Generation Prompt: ${prompt}]
-
-[Metadata]
-[Model: ${model}]
-[Style: ${requestPrompt}]
-[Genre: ${genre}]
-[Mood: ${mood}]
-[Tempo: ${tempo}]
-[Key: ${key}]
-${instruments.length > 0 ? `[Instruments: ${instruments.join(', ')}]` : ''}
-[Instrumental: Yes]
-${language !== 'ru' ? `[Language: ${language}]` : ''}
-${reference_id ? `[Reference ID: ${reference_id}]` : ''}
-${vocal_id ? `[Vocal ID: ${vocal_id}]` : ''}
-${melody_id ? `[Melody ID: ${melody_id}]` : ''}
-${stream ? '[Streaming Enabled]' : ''}
-
-{mureka_generation}
-Track created with Mureka AI using official API v1
-Model: ${model}
-Task ID: ${finalTrack.id}
-Status: ${finalTrack.status}
-{/mureka_generation}` :
-      `[Generated by Mureka AI - Model: ${model}]
-${requestLyrics}
-
-[Metadata]
-[Model: ${model}]
-[Style: ${requestPrompt}]
-[Genre: ${genre}]
-[Mood: ${mood}]
-[Tempo: ${tempo}]
-[Key: ${key}]
-${instruments.length > 0 ? `[Instruments: ${instruments.join(', ')}]` : ''}
-${language !== 'ru' ? `[Language: ${language}]` : ''}
-${reference_id ? `[Reference ID: ${reference_id}]` : ''}
-${vocal_id ? `[Vocal ID: ${vocal_id}]` : ''}
-${melody_id ? `[Melody ID: ${melody_id}]` : ''}
-${stream ? '[Streaming Enabled]' : ''}
-
-{mureka_generation}
-Track created with Mureka AI using official API v1
-Model: ${model}
-Task ID: ${finalTrack.id}
-Status: ${finalTrack.status}
-{/mureka_generation}`;
-
-    // Сохраняем информацию о генерации в базе данных
+    
+    // ====================================
+    // 6. ПОЛУЧЕНИЕ API КЛЮЧА MUREKA
+    // ====================================
+    const murekaApiKey = Deno.env.get('MUREKA_API_KEY');
+    
+    if (!murekaApiKey) {
+      console.error('[CONFIG] MUREKA_API_KEY не настроен');
+      throw new Error('Mureka API не сконфигурирован');
+    }
+    
+    // ====================================
+    // 7. ПОДГОТОВКА ДАННЫХ ДЛЯ MUREKA API
+    // ====================================
+    const { lyrics: requestLyrics, prompt: requestPrompt } = prepareMurekaContent(requestBody);
+    
+    console.log('[PREPARE] Подготовленные данные:', {
+      lyricsLength: requestLyrics.length,
+      promptLength: requestPrompt.length,
+      model: requestBody.model || 'auto',
+      instrumental: requestBody.instrumental
+    });
+    
+    // Формируем запрос к Mureka API
+    const murekaRequest: MurekaAPIRequest = {
+      lyrics: requestLyrics,
+      model: requestBody.model || 'auto',
+      stream: requestBody.stream || false
+    };
+    
+    // Добавляем control параметры (взаимоисключающие)
+    if (requestBody.reference_id) {
+      murekaRequest.reference_id = requestBody.reference_id;
+    } else if (requestBody.vocal_id) {
+      murekaRequest.vocal_id = requestBody.vocal_id;
+    } else if (requestBody.melody_id) {
+      murekaRequest.melody_id = requestBody.melody_id;
+    } else {
+      murekaRequest.prompt = requestPrompt;
+    }
+    
+    // ====================================
+    // 8. ВЫЗОВ MUREKA API С RETRY ЛОГИКОЙ
+    // ====================================
+    console.log('[API] Вызываем Mureka API для создания трека');
+    
+    let murekaResponse: MurekaAPIResponse;
+    
+    try {
+      murekaResponse = await callMurekaAPIWithRetry(murekaRequest, murekaApiKey);
+    } catch (error: any) {
+      console.error('[API] Не удалось вызвать Mureka API:', error);
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Ошибка при обращении к Mureka AI',
+        message: error.message,
+        service: 'mureka',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // ====================================
+    // 9. POLLING ДЛЯ ПОЛУЧЕНИЯ РЕЗУЛЬТАТА
+    // ====================================
+    let finalTrack = murekaResponse;
+    
+    if (['preparing', 'queued', 'running', 'streaming'].includes(murekaResponse.status)) {
+      console.log('[POLLING] Трек в процессе генерации, начинаем polling');
+      
+      try {
+        finalTrack = await pollMurekaStatus(murekaResponse.id, murekaApiKey);
+      } catch (error: any) {
+        console.error('[POLLING] Ошибка при polling:', error);
+        // Продолжаем с текущим статусом
+      }
+    }
+    
+    // ====================================
+    // 10. ФОРМАТИРОВАНИЕ ЛИРИКИ С МЕТАДАННЫМИ
+    // ====================================
+    const processedLyrics = formatLyricsWithMetadata(requestBody, requestLyrics, finalTrack);
+    
+    // ====================================
+    // 11. СОХРАНЕНИЕ В БАЗУ ДАННЫХ
+    // ====================================
     let trackRecord = null;
     let generationRecord = null;
-
+    
     // Создаем запись в ai_generations
-    const { data: generation, error: genError } = await supabase
-      .from('ai_generations')
-      .insert({
-        user_id: userId,
-        prompt: prompt || requestLyrics.substring(0, 500),
-        service: 'mureka',
-        status: finalTrack.status === 'succeeded' ? 'completed' : finalTrack.status === 'failed' ? 'failed' : 'processing',
-        result_url: finalTrack.choices?.[0]?.audio_url,
-        metadata: {
-          mureka_task_id: finalTrack.id,
-          model: finalTrack.model,
-          created_at: finalTrack.created_at,
-          finished_at: finalTrack.finished_at,
-          failed_reason: finalTrack.failed_reason,
-          duration: finalTrack.choices?.[0]?.duration || duration,
-          title: finalTrack.choices?.[0]?.title,
-          genre: genre,
-          mood: mood,
-          tempo: tempo,
-          key: key,
-          instruments: instruments,
-          style: style,
-          mode,
-          custom_lyrics: custom_lyrics,
-          lyrics: requestLyrics,
-          instrumental,
-          language,
-          reference_id,
-          vocal_id,
-          melody_id,
-          stream,
-          mureka_response: finalTrack,
-          project_id: finalProjectId,
-          artist_id: finalArtistId
-        },
-        parameters: {
-          prompt,
-          lyrics,
-          model,
-          style,
-          duration,
-          genre,
-          mood,
-          instruments,
-          tempo,
-          key,
-          trackId,
-          projectId: finalProjectId,
-          artistId: finalArtistId,
-          title,
-          mode,
-          custom_lyrics,
-          instrumental,
-          language,
-          reference_id,
-          vocal_id,
-          melody_id,
-          stream
-        },
-        track_id: trackId
-      })
-      .select()
-      .single();
-
-    if (genError) {
-      console.error('Error saving generation:', genError);
-    } else {
-      generationRecord = generation;
-      console.log('Generation saved:', generation.id);
-    }
-
-    // Если есть trackId, обновляем существующий трек
-    if (trackId) {
-      const { data: updatedTrack, error: trackError } = await supabase
-        .from('tracks')
-        .update({
-          audio_url: finalTrack.choices?.[0]?.audio_url,
-          duration: finalTrack.choices?.[0]?.duration || duration,
-          metadata: {
-            mureka_task_id: finalTrack.id,
-            model: finalTrack.model,
-            mureka_response: finalTrack,
-            generation_id: generation?.id,
-            genre: genre,
-            mood: mood,
-            tempo: tempo,
-            key: key,
-            instruments: instruments,
-            mode,
-            custom_lyrics: custom_lyrics,
-            lyrics: requestLyrics,
-            instrumental,
-            language,
-            reference_id,
-            vocal_id,
-            melody_id,
-            stream
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', trackId)
-        .select()
-        .single();
-
-      if (trackError) {
-        console.error('Error updating track:', trackError);
-      } else {
-        trackRecord = updatedTrack;
-        console.log('Track updated:', updatedTrack.id);
-      }
-    } else {
-      // Создаем новый трек если trackId не указан
-      const { data: newTrack, error: trackError } = await supabase
-        .from('tracks')
+    try {
+      const { data: generation, error: genError } = await supabase
+        .from('ai_generations')
         .insert({
-          title: title || finalTrack.choices?.[0]?.title || `AI Track ${genre.charAt(0).toUpperCase()}${genre.slice(1)}`,
-          lyrics: processedLyrics,
-          description: `Mureka AI generated ${genre} track using ${model} model with ${mood} mood`,
-          audio_url: finalTrack.choices?.[0]?.url,
-          duration: finalTrack.choices?.[0]?.duration || duration,
-          genre_tags: [genre, mood, tempo].filter(Boolean),
-          style_prompt: style,
-          project_id: finalProjectId,
-          track_number: 1,
+          user_id: userId,
+          prompt: requestBody.prompt || requestLyrics.substring(0, 500),
+          service: 'mureka',
+          status: finalTrack.status === 'succeeded' ? 'completed' : 
+                  finalTrack.status === 'failed' ? 'failed' : 'processing',
+          result_url: finalTrack.choices?.[0]?.audio_url,
+          external_id: finalTrack.id,
           metadata: {
             mureka_task_id: finalTrack.id,
             model: finalTrack.model,
-            mureka_response: finalTrack,
-            generation_id: generationRecord?.id,
-            genre: genre,
-            mood: mood,
-            tempo: tempo,
-            key: key,
-            instruments: instruments,
-            mode,
-            custom_lyrics: custom_lyrics,
+            created_at: finalTrack.created_at,
+            finished_at: finalTrack.finished_at,
+            failed_reason: finalTrack.failed_reason,
+            duration: finalTrack.choices?.[0]?.duration || requestBody.duration,
+            title: finalTrack.choices?.[0]?.title,
+            genre: requestBody.genre,
+            mood: requestBody.mood,
+            tempo: requestBody.tempo,
+            key: requestBody.key,
+            instruments: requestBody.instruments,
+            style: requestBody.style,
+            mode: requestBody.mode,
+            custom_lyrics: requestBody.custom_lyrics,
             lyrics: requestLyrics,
-            instrumental,
-            language,
-            reference_id,
-            vocal_id,
-            melody_id,
-            stream
-          }
+            instrumental: requestBody.instrumental,
+            language: requestBody.language,
+            reference_id: requestBody.reference_id,
+            vocal_id: requestBody.vocal_id,
+            melody_id: requestBody.melody_id,
+            stream: requestBody.stream,
+            mureka_response: finalTrack,
+            project_id: finalProjectId,
+            artist_id: finalArtistId
+          },
+          parameters: requestBody,
+          track_id: requestBody.trackId || null
         })
         .select()
         .single();
-
-      if (trackError) {
-        console.error('Error creating track:', trackError);
+      
+      if (genError) {
+        console.error('[DB] Ошибка сохранения generation:', genError);
       } else {
-        trackRecord = newTrack;
-        console.log('Track created:', newTrack.id);
-
-        // Обновляем generation с track_id
-        if (generationRecord?.id) {
-          await supabase
-            .from('ai_generations')
-            .update({ track_id: newTrack.id })
-            .eq('id', generationRecord.id);
+        generationRecord = generation;
+        console.log(`[DB] Generation сохранен: ${generation.id}`);
+      }
+    } catch (error) {
+      console.error('[DB] Критическая ошибка при сохранении generation:', error);
+    }
+    
+    // Обработка трека (обновление или создание)
+    if (requestBody.trackId) {
+      // Обновляем существующий трек
+      try {
+        const { data: updatedTrack, error: trackError } = await supabase
+          .from('tracks')
+          .update({
+            audio_url: finalTrack.choices?.[0]?.audio_url,
+            duration: finalTrack.choices?.[0]?.duration || requestBody.duration,
+            metadata: {
+              mureka_task_id: finalTrack.id,
+              model: finalTrack.model,
+              mureka_response: finalTrack,
+              generation_id: generationRecord?.id,
+              genre: requestBody.genre,
+              mood: requestBody.mood,
+              tempo: requestBody.tempo,
+              key: requestBody.key,
+              instruments: requestBody.instruments,
+              mode: requestBody.mode,
+              custom_lyrics: requestBody.custom_lyrics,
+              lyrics: requestLyrics,
+              instrumental: requestBody.instrumental,
+              language: requestBody.language,
+              reference_id: requestBody.reference_id,
+              vocal_id: requestBody.vocal_id,
+              melody_id: requestBody.melody_id,
+              stream: requestBody.stream
+            },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', requestBody.trackId)
+          .select()
+          .single();
+        
+        if (trackError) {
+          console.error('[DB] Ошибка обновления трека:', trackError);
+        } else {
+          trackRecord = updatedTrack;
+          console.log(`[DB] Трек обновлен: ${updatedTrack.id}`);
         }
+      } catch (error) {
+        console.error('[DB] Критическая ошибка при обновлении трека:', error);
+      }
+    } else if (finalProjectId) {
+      // Создаем новый трек
+      try {
+        const { data: newTrack, error: trackError } = await supabase
+          .from('tracks')
+          .insert({
+            title: requestBody.title || 
+                   finalTrack.choices?.[0]?.title || 
+                   `AI Track ${(requestBody.genre || 'Music').charAt(0).toUpperCase()}${(requestBody.genre || 'music').slice(1)}`,
+            lyrics: processedLyrics,
+            description: `Mureka AI generated ${requestBody.genre || 'music'} track using ${finalTrack.model} model`,
+            audio_url: finalTrack.choices?.[0]?.audio_url,
+            duration: finalTrack.choices?.[0]?.duration || requestBody.duration,
+            genre_tags: [requestBody.genre, requestBody.mood, requestBody.tempo].filter(Boolean),
+            style_prompt: requestBody.style,
+            project_id: finalProjectId,
+            track_number: 1,
+            metadata: {
+              mureka_task_id: finalTrack.id,
+              model: finalTrack.model,
+              mureka_response: finalTrack,
+              generation_id: generationRecord?.id,
+              genre: requestBody.genre,
+              mood: requestBody.mood,
+              tempo: requestBody.tempo,
+              key: requestBody.key,
+              instruments: requestBody.instruments,
+              mode: requestBody.mode,
+              custom_lyrics: requestBody.custom_lyrics,
+              lyrics: requestLyrics,
+              instrumental: requestBody.instrumental,
+              language: requestBody.language,
+              reference_id: requestBody.reference_id,
+              vocal_id: requestBody.vocal_id,
+              melody_id: requestBody.melody_id,
+              stream: requestBody.stream
+            }
+          })
+          .select()
+          .single();
+        
+        if (trackError) {
+          console.error('[DB] Ошибка создания трека:', trackError);
+        } else {
+          trackRecord = newTrack;
+          console.log(`[DB] Трек создан: ${newTrack.id}`);
+          
+          // Обновляем generation с track_id
+          if (generationRecord?.id) {
+            await supabase
+              .from('ai_generations')
+              .update({ track_id: newTrack.id })
+              .eq('id', generationRecord.id);
+          }
+        }
+      } catch (error) {
+        console.error('[DB] Критическая ошибка при создании трека:', error);
       }
     }
-
-    // Return result
+    
+    // ====================================
+    // 12. ФОРМИРОВАНИЕ УСПЕШНОГО ОТВЕТА
+    // ====================================
+    const processingTime = Date.now() - startTime;
+    
+    console.log(`[SUCCESS] Запрос обработан за ${processingTime}ms`);
+    
     return new Response(JSON.stringify({
       success: true,
       data: {
         mureka: finalTrack,
         track: trackRecord,
         generation: generationRecord,
-        audio_url: finalTrack.choices?.[0]?.url,
-        title: finalTrack.choices?.[0]?.title || title,
-        duration: finalTrack.choices?.[0]?.duration || duration,
+        audio_url: finalTrack.choices?.[0]?.audio_url,
+        title: finalTrack.choices?.[0]?.title || requestBody.title,
+        duration: finalTrack.choices?.[0]?.duration || requestBody.duration,
         lyrics: processedLyrics,
         status: finalTrack.status,
         taskId: finalTrack.id,
@@ -486,29 +995,46 @@ Status: ${finalTrack.status}
       metadata: {
         service: 'mureka',
         model: finalTrack.model,
-        genre: genre,
-        mood: mood,
-        tempo: tempo,
-        key: key,
-        instruments: instruments,
-        reference_id,
-        vocal_id,
-        melody_id,
-        stream,
+        genre: requestBody.genre,
+        mood: requestBody.mood,
+        tempo: requestBody.tempo,
+        key: requestBody.key,
+        instruments: requestBody.instruments,
+        reference_id: requestBody.reference_id,
+        vocal_id: requestBody.vocal_id,
+        melody_id: requestBody.melody_id,
+        stream: requestBody.stream,
         generatedAt: new Date().toISOString(),
-        processingTime: finalTrack.status === 'succeeded' ? 'immediate' : `polled_${Math.floor((Date.now() - now) / 1000)}s`
+        processingTime: `${processingTime}ms`,
+        pollingAttempts: finalTrack.status !== murekaResponse.status ? 'completed' : 'none'
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-
+    
   } catch (error: any) {
-    console.error('Error in generate-mureka-track function:', error);
-    return new Response(JSON.stringify({ 
+    // ====================================
+    // ОБРАБОТКА ГЛОБАЛЬНЫХ ОШИБОК
+    // ====================================
+    const processingTime = Date.now() - startTime;
+    
+    console.error('[ERROR] Глобальная ошибка в Edge Function:', {
+      message: error.message,
+      stack: error.stack,
+      processingTime
+    });
+    
+    return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: 'Внутренняя ошибка сервера',
+      message: error.message || 'Неизвестная ошибка',
       service: 'mureka',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      debug: {
+        errorType: error.constructor.name,
+        errorMessage: error.message,
+        processingTime: `${processingTime}ms`
+      }
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
