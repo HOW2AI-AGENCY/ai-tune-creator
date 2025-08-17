@@ -7,16 +7,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Play, 
-  Download, 
-  MoreHorizontal, 
   Music, 
   Clock,
   CloudDownload,
-  ExternalLink,
   Sparkles,
   RefreshCw
 } from 'lucide-react';
+import { TrackActionButtons } from '@/components/tracks/TrackActionButtons';
 
 interface Track {
   id: string;
@@ -339,9 +336,11 @@ const TrackLibraryComponent = function TrackLibrary({
                 )}
               </div>
               
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+              <TrackActionButtons
+                track={track}
+                variant="compact"
+                onPlay={() => onPlayTrack?.(track)}
+              />
             </div>
 
             {/* Заголовок */}
@@ -361,49 +360,14 @@ const TrackLibraryComponent = function TrackLibrary({
             </div>
 
             {/* Действия */}
-            <div className="flex items-center gap-2">
-              {track.audio_url && (
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPlayTrack?.(track);
-                  }}
-                  className="flex-1 flex items-center gap-2"
-                >
-                  <Play className="h-4 w-4" />
-                  Играть
-                </Button>
-              )}
-
-              {hasExternalUrl(track) && !isLocallyStored(track) && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDownloadTrack(track);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Загрузить
-                </Button>
-              )}
-
-              {track.metadata?.original_external_url && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(track.metadata?.original_external_url, '_blank');
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              )}
+            <div onClick={(e) => e.stopPropagation()}>
+              <TrackActionButtons
+                track={track}
+                variant="full"
+                onPlay={() => onPlayTrack?.(track)}
+                showLabels={false}
+                className="w-full"
+              />
             </div>
 
             {/* Дополнительная информация */}

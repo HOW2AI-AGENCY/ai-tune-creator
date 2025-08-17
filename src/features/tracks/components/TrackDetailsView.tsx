@@ -10,9 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Music, Clock, Edit, Save, X, Play, Pause, Scissors } from 'lucide-react';
-import { VocalSeparationDialog } from '@/features/ai-generation/components/VocalSeparationDialog';
-import { MurekaStemDialog } from '@/features/ai-generation/components/MurekaStemDialog';
+import { Music, Clock, Edit, Save, X } from 'lucide-react';
+import { TrackActionButtons } from '@/components/tracks/TrackActionButtons';
 
 // ====================================
 // 🎯 TYPE DEFINITIONS
@@ -61,8 +60,6 @@ Everything's better than it seems`,
   
   const [isEditing, setIsEditing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showVocalSeparation, setShowVocalSeparation] = useState(false);
-  const [showMurekaStem, setShowMurekaStem] = useState(false);
 
   if (!track) {
     return (
@@ -98,25 +95,12 @@ Everything's better than it seems`,
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              {track.audio_url && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsPlaying(!isPlaying)}
-                  >
-                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowVocalSeparation(true)}
-                    title="Разделить на стемы"
-                  >
-                    <Scissors className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
+              <TrackActionButtons
+                track={track}
+                variant="compact"
+                onPlay={() => setIsPlaying(!isPlaying)}
+                isPlaying={isPlaying}
+              />
               {editable && (
                 <Button
                   variant={isEditing ? "default" : "outline"}
@@ -211,20 +195,6 @@ Everything's better than it seems`,
         </TabsContent>
       </Tabs>
 
-      {/* Stem Separation Dialogs */}
-      <VocalSeparationDialog
-        open={showVocalSeparation}
-        onOpenChange={setShowVocalSeparation}
-        track={{
-          id: track.id,
-          title: track.title,
-          metadata: { audio_url: track.audio_url || '', service: track.ai_context?.provider || 'suno' }
-        }}
-      />
-      <MurekaStemDialog
-        open={showMurekaStem}
-        onOpenChange={setShowMurekaStem}
-      />
     </div>
   );
 }

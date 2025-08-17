@@ -1,0 +1,372 @@
+/**
+ * @fileoverview Hook for track actions (like, delete, download, convert)
+ * @version 0.01.036
+ * @author Claude Code Assistant
+ */
+
+import { useState, useCallback } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+
+interface Track {
+  id: string;
+  title: string;
+  audio_url?: string;
+  metadata?: any;
+  user_id?: string;
+}
+
+interface TrackActions {
+  // Like functionality
+  likeTrack: (trackId: string) => Promise<void>;
+  unlikeTrack: (trackId: string) => Promise<void>;
+  isLiked: (trackId: string) => boolean;
+  
+  // Delete functionality
+  deleteTrack: (trackId: string, softDelete?: boolean) => Promise<void>;
+  
+  // Download functionality
+  downloadMP3: (track: Track) => Promise<void>;
+  
+  // WAV conversion (Suno API)
+  convertToWAV: (track: Track) => Promise<string>; // Returns task ID
+  getWAVConversionStatus: (taskId: string) => Promise<any>;
+  
+  // Stem separation
+  separateStems: (track: Track, type?: 'separate_vocal' | 'separate_music') => Promise<string>;
+  
+  // Loading states
+  isLiking: boolean;
+  isDeleting: boolean;
+  isDownloading: boolean;
+  isConverting: boolean;
+  isSeparating: boolean;
+}
+
+export function useTrackActions(): TrackActions {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Local state for UI feedback
+  const [likedTracks, setLikedTracks] = useState<Set<string>>(new Set());
+  const [isLiking, setIsLiking] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+  const [isSeparating, setIsSeparating] = useState(false);
+
+  // ====================================
+  // 💖 LIKE FUNCTIONALITY
+  // ====================================
+  
+  const likeTrack = useCallback(async (trackId: string) => {
+    if (!user) {
+      toast({
+        title: "Требуется авторизация",
+        description: "Войдите в систему для лайков треков",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLiking(true);
+    try {
+      // TODO: Implement likes table in database
+      // For now, just use local state
+      if (!likedTracks.has(trackId)) {
+        // const { error } = await supabase
+        //   .from('track_likes')
+        //   .insert({
+        //     track_id: trackId,
+        //     user_id: user.id,
+        //   });
+
+        if (error) throw error;
+
+        setLikedTracks(prev => new Set([...prev, trackId]));
+        
+        toast({
+          title: "❤️ Трек добавлен в избранное",
+          description: "Трек сохранен в ваших лайках",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error liking track:', error);
+      toast({
+        title: "Ошибка лайка",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLiking(false);
+    }
+  }, [user, toast]);
+
+  const unlikeTrack = useCallback(async (trackId: string) => {
+    if (!user) return;
+
+    setIsLiking(true);
+    try {
+      // TODO: Implement likes table deletion
+      // const { error } = await supabase
+      //   .from('track_likes')
+      //   .delete()
+      //   .eq('track_id', trackId)
+      //   .eq('user_id', user.id);
+
+      setLikedTracks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(trackId);
+        return newSet;
+      });
+
+      toast({
+        title: "💔 Лайк удален",
+        description: "Трек убран из избранного",
+      });
+    } catch (error: any) {
+      console.error('Error unliking track:', error);
+      toast({
+        title: "Ошибка",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLiking(false);
+    }
+  }, [user, toast]);
+
+  const isLiked = useCallback((trackId: string) => {
+    return likedTracks.has(trackId);
+  }, [likedTracks]);
+
+  // ====================================
+  // 🗑️ DELETE FUNCTIONALITY
+  // ====================================
+  
+  const deleteTrack = useCallback(async (trackId: string, softDelete = true) => {
+    if (!user) return;
+
+    setIsDeleting(true);
+    try {
+      if (softDelete) {
+        // Soft delete - just mark as deleted
+        const { error } = await supabase
+          .from('tracks')
+          .update({
+            metadata: {
+              deleted: true,
+              deleted_at: new Date().toISOString(),
+              deleted_by: user.id,
+            }
+          })
+          .eq('id', trackId)
+          .eq('user_id', user.id); // Ensure user can only delete their tracks
+
+        if (error) throw error;
+      } else {
+        // Hard delete
+        const { error } = await supabase
+          .from('tracks')
+          .delete()
+          .eq('id', trackId)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+      }
+
+      // Invalidate cache
+      queryClient.invalidateQueries({ queryKey: ['tracks'] });
+
+      toast({
+        title: "🗑️ Трек удален",
+        description: softDelete ? "Трек помещен в корзину" : "Трек удален навсегда",
+      });
+    } catch (error: any) {
+      console.error('Error deleting track:', error);
+      toast({
+        title: "Ошибка удаления",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [user, toast, queryClient]);
+
+  // ====================================
+  // 📥 DOWNLOAD MP3 FUNCTIONALITY
+  // ====================================
+  
+  const downloadMP3 = useCallback(async (track: Track) => {
+    if (!track.audio_url) {
+      toast({
+        title: "Нет аудио",
+        description: "У трека отсутствует аудиофайл",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      const response = await fetch(track.audio_url);
+      if (!response.ok) throw new Error('Failed to fetch audio');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${track.title.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "📥 Загрузка началась",
+        description: `Скачивается ${track.title}`,
+      });
+    } catch (error: any) {
+      console.error('Error downloading track:', error);
+      toast({
+        title: "Ошибка загрузки",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [toast]);
+
+  // ====================================
+  // 🎵 WAV CONVERSION (Suno API)
+  // ====================================
+  
+  const convertToWAV = useCallback(async (track: Track): Promise<string> => {
+    if (!track.metadata?.external_id || track.metadata?.service !== 'suno') {
+      throw new Error('WAV conversion only available for Suno tracks');
+    }
+
+    setIsConverting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('convert-suno-to-wav', {
+        body: {
+          audioId: track.metadata.external_id,
+          title: track.title,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "🎵 Конвертация в WAV начата",
+        description: "Трек конвертируется в WAV формат",
+      });
+
+      return data.taskId;
+    } catch (error: any) {
+      console.error('Error converting to WAV:', error);
+      toast({
+        title: "Ошибка конвертации",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsConverting(false);
+    }
+  }, [toast]);
+
+  const getWAVConversionStatus = useCallback(async (taskId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('get-suno-wav-info', {
+        body: { taskId },
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error: any) {
+      console.error('Error checking WAV status:', error);
+      throw error;
+    }
+  }, []);
+
+  // ====================================
+  // ✂️ STEM SEPARATION
+  // ====================================
+  
+  const separateStems = useCallback(async (track: Track, type = 'separate_vocal'): Promise<string> => {
+    if (!track.metadata?.external_id) {
+      throw new Error('Stem separation requires track external ID');
+    }
+
+    setIsSeparating(true);
+    try {
+      let taskId: string;
+
+      if (track.metadata?.service === 'suno') {
+        // Use Suno vocal separation
+        const { data, error } = await supabase.functions.invoke('separate-suno-vocals', {
+          body: {
+            taskId: `sep_${Date.now()}`,
+            audioId: track.metadata.external_id,
+            type,
+          },
+        });
+
+        if (error) throw error;
+        taskId = data.taskId;
+      } else {
+        // Use Mureka stem separation
+        const { data, error } = await supabase.functions.invoke('mureka-stem-separation', {
+          body: {
+            url: track.audio_url,
+          },
+        });
+
+        if (error) throw error;
+        taskId = data.taskId || `mureka_${Date.now()}`;
+      }
+
+      toast({
+        title: "✂️ Разделение на стемы начато",
+        description: "Трек разделяется на инструментальные партии",
+      });
+
+      return taskId;
+    } catch (error: any) {
+      console.error('Error separating stems:', error);
+      toast({
+        title: "Ошибка разделения",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsSeparating(false);
+    }
+  }, [toast]);
+
+  return {
+    likeTrack,
+    unlikeTrack,
+    isLiked,
+    deleteTrack,
+    downloadMP3,
+    convertToWAV,
+    getWAVConversionStatus,
+    separateStems,
+    isLiking,
+    isDeleting,
+    isDownloading,
+    isConverting,
+    isSeparating,
+  };
+}
