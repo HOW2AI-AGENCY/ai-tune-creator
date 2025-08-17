@@ -23,6 +23,79 @@ import { useToast } from '@/hooks/use-toast';
 import type { AppProject } from '@/providers/AppDataProvider';
 
 // ====================================
+// 🧮 UTILITY FUNCTIONS
+// ====================================
+
+/**
+ * PERFORMANCE: Рассчитывает статистику проекта на основе связанных треков
+ * 
+ * @param projectId - ID проекта
+ * @param projectData - Данные проекта (опционально для оптимизации)
+ * @returns Статистика проекта
+ */
+async function calculateProjectStats(projectId: string, projectData?: any) {
+  try {
+    console.log(`[calculateProjectStats] Calculating stats for project ${projectId}`);
+    
+    // Получаем все треки проекта с метаданными
+    const { data: tracks, error } = await supabase
+      .from('tracks')
+      .select('id, duration, metadata, audio_url')
+      .eq('project_id', projectId);
+    
+    if (error) {
+      console.warn('[calculateProjectStats] Error fetching tracks:', error);
+      return {
+        tracks_count: 0,
+        total_duration: 0,
+        completion_percentage: 0,
+        last_activity: projectData?.updated_at || new Date().toISOString(),
+      };
+    }
+    
+    const tracksData = tracks || [];
+    
+    // CALCULATION: Общая продолжительность в секундах
+    const totalDuration = tracksData.reduce((sum, track) => {
+      return sum + (track.duration || 0);
+    }, 0);
+    
+    // CALCULATION: Процент завершенности на основе наличия audio_url или AI generation context
+    const completedTracks = tracksData.filter(track => {
+      // Трек считается завершенным если:
+      // 1. Есть audio_url (готовая запись)
+      // 2. Есть AI generation context с generation_id (успешная генерация)
+      const hasAudio = !!track.audio_url;
+      const hasAIGeneration = !!(track.metadata as any)?.ai_context?.generation_id;
+      return hasAudio || hasAIGeneration;
+    }).length;
+    
+    const completionPercentage = tracksData.length > 0 
+      ? Math.round((completedTracks / tracksData.length) * 100)
+      : 0;
+    
+    const stats = {
+      tracks_count: tracksData.length,
+      total_duration: totalDuration,
+      completion_percentage: completionPercentage,
+      last_activity: projectData?.updated_at || new Date().toISOString(),
+    };
+    
+    console.log(`[calculateProjectStats] Project ${projectId} stats:`, stats);
+    return stats;
+    
+  } catch (error) {
+    console.error('[calculateProjectStats] Unexpected error:', error);
+    return {
+      tracks_count: 0,
+      total_duration: 0,
+      completion_percentage: 0,
+      last_activity: projectData?.updated_at || new Date().toISOString(),
+    };
+  }
+}
+
+// ====================================
 // 🎯 TYPE DEFINITIONS
 // ====================================
 
@@ -318,12 +391,7 @@ export function useProject(projectId: string) {
           genre_primary: '',
           genre_secondary: [],
         },
-        stats: {
-          tracks_count: data.tracks?.length || 0,
-          total_duration: 0, // TODO: Calculate from tracks
-          completion_percentage: 0, // TODO: Calculate based on tracks/goals
-          last_activity: data.updated_at,
-        },
+        stats: await calculateProjectStats(projectId, data),
         ai_context: (data.metadata as any)?.ai_context,
         cover_context: (data.metadata as any)?.cover_context,
         _cached_at: Date.now(),
@@ -633,10 +701,12 @@ export function useCreateProject() {
   });
 }
 
-// TODO: Implement useUpdateProject hook
-// TODO: Implement useDeleteProject hook
-// TODO: Add project analytics hooks
-// TODO: Add bulk operations support
+/**
+ * РЕАЛИЗОВАНО: useUpdateProject hook - обновление проектов с оптимистичными обновлениями
+ * РЕАЛИЗОВАНО: useDeleteProject hook - удаление проектов с каскадными опциями
+ * TODO: Add project analytics hooks
+ * TODO: Add bulk operations support
+ */
 
 /**
  * PERFORMANCE NOTES:

@@ -669,8 +669,375 @@ function analyzeLyrics(lyrics: string) {
   };
 }
 
-// TODO: Implement useUpdateTrack hook
-// TODO: Implement useDeleteTrack hook  
+/**
+ * Обновляет существующий трек с поддержкой версионирования
+ * 
+ * FEATURES:
+ * - Оптимистичные обновления UI
+ * - Автоматическое обновление lyrics_context
+ * - Поддержка версионирования
+ * - Обновление статистики проекта
+ */
+export function useUpdateTrack() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { dispatch } = useAppData();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      trackId, 
+      updates 
+    }: { 
+      trackId: string; 
+      updates: Partial<TrackMutationPayload> & {
+        title?: string;
+        lyrics?: string;
+        genre_tags?: string[];
+        audio_url?: string;
+        duration?: number;
+        create_version?: boolean; // Создать новую версию вместо обновления
+        version_description?: string; // Описание изменений
+      };
+    }): Promise<EnhancedTrack> => {
+      if (!user) throw new Error('User not authenticated');
+      
+      console.log(`[Обновление трека] ID: ${trackId}`, updates);
+      
+      // Получаем текущие данные трека
+      const { data: currentTrack, error: fetchError } = await supabase
+        .from('tracks')
+        .select('*')
+        .eq('id', trackId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      if (!currentTrack) throw new Error('Трек не найден');
+      
+      // Подготавливаем обновленные метаданные
+      const existingMetadata = (currentTrack.metadata as any) || {};
+      const updatedMetadata = { ...existingMetadata };
+      
+      // Обновляем lyrics_context если лирика изменилась
+      if (updates.lyrics && updates.lyrics !== currentTrack.lyrics) {
+        updatedMetadata.lyrics_context = analyzeLyrics(updates.lyrics);
+        console.log('[Обновление трека] Обновлен lyrics_context:', updatedMetadata.lyrics_context);
+      }
+      
+      // Обновляем версионирование
+      if (updates.create_version) {
+        const currentVersion = existingMetadata.versions?.version_number || 1;
+        updatedMetadata.versions = {
+          version_number: currentVersion + 1,
+          parent_version_id: trackId,
+          change_description: updates.version_description || 'Обновление трека',
+          created_by: 'user',
+          is_current: true,
+          version_history: [
+            ...(existingMetadata.versions?.version_history || []),
+            {
+              version: currentVersion,
+              created_at: currentTrack.updated_at,
+              changes: updates.version_description || 'Предыдущая версия',
+              audio_url: currentTrack.audio_url,
+            }
+          ]
+        };
+        console.log(`[Обновление трека] Создана новая версия: ${currentVersion + 1}`);
+      }
+      
+      // Подготавливаем объект обновления
+      const updatePayload: any = {
+        updated_at: new Date().toISOString(),
+        metadata: updatedMetadata,
+      };
+      
+      // Добавляем обновляемые поля
+      if (updates.title) updatePayload.title = updates.title;
+      if (updates.lyrics !== undefined) updatePayload.lyrics = updates.lyrics;
+      if (updates.genre_tags) updatePayload.genre_tags = updates.genre_tags;
+      if (updates.audio_url !== undefined) updatePayload.audio_url = updates.audio_url;
+      if (updates.duration !== undefined) updatePayload.duration = updates.duration;
+      
+      // Выполняем обновление
+      const { data: updatedTrack, error: updateError } = await supabase
+        .from('tracks')
+        .update(updatePayload)
+        .eq('id', trackId)
+        .select()
+        .single();
+      
+      if (updateError) throw updateError;
+      
+      // Преобразуем в EnhancedTrack формат
+      const enhanced: EnhancedTrack = {
+        id: updatedTrack.id,
+        title: updatedTrack.title,
+        project_id: updatedTrack.project_id,
+        audio_url: updatedTrack.audio_url,
+        lyrics: updatedTrack.lyrics,
+        duration: updatedTrack.duration,
+        genre_tags: updatedTrack.genre_tags || [],
+        metadata: (updatedTrack.metadata as any)?.metadata || {},
+        ai_context: (updatedTrack.metadata as any)?.ai_context,
+        lyrics_context: (updatedTrack.metadata as any)?.lyrics_context,
+        versions: (updatedTrack.metadata as any)?.versions,
+        collaboration: (updatedTrack.metadata as any)?.collaboration,
+        _cached_at: Date.now(),
+      };
+      
+      return enhanced;
+    },
+    
+    // Оптимистичные обновления
+    onMutate: async ({ trackId, updates }) => {
+      await queryClient.cancelQueries({ queryKey: tracksQueryKeys.detail(trackId) });
+      
+      const previousTrack = queryClient.getQueryData<EnhancedTrack>(
+        tracksQueryKeys.detail(trackId)
+      );
+      
+      if (previousTrack) {
+        const optimisticTrack: EnhancedTrack = {
+          ...previousTrack,
+          title: updates.title || previousTrack.title,
+          lyrics: updates.lyrics !== undefined ? updates.lyrics : previousTrack.lyrics,
+          genre_tags: updates.genre_tags || previousTrack.genre_tags,
+          audio_url: updates.audio_url !== undefined ? updates.audio_url : previousTrack.audio_url,
+          duration: updates.duration !== undefined ? updates.duration : previousTrack.duration,
+          _cached_at: Date.now(),
+        };
+        
+        queryClient.setQueryData(tracksQueryKeys.detail(trackId), optimisticTrack);
+        
+        // Обновляем список треков
+        const tracksList = queryClient.getQueryData<EnhancedTrack[]>(
+          tracksQueryKeys.list(user?.id || '')
+        );
+        if (tracksList) {
+          const updatedList = tracksList.map(track =>
+            track.id === trackId ? optimisticTrack : track
+          );
+          queryClient.setQueryData(tracksQueryKeys.list(user?.id || ''), updatedList);
+        }
+        
+        dispatch({ type: 'TRACK_UPDATE', payload: optimisticTrack });
+      }
+      
+      return { previousTrack };
+    },
+    
+    onSuccess: (updatedTrack, { trackId }) => {
+      // Обновляем кеши
+      queryClient.setQueryData(tracksQueryKeys.detail(trackId), updatedTrack);
+      
+      const tracksList = queryClient.getQueryData<EnhancedTrack[]>(
+        tracksQueryKeys.list(user?.id || '')
+      );
+      if (tracksList) {
+        const updatedList = tracksList.map(track =>
+          track.id === trackId ? updatedTrack : track
+        );
+        queryClient.setQueryData(tracksQueryKeys.list(user?.id || ''), updatedList);
+      }
+      
+      dispatch({ type: 'TRACK_UPDATE', payload: updatedTrack });
+      
+      toast({
+        title: "✅ Трек обновлен",
+        description: `${updatedTrack.title} успешно обновлен`,
+      });
+      
+      // Обновляем статистику проекта если изменилась продолжительность
+      if (updatedTrack.project_id) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['projects', 'detail', updatedTrack.project_id] 
+        });
+      }
+    },
+    
+    onError: (error, { trackId }, context) => {
+      console.error('[Ошибка обновления трека]:', error);
+      
+      if (context?.previousTrack) {
+        queryClient.setQueryData(tracksQueryKeys.detail(trackId), context.previousTrack);
+      }
+      
+      dispatch({ type: 'TRACKS_ERROR', payload: error.message });
+      
+      toast({
+        title: "❌ Ошибка обновления",
+        description: `Не удалось обновить трек: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+    
+    onSettled: (data, error, { trackId }) => {
+      queryClient.invalidateQueries({ queryKey: tracksQueryKeys.detail(trackId) });
+      queryClient.invalidateQueries({ queryKey: tracksQueryKeys.all });
+    },
+  });
+}
+
+/**
+ * Удаляет трек с обновлением статистики проекта
+ * 
+ * SAFETY FEATURES:
+ * - Проверка прав доступа
+ * - Soft delete опция
+ * - Обновление статистики родительского проекта
+ * - Откат операции при ошибке
+ */
+export function useDeleteTrack() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { dispatch } = useAppData();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      trackId, 
+      options = {} 
+    }: { 
+      trackId: string; 
+      options?: {
+        soft?: boolean; // Мягкое удаление (скрытие из UI)
+        preserve_versions?: boolean; // Сохранить версии трека
+      }; 
+    }): Promise<{ success: boolean; message: string; projectId?: string }> => {
+      if (!user) throw new Error('User not authenticated');
+      
+      console.log(`[Удаление трека] ID: ${trackId}`, options);
+      
+      // Получаем данные трека
+      const { data: track, error: fetchError } = await supabase
+        .from('tracks')
+        .select('*, projects!inner(id, title, user_id)')
+        .eq('id', trackId)
+        .single();
+      
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          throw new Error('Трек не найден');
+        }
+        throw fetchError;
+      }
+      
+      // Проверяем права доступа
+      const project = (track as any).projects;
+      if (project.user_id !== user.id) {
+        throw new Error('Нет прав на удаление этого трека');
+      }
+      
+      const projectId = track.project_id;
+      
+      // Мягкое удаление - помечаем как удаленный
+      if (options.soft) {
+        const metadata = (track.metadata as any) || {};
+        const { error: updateError } = await supabase
+          .from('tracks')
+          .update({ 
+            metadata: {
+              ...metadata,
+              deleted: true,
+              deleted_at: new Date().toISOString(),
+              delete_reason: 'user_deleted'
+            },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', trackId);
+        
+        if (updateError) throw updateError;
+        
+        return { 
+          success: true, 
+          message: `Трек "${track.title}" скрыт с возможностью восстановления`,
+          projectId
+        };
+      }
+      
+      // Полное удаление
+      const { error: deleteError } = await supabase
+        .from('tracks')
+        .delete()
+        .eq('id', trackId);
+      
+      if (deleteError) throw deleteError;
+      
+      return { 
+        success: true, 
+        message: `Трек "${track.title}" удален навсегда`,
+        projectId
+      };
+    },
+    
+    onMutate: async ({ trackId }) => {
+      await queryClient.cancelQueries({ queryKey: tracksQueryKeys.all });
+      
+      const previousTracks = queryClient.getQueryData<EnhancedTrack[]>(
+        tracksQueryKeys.list(user?.id || '')
+      );
+      const previousTrack = queryClient.getQueryData<EnhancedTrack>(
+        tracksQueryKeys.detail(trackId)
+      );
+      
+      // Оптимистично удаляем из списка
+      if (previousTracks) {
+        const updatedTracks = previousTracks.filter(t => t.id !== trackId);
+        queryClient.setQueryData(tracksQueryKeys.list(user?.id || ''), updatedTracks);
+      }
+      
+      return { previousTracks, previousTrack };
+    },
+    
+    onSuccess: (result, { trackId }) => {
+      // Очищаем кеш удаленного трека
+      queryClient.removeQueries({ queryKey: tracksQueryKeys.detail(trackId) });
+      
+      dispatch({ type: 'TRACK_DELETE', payload: { id: trackId } });
+      
+      toast({
+        title: "✅ Трек удален",
+        description: result.message,
+      });
+      
+      // Обновляем статистику проекта
+      if (result.projectId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['projects', 'detail', result.projectId] 
+        });
+      }
+    },
+    
+    onError: (error, { trackId }, context) => {
+      console.error('[Ошибка удаления трека]:', error);
+      
+      // Восстанавливаем предыдущие данные
+      if (context?.previousTracks) {
+        queryClient.setQueryData(tracksQueryKeys.list(user?.id || ''), context.previousTracks);
+      }
+      if (context?.previousTrack) {
+        queryClient.setQueryData(tracksQueryKeys.detail(trackId), context.previousTrack);
+      }
+      
+      dispatch({ type: 'TRACKS_ERROR', payload: error.message });
+      
+      toast({
+        title: "❌ Ошибка удаления",
+        description: `Не удалось удалить трек: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+    
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: tracksQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+}
+
+// РЕАЛИЗОВАНО: useUpdateTrack hook - обновление треков с версионированием
+// РЕАЛИЗОВАНО: useDeleteTrack hook - удаление треков с опциями безопасности
 // TODO: Add track remix/collaboration hooks
 // TODO: Add batch operations support
 // TODO: Add lyrics analysis enhancements
