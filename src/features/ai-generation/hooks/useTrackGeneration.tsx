@@ -60,11 +60,6 @@ export function useTrackGeneration({
 
   /**
    * Генерирует лирику с использованием retry логики и кеширования
-   * 
-   * IMPROVEMENTS:
-   * - Добавлена retry логика при ошибках сети
-   * - Кеширование одинаковых запросов (TTL: 3 минуты)
-   * - Оптимистичное уведомление о статусе
    */
   const generateLyrics = useCallback(async (params: GenerationParams) => {
     try {
@@ -84,12 +79,11 @@ export function useTrackGeneration({
         customPrompt: settings.customPrompts.lyricsGeneration
       };
 
-      // Используем новую систему с retry и кешированием
       const result = await executeAIFunction(
         'generate-track-lyrics',
         requestBody,
         'Генерация лирики',
-        { enabled: true, ttl: 3 * 60 * 1000 } // 3 минуты кеш
+        { enabled: true, ttl: 3 * 60 * 1000 }
       );
 
       onLyricsGenerated?.(result);
@@ -111,12 +105,10 @@ export function useTrackGeneration({
     } finally {
       setGeneratingLyrics(false);
     }
-  }, [settings, onLyricsGenerated, toast, executeAIFunction]);
+  }, [settings, onLyricsGenerated, toast]);
 
   /**
    * Генерирует концепцию трека с улучшенной обработкой ошибок
-   * 
-   * IMPROVEMENTS: Кеширование концепций на 5 минут, retry логика
    */
   const generateConcept = useCallback(async (params: GenerationParams) => {
     try {
@@ -140,7 +132,7 @@ export function useTrackGeneration({
         'generate-track-concept',
         requestBody,
         'Генерация концепции',
-        { enabled: true, ttl: 5 * 60 * 1000 } // 5 минут кеш для концепций
+        { enabled: true, ttl: 5 * 60 * 1000 }
       );
 
       onConceptGenerated?.(result);
@@ -162,7 +154,7 @@ export function useTrackGeneration({
     } finally {
       setGeneratingConcept(false);
     }
-  }, [settings, onConceptGenerated, toast, executeAIFunction]);
+  }, [settings, onConceptGenerated, toast]);
 
   /**
    * Генерирует краткое описание трека на основе стиля и жанров
@@ -421,12 +413,6 @@ export function useTrackGeneration({
 
   /**
    * PERFORMANCE + RELIABILITY: Обертка для AI функций с кешированием и retry
-   * 
-   * @param functionName - Название Edge Function
-   * @param requestBody - Тело запроса
-   * @param operationName - Название операции для UI
-   * @param cacheOptions - Опции кеширования
-   * @returns Результат операции
    */
   const executeAIFunction = useCallback(async (
     functionName: string,
@@ -434,7 +420,6 @@ export function useTrackGeneration({
     operationName: string,
     cacheOptions: { enabled: boolean; ttl?: number } = { enabled: true, ttl: 5 * 60 * 1000 }
   ): Promise<any> => {
-    // Проверяем кеш если кеширование включено
     let cacheKey: string | null = null;
     if (cacheOptions.enabled) {
       cacheKey = generateCacheKey(functionName, requestBody);
@@ -444,7 +429,6 @@ export function useTrackGeneration({
       }
     }
     
-    // Выполняем запрос с retry логикой
     const result = await executeWithRetry(async () => {
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: requestBody
@@ -461,21 +445,15 @@ export function useTrackGeneration({
       return data.data;
     }, operationName);
     
-    // Сохраняем в кеш если кеширование включено
     if (cacheOptions.enabled && cacheKey) {
       setCachedData(cacheKey, result, cacheOptions.ttl);
     }
     
     return result;
-  }, [generateCacheKey, getCachedData, setCachedData, executeWithRetry]);
+  }, [generateCacheKey, getCachedData, setCachedData]);
 
   /**
    * RELIABILITY: Выполняет запрос с retry логикой
-   * 
-   * @param operation - Функция для выполнения
-   * @param operationName - Название операции для логирования
-   * @param config - Конфигурация retry
-   * @returns Результат операции
    */
   const executeWithRetry = useCallback(async <T,>(
     operation: () => Promise<T>,
@@ -503,17 +481,13 @@ export function useTrackGeneration({
         lastError = error;
         console.warn(`[${operationName}] Attempt ${attempt} failed:`, error.message);
         
-        // Если это последняя попытка, выбрасываем ошибку
         if (attempt === config.maxAttempts) {
           console.error(`[${operationName}] All attempts failed. Last error:`, error);
           throw error;
         }
         
-        // Ожидаем перед следующей попыткой с exponential backoff
         console.log(`[${operationName}] Waiting ${delay}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        
-        // Увеличиваем задержку для следующей попытки
         delay = Math.min(delay * config.backoffMultiplier, config.maxDelay);
       }
     }
@@ -539,8 +513,6 @@ export function useTrackGeneration({
       console.log('[Cache] Cleared all cached data');
     }
   }, []);
-
-  // ИСПРАВЛЕНО: Добавлена retry логика и кеширование для всех AI функций
 
   return {
     // Основные функции генерации
