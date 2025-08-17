@@ -26,18 +26,17 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    const { generation_id, audio_url, title, duration, metadata } = await req.json() as SaveTrackRequest;
+    const { generation_id: body_generation_id, audio_url, title, duration, metadata } = await req.json() as SaveTrackRequest;
 
-    if (!generation_id || !audio_url) {
+    // audio_url обязателен
+    if (!audio_url) {
       return new Response(JSON.stringify({ 
-        error: 'generation_id and audio_url are required' 
+        error: 'audio_url is required' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    console.log('Saving Mureka track:', generation_id, audio_url);
 
     // Extract user ID from JWT token
     const authHeader = req.headers.get('Authorization') ?? '';
@@ -53,6 +52,44 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Если generation_id не передан, создаем запись генерации автоматически
+    let generation_id = body_generation_id;
+    if (!generation_id) {
+      const { data: newGen, error: genCreateError } = await supabase
+        .from('ai_generations')
+        .insert({
+          user_id: userId,
+          service: 'mureka',
+          status: 'completed',
+          prompt: title || 'AI Generated Track',
+          result_url: audio_url,
+          metadata: {
+            ...(metadata || {}),
+            created_via: 'save-mureka-track',
+            auto_created: true
+          },
+          parameters: { service: 'mureka' },
+          completed_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+
+      if (genCreateError || !newGen) {
+        console.error('Error auto-creating generation:', genCreateError);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to create generation' 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      generation_id = newGen.id;
+      console.log('Auto-created generation:', generation_id);
+    }
+
+    console.log('Saving Mureka track:', generation_id, audio_url);
+
 
     // Get generation record to check if track already exists
     const { data: generation, error: genError } = await supabase

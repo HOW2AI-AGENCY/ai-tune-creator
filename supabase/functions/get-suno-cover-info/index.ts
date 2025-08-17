@@ -14,7 +14,16 @@ serve(async (req) => {
   }
 
   try {
-    const { taskId } = await req.json();
+    // Read from body or query params
+    let taskId = '' as string;
+    try {
+      const parsed = await req.json();
+      taskId = parsed?.taskId || '';
+    } catch (_) {}
+    if (!taskId) {
+      const url = new URL(req.url);
+      taskId = url.searchParams.get('taskId') || url.searchParams.get('id') || '';
+    }
 
     if (!taskId) {
       return new Response(

@@ -17,7 +17,21 @@ serve(async (req) => {
   }
 
   try {
-    const { taskId, generationId } = await req.json();
+    // Support JSON body and query param fallback
+    let taskId = '' as string;
+    let generationId: string | undefined;
+    try {
+      const parsed = await req.json();
+      taskId = parsed?.taskId || '';
+      generationId = parsed?.generationId;
+    } catch (_) {
+      // ignore JSON parse error, may use query params
+    }
+    if (!taskId) {
+      const url = new URL(req.url);
+      taskId = url.searchParams.get('taskId') || url.searchParams.get('id') || '';
+      generationId = generationId || url.searchParams.get('generationId') || undefined;
+    }
 
     if (!taskId) {
       return new Response(
@@ -122,7 +136,12 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify(transformedData),
+      JSON.stringify({
+        code: 200,
+        msg: 'success',
+        data: transformedData.tracks,
+        ...transformedData
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
