@@ -142,16 +142,18 @@ serve(async (req) => {
     // Создаем/обновляем треки в базе данных
     for (const gen of toCreateTracks) {
       try {
-        console.log(`Creating/updating track for generation ${gen.id}`);
         
-        // Извлекаем лирику из Suno track data
+        // Извлекаем лирику из Suno track data - проверяем все треки
         const sunoTrackData = gen.metadata?.suno_track_data;
-        const extractedLyrics = sunoTrackData?.prompt || sunoTrackData?.lyric || null;
+        const allTracks = gen.metadata?.all_tracks || [sunoTrackData].filter(Boolean);
+        const primaryTrack = allTracks[0] || sunoTrackData;
+        const extractedLyrics = primaryTrack?.prompt || primaryTrack?.lyric || null;
+        
         
         // Генерируем умное название из лирики или используем из Suno
         let smartTitle = gen.metadata?.title || 'Сгенерированный трек';
-        if (sunoTrackData?.title && sunoTrackData.title !== 'AI Generated Track 17.08.2025') {
-          smartTitle = sunoTrackData.title;
+        if (primaryTrack?.title && primaryTrack.title !== 'AI Generated Track 17.08.2025') {
+          smartTitle = primaryTrack.title;
         } else if (extractedLyrics) {
           // Извлекаем первую строку после [Куплет] или [Verse] как название
           const lyricsMatch = extractedLyrics.match(/\[(?:Куплет|Verse|Intro|Интро)\s*\d*\]?\s*\n(.+)/i);
@@ -186,7 +188,8 @@ serve(async (req) => {
             ai_service: gen.service,
             suno_id: gen.metadata?.suno_id || gen.external_id,
             suno_task_id: gen.metadata?.suno_task_id || gen.external_id,
-            image_url: sunoTrackData?.image_url || sunoTrackData?.sourceImageUrl, // Обложка
+            image_url: primaryTrack?.image_url || primaryTrack?.sourceImageUrl, // Обложка
+            total_tracks_available: allTracks.length, // Информация о доступных вариантах
             original_title_generated: smartTitle !== (gen.metadata?.title || 'Сгенерированный трек')
           },
           genre_tags: gen.metadata?.tags || [],

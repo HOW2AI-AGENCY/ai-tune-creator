@@ -136,170 +136,176 @@ serve(async (req) => {
 
     // Обрабатываем успешную генерацию
     if (code === 200 && callbackType === 'complete' && tracks && tracks.length > 0) {
-      const track = tracks[0]; // Берем первый трек
-      
-      console.log('Processing completed track:', track.id);
+      console.log(`Processing ${tracks.length} completed tracks for task ${task_id}`);
 
-      // Обновляем статус генерации
-      const { error: updateGenError } = await supabase
-        .from('ai_generations')
-        .update({
-          status: 'completed',
-          result_url: track.audio_url,
-          metadata: {
-            ...generation.metadata,
-            suno_track_data: track,
-            completed_at: new Date().toISOString(),
-            callback_received: true
-          }
-        })
-        .eq('id', generation.id);
-
-      if (updateGenError) {
-        console.error('Error updating generation:', updateGenError);
-      } else {
-        console.log('Generation updated successfully:', generation.id);
-      }
-
-      // Обновляем или создаем трек с реальными данными
-      if (generation.track_id) {
-        // Обновляем существующий трек
-        const { error: updateTrackError } = await supabase
-          .from('tracks')
-          .update({
-            title: track.title,
-            audio_url: track.audio_url, // Пока внешний URL
-            duration: track.duration,
-            lyrics: track.prompt || track.lyric || null, // ← ИСПРАВЛЕНО: prompt содержит лирику
-            metadata: {
-              ...generation.metadata,
-              suno_track_id: track.id,
-              suno_model: track.model_name,
-              suno_track_data: track,
-              completed_at: new Date().toISOString(),
-              external_audio_url: track.audio_url
-            },
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', generation.track_id);
-
-        if (updateTrackError) {
-          console.error('Error updating track:', updateTrackError);
-        } else {
-          console.log('Track updated successfully:', generation.track_id);
-          
-          // Запускаем фоновую загрузку трека в Supabase Storage
-          EdgeRuntime.waitUntil(downloadTrackInBackground(generation.id, track.audio_url, generation.track_id));
-        }
-      } else {
-        // Получаем project_id из metadata или создаем Inbox
-        let projectId = generation.metadata?.project_id;
+      // Обрабатываем все треки в массиве, а не только первый
+      for (let trackIndex = 0; trackIndex < tracks.length; trackIndex++) {
+        const track = tracks[trackIndex];
         
-        if (!projectId) {
-          // Создаем Inbox для пользователя
-          const { data: inboxData, error: inboxError } = await supabase
-            .rpc('ensure_user_inbox', { p_user_id: generation.user_id });
-          
-          if (inboxError) {
-            console.error('Error creating inbox:', inboxError);
-            projectId = null;
+        console.log(`Processing track ${trackIndex + 1}/${tracks.length}:`, track.id);
+
+        // Для первого трека обновляем оригинальную генерацию
+        if (trackIndex === 0) {
+          // Обновляем статус генерации
+          const { error: updateGenError } = await supabase
+            .from('ai_generations')
+            .update({
+              status: 'completed',
+              result_url: track.audio_url,
+              metadata: {
+                ...generation.metadata,
+                suno_track_data: track,
+                all_tracks: tracks, // Сохраняем все треки в metadata
+                total_tracks: tracks.length,
+                completed_at: new Date().toISOString(),
+                callback_received: true
+              }
+            })
+            .eq('id', generation.id);
+
+          if (updateGenError) {
+            console.error('Error updating generation:', updateGenError);
           } else {
-            projectId = inboxData;
-            console.log('Created/found inbox project:', projectId);
+            console.log('Generation updated successfully:', generation.id);
           }
         }
 
-        // Генерируем smart title из лирики если нужно
-        let smartTitle = track.title;
-        if (track.title === 'AI Generated Track 17.08.2025' || !track.title) {
-          const lyrics = track.prompt || track.lyric;
-          if (lyrics) {
-            // Ищем первую строку после [Куплет], [Verse], [Intro] и т.д.
-            const lyricsMatch = lyrics.match(/\[(?:Куплет|Verse|Intro|Интро|Припев|Chorus)\s*\d*\]?\s*\n(.+)/i);
-            if (lyricsMatch && lyricsMatch[1]) {
-              smartTitle = lyricsMatch[1].trim().slice(0, 50);
-            } else {
-              // Используем первую содержательную строку
-              const lines = lyrics.split('\n').filter(line => 
-                line.trim() && 
-                !line.includes('[') && 
-                !line.toLowerCase().includes('создай') &&
-                line.length > 10
-              );
-              if (lines.length > 0) {
-                smartTitle = lines[0].trim().slice(0, 50);
+        // Для первого трека обновляем существующий track_id
+        if (trackIndex === 0 && generation.track_id) {
+          // Обновляем существующий трек
+          const { error: updateTrackError } = await supabase
+            .from('tracks')
+            .update({
+              title: track.title,
+              audio_url: track.audio_url,
+              duration: track.duration,
+              lyrics: track.prompt || track.lyric || null,
+              metadata: {
+                ...generation.metadata,
+                suno_track_id: track.id,
+                suno_model: track.model_name,
+                suno_track_data: track,
+                track_variant: trackIndex + 1,
+                total_variants: tracks.length,
+                completed_at: new Date().toISOString(),
+                external_audio_url: track.audio_url
+              },
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', generation.track_id);
+
+          if (updateTrackError) {
+            console.error('Error updating track:', updateTrackError);
+          } else {
+            console.log('Track updated successfully:', generation.track_id);
+            
+            // Запускаем фоновую загрузку трека в Supabase Storage
+            EdgeRuntime.waitUntil(downloadTrackInBackground(generation.id, track.audio_url, generation.track_id));
+          }
+        } else {
+          // Создаем треки для всех вариантов (включая первый, если у него нет track_id)
+          // Генерируем smart title из лирики если нужно
+          let smartTitle = track.title;
+          if (track.title === 'AI Generated Track 17.08.2025' || !track.title) {
+            const lyrics = track.prompt || track.lyric;
+            if (lyrics) {
+              // Ищем первую строку после [Куплет], [Verse], [Intro] и т.д.
+              const lyricsMatch = lyrics.match(/\[(?:Куплет|Verse|Intro|Интро|Припев|Chorus)\s*\d*\]?\s*\n(.+)/i);
+              if (lyricsMatch && lyricsMatch[1]) {
+                smartTitle = lyricsMatch[1].trim().slice(0, 50);
+              } else {
+                // Используем первую содержательную строку
+                const lines = lyrics.split('\n').filter(line => 
+                  line.trim() && 
+                  !line.includes('[') && 
+                  !line.toLowerCase().includes('создай') &&
+                  line.length > 10
+                );
+                if (lines.length > 0) {
+                  smartTitle = lines[0].trim().slice(0, 50);
+                }
               }
             }
           }
-        }
 
-        // Дедуплицируем название трека
-        let finalTitle = smartTitle;
-        if (projectId) {
-          const { data: dedupedTitle, error: dedupError } = await supabase
-            .rpc('dedupe_track_title', { 
-              p_project_id: projectId, 
-              p_title: smartTitle 
-            });
-          
-          if (!dedupError && dedupedTitle) {
-            finalTitle = dedupedTitle;
+          // Для дополнительных треков добавляем номер варианта
+          if (trackIndex > 0) {
+            smartTitle = `${smartTitle} (вариант ${trackIndex + 1})`;
           }
-        }
 
-        // Получаем следующий номер трека
-        let trackNumber = 1;
-        if (projectId) {
-          const { data: nextNumber, error: numberError } = await supabase
-            .rpc('get_next_track_number', { p_project_id: projectId });
-          
-          if (!numberError && nextNumber) {
-            trackNumber = nextNumber;
-          }
-        }
-        
-        // Создаем новый трек
-        const { data: newTrack, error: createTrackError } = await supabase
-          .from('tracks')
-          .insert({
-            title: finalTitle,
-            track_number: trackNumber,
-            audio_url: track.audio_url, // Пока внешний URL
-            duration: track.duration,
-            lyrics: track.prompt || track.lyric || '', // ← ИСПРАВЛЕНО: prompt содержит лирику
-            description: track.prompt || `Generated with ${track.model_name}`,
-            genre_tags: track.tags ? track.tags.split(', ').filter(Boolean) : [],
-            style_prompt: track.style || '',
-            project_id: projectId,
-            metadata: {
-              suno_task_id: task_id,
-              suno_track_id: track.id,
-              suno_model: track.model_name,
-              suno_track_data: track,
-              generation_id: generation.id,
-              completed_at: new Date().toISOString(),
-              external_audio_url: track.audio_url,
-              auto_inbox: !generation.metadata?.project_id
-            }
-          })
-          .select()
-          .single();
-
-        if (createTrackError) {
-          console.error('Error creating track:', createTrackError);
-        } else {
-          console.log('Track created successfully:', newTrack.id);
-          
-          // Обновляем generation с track_id
-          await supabase
-            .from('ai_generations')
-            .update({ track_id: newTrack.id })
-            .eq('id', generation.id);
+          // Дедуплицируем название трека
+          let finalTitle = smartTitle;
+          if (projectId) {
+            const { data: dedupedTitle, error: dedupError } = await supabase
+              .rpc('dedupe_track_title', { 
+                p_project_id: projectId, 
+                p_title: smartTitle 
+              });
             
-          // Запускаем фоновую загрузку трека в Supabase Storage
-          EdgeRuntime.waitUntil(downloadTrackInBackground(generation.id, track.audio_url, newTrack.id));
+            if (!dedupError && dedupedTitle) {
+              finalTitle = dedupedTitle;
+            }
+          }
+
+          // Получаем следующий номер трека
+          let trackNumber = 1;
+          if (projectId) {
+            const { data: nextNumber, error: numberError } = await supabase
+              .rpc('get_next_track_number', { p_project_id: projectId });
+            
+            if (!numberError && nextNumber) {
+              trackNumber = nextNumber;
+            }
+          }
+          
+          // Создаем новый трек
+          const { data: newTrack, error: createTrackError } = await supabase
+            .from('tracks')
+            .insert({
+              title: finalTitle,
+              track_number: trackNumber,
+              audio_url: track.audio_url,
+              duration: track.duration,
+              lyrics: track.prompt || track.lyric || '',
+              description: track.prompt || `Generated with ${track.model_name}`,
+              genre_tags: track.tags ? track.tags.split(', ').filter(Boolean) : [],
+              style_prompt: track.style || '',
+              project_id: projectId,
+              metadata: {
+                suno_task_id: task_id,
+                suno_track_id: track.id,
+                suno_model: track.model_name,
+                suno_track_data: track,
+                generation_id: generation.id,
+                track_variant: trackIndex + 1,
+                total_variants: tracks.length,
+                is_primary: trackIndex === 0,
+                completed_at: new Date().toISOString(),
+                external_audio_url: track.audio_url,
+                auto_inbox: !generation.metadata?.project_id
+              }
+            })
+            .select()
+            .single();
+
+          if (createTrackError) {
+            console.error(`Error creating track variant ${trackIndex + 1}:`, createTrackError);
+          } else {
+            console.log(`Track variant ${trackIndex + 1} created successfully:`, newTrack.id);
+            
+            // Обновляем generation с track_id только для первого трека
+            if (trackIndex === 0) {
+              await supabase
+                .from('ai_generations')
+                .update({ track_id: newTrack.id })
+                .eq('id', generation.id);
+            }
+              
+            // Запускаем фоновую загрузку трека в Supabase Storage
+            EdgeRuntime.waitUntil(downloadTrackInBackground(generation.id, track.audio_url, newTrack.id));
+          }
         }
-      }
+      } // Конец цикла по трекам
 
     } else if (code !== 200) {
       // Обрабатываем ошибку генерации
