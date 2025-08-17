@@ -223,6 +223,8 @@ export default function AIGenerationStudio() {
 
   const fetchTracks = async () => {
     try {
+      console.log("[AIGenerationStudio] Fetching tracks...");
+      
       const { data, error } = await supabase
         .from("tracks")
         .select(`
@@ -239,16 +241,33 @@ export default function AIGenerationStudio() {
           updated_at,
           audio_url,
           metadata,
-          projects(
+          projects!inner (
             title,
-            artists(name)
+            artists!inner (
+              name,
+              user_id
+            )
           )
         `)
-        .not("audio_url", "is", null)
+        .eq('projects.artists.user_id', user?.id)
         .order("updated_at", { ascending: false });
 
-      if (error) throw error;
-      setTracks(data || []);
+      console.log("[AIGenerationStudio] Tracks query result:", { data, error, count: data?.length || 0 });
+      
+      if (error) {
+        console.error("[AIGenerationStudio] Error fetching tracks:", error);
+        throw error;
+      }
+      
+      // Фильтруем треки с audio_url
+      const tracksWithAudio = (data || []).filter(track => track.audio_url);
+      console.log("[AIGenerationStudio] Tracks with audio:", { 
+        total: data?.length || 0, 
+        withAudio: tracksWithAudio.length,
+        tracks: tracksWithAudio.map(t => ({ id: t.id, title: t.title, audio_url: !!t.audio_url }))
+      });
+      
+      setTracks(tracksWithAudio);
     } catch (error) {
       console.error("Error fetching tracks:", error);
     }
