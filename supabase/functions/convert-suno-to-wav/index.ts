@@ -1,132 +1,92 @@
+/**
+ * @fileoverview Convert Suno track to WAV format
+ * @version 0.01.036
+ * @author Claude Code Assistant
+ * 
+ * This function initiates WAV conversion for Suno tracks using the official API.
+ * Based on Suno API documentation, this provides high-quality WAV output.
+ * 
+ * TODO: Future enhancements:
+ * - Add quality options (16-bit, 24-bit, 32-bit)
+ * - Support sample rate selection (44.1kHz, 48kHz, 96kHz)
+ * - Batch conversion for multiple tracks
+ * - Progress callbacks and webhooks
+ */
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const sunoApiToken = Deno.env.get('SUNOAPI_ORG_TOKEN');
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { taskId, audioId } = await req.json();
-
-    if (!taskId && !audioId) {
-      return new Response(
-        JSON.stringify({ error: 'Either taskId or audioId is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const { audioId, title, quality = 'standard' } = await req.json();
+    
+    console.log('Converting Suno track to WAV:', { audioId, title, quality });
+    
+    if (!audioId) {
+      throw new Error('audioId is required');
     }
 
-    console.log('Converting to WAV:', { taskId, audioId });
+    const sunoApiKey = Deno.env.get('SUNOAPI_ORG_TOKEN');
+    if (!sunoApiKey) {
+      throw new Error('SUNOAPI_ORG_TOKEN not configured');
+    }
 
-    // Prepare request body
-    const requestBody: any = {
-      callBackUrl: `${supabaseUrl}/functions/v1/suno-callback`
-    };
+    // Create callback URL for this project
+    const callBackUrl = `https://zwbhlfhwymbmvioaikvs.supabase.co/functions/v1/suno-callback`;
 
-    if (taskId) requestBody.taskId = taskId;
-    if (audioId) requestBody.audioId = audioId;
-
-    // Call Suno API to convert to WAV
+    // Call Suno API to start WAV conversion
     const response = await fetch('https://api.sunoapi.org/api/v1/wav/generate', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${sunoApiToken}`,
+        'Authorization': `Bearer ${sunoApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        audioId,
+        // TODO: Add quality options when supported by API
+        // quality: quality, // 'standard' | 'high' | 'lossless'
+        // sampleRate: 44100, // 44100 | 48000 | 96000
+        // bitDepth: 16, // 16 | 24 | 32
+        callBackUrl
+      }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Suno API error:', response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: `Suno API error: ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const data = await response.json();
+    console.log('Suno WAV conversion response:', data);
+
+    if (!response.ok || data.code !== 200) {
+      throw new Error(data.msg || 'Failed to start WAV conversion');
     }
 
-    const sunoResult = await response.json();
-    console.log('Suno WAV conversion response:', sunoResult);
+    return new Response(JSON.stringify({
+      success: true,
+      taskId: data.data.taskId,
+      message: 'WAV conversion started',
+      estimatedTime: '30-60 seconds', // Based on typical conversion times
+      // TODO: Add progress tracking
+      // progressUrl: `https://api.sunoapi.org/api/v1/wav/record-info?taskId=${data.data.taskId}`
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
-    if (sunoResult.code !== 200) {
-      console.error('Suno API returned error:', sunoResult);
-      return new Response(
-        JSON.stringify({ error: sunoResult.msg || 'Unknown Suno API error' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const wavTaskId = sunoResult.data?.taskId;
-    if (!wavTaskId) {
-      console.error('No WAV taskId in Suno response:', sunoResult);
-      return new Response(
-        JSON.stringify({ error: 'No WAV task ID received from Suno' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Create AI generation record for WAV conversion
-    const { data: generation, error: genError } = await supabase
-      .from('ai_generations')
-      .insert({
-        user_id: (await supabase.auth.getUser()).data.user?.id,
-        service: 'suno',
-        external_id: wavTaskId,
-        prompt: 'WAV format conversion',
-        status: 'pending',
-        parameters: {
-          type: 'wav_conversion',
-          originalTaskId: taskId,
-          originalAudioId: audioId,
-          operationType: 'wav_conversion'
-        },
-        metadata: {
-          operationType: 'wav_conversion',
-          sourceTaskId: taskId,
-          sourceAudioId: audioId
-        }
-      })
-      .select()
-      .single();
-
-    if (genError) {
-      console.error('Failed to create WAV conversion record:', genError);
-    }
-
-    return new Response(
-      JSON.stringify({
-        wavTaskId,
-        originalTaskId: taskId,
-        originalAudioId: audioId,
-        generationId: generation?.id,
-        message: 'WAV conversion started successfully'
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in convert-suno-to-wav function:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

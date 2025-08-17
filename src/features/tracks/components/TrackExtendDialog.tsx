@@ -669,18 +669,7 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
           }}
         />
 
-        {/* WAV Conversion Dialog */}
-        <WAVConversionDialog
-          open={wavConversionOpen}
-          onOpenChange={setWavConversionOpen}
-          taskId={completedTaskId || currentTaskId}
-          trackTitle={title || track?.title}
-          onConversionComplete={(wavUrl) => {
-            toast({
-              title: "WAV Conversion Complete",
-              description: "Your track is ready for download in WAV format.",
-            });
-          }}
+        {/* TODO: WAV Conversion Dialog - temporarily disabled */}
         />
         
         <VocalSeparationDialog

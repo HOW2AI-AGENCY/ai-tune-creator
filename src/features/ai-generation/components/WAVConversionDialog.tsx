@@ -1,192 +1,217 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+/**
+ * @fileoverview WAV Conversion Dialog for Suno tracks
+ * @version 0.01.036
+ * @author Claude Code Assistant
+ * 
+ * TODO: Implement additional WAV conversion features:
+ * - Quality selection (16-bit, 24-bit, 32-bit)
+ * - Sample rate options (44.1kHz, 48kHz, 96kHz)
+ * - Batch conversion for multiple tracks
+ * - Progress tracking with real-time updates
+ * - Integration with Suno API documentation requirements
+ */
+
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, FileAudio, Download, RefreshCw } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { 
+  Music, 
+  Download, 
+  Loader2, 
+  CheckCircle2, 
+  AlertCircle,
+  RefreshCw
+} from 'lucide-react';
+import { useTrackActions } from '@/hooks/useTrackActions';
+import { toast } from 'sonner';
+
+interface Track {
+  id: string;
+  title: string;
+  audio_url?: string;
+  metadata?: any;
+}
 
 interface WAVConversionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  taskId?: string;
-  audioId?: string;
-  trackTitle?: string;
-  onConversionComplete?: (wavUrl: string) => void;
+  track: Track;
 }
 
-interface WAVConversionResult {
-  taskId: string;
-  musicId?: string;
+interface ConversionStatus {
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress?: number;
   wavUrl?: string;
-  isCompleted: boolean;
-  isFailed: boolean;
-  isPending: boolean;
-  errorMessage?: string;
-  completeTime?: string;
-  createTime?: string;
+  error?: string;
 }
 
 export function WAVConversionDialog({ 
   open, 
   onOpenChange, 
-  taskId, 
-  audioId, 
-  trackTitle, 
-  onConversionComplete 
+  track 
 }: WAVConversionDialogProps) {
-  const [isConverting, setIsConverting] = useState(false);
-  const [isPolling, setIsPolling] = useState(false);
-  const [wavTaskId, setWavTaskId] = useState<string | null>(null);
-  const [result, setResult] = useState<WAVConversionResult | null>(null);
+  const { convertToWAV, getWAVConversionStatus, isConverting } = useTrackActions();
   
-  const { toast } = useToast();
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [conversionStatus, setConversionStatus] = useState<ConversionStatus>({
+    status: 'pending'
+  });
+  const [isChecking, setIsChecking] = useState(false);
 
-  const checkConversionStatus = async (id: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('get-suno-wav-info', {
-        body: { taskId: id }
-      });
+  // Check if track supports WAV conversion
+  const isSupported = track.metadata?.service === 'suno' && track.metadata?.external_id;
 
-      if (error) {
-        throw new Error(error.message || 'Failed to check conversion status');
-      }
-
-      setResult(data);
-
-      if (data.isCompleted && data.wavUrl) {
-        setIsPolling(false);
-        toast({
-          title: "WAV Conversion Complete!",
-          description: "Your track has been converted to WAV format and is ready for download.",
-        });
-        onConversionComplete?.(data.wavUrl);
-        return true;
-      }
-
-      if (data.isFailed) {
-        setIsPolling(false);
-        toast({
-          title: "WAV Conversion Failed",
-          description: data.errorMessage || "Failed to convert to WAV format",
-          variant: "destructive"
-        });
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('Error checking conversion status:', error);
-      setIsPolling(false);
-      return true;
-    }
-  };
-
-  const startPolling = (id: string) => {
-    setIsPolling(true);
-    
-    const poll = async () => {
-      const shouldStop = await checkConversionStatus(id);
-      
-      if (!shouldStop && isPolling) {
-        setTimeout(poll, 5000); // Poll every 5 seconds
-      }
-    };
-
-    poll();
-  };
-
-  const handleConvertToWAV = async () => {
-    if (!taskId && !audioId) {
-      toast({
-        title: "Missing Information",
-        description: "Cannot convert without a valid task ID or audio ID.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsConverting(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('convert-suno-to-wav', {
-        body: { taskId, audioId }
-      });
-
-      if (error) {
-        console.error('WAV conversion error:', error);
-        throw new Error(error.message || 'Failed to start WAV conversion');
-      }
-
-      const newWavTaskId = data.wavTaskId;
-      setWavTaskId(newWavTaskId);
-
-      toast({
-        title: "WAV Conversion Started",
-        description: `WAV conversion has been queued. Task ID: ${newWavTaskId}`,
-      });
-
-      // Start polling for results
-      startPolling(newWavTaskId);
-
-    } catch (error) {
-      console.error('Error converting to WAV:', error);
-      toast({
-        title: "WAV Conversion Failed",
-        description: error instanceof Error ? error.message : "Failed to start WAV conversion",
-        variant: "destructive"
-      });
-    } finally {
-      setIsConverting(false);
-    }
-  };
-
-  const downloadWAV = async (url: string) => {
-    try {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${trackTitle || 'track'}.wav`;
-      link.target = '_blank';
-      link.click();
-      
-      toast({
-        title: "Download Started",
-        description: "WAV file download has started.",
-      });
-    } catch (error) {
-      console.error('Download error:', error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to download WAV file.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  React.useEffect(() => {
+  // Reset state when dialog opens
+  useEffect(() => {
     if (open) {
-      setResult(null);
-      setWavTaskId(null);
-      setIsPolling(false);
+      setCurrentTaskId(null);
+      setConversionStatus({ status: 'pending' });
     }
   }, [open]);
 
-  if (!taskId && !audioId) {
+  // Poll conversion status
+  useEffect(() => {
+    if (!currentTaskId || conversionStatus.status === 'completed' || conversionStatus.status === 'failed') {
+      return;
+    }
+
+    const pollStatus = async () => {
+      try {
+        setIsChecking(true);
+        const statusData = await getWAVConversionStatus(currentTaskId);
+        
+        if (statusData.completed) {
+          setConversionStatus({
+            status: 'completed',
+            progress: 100,
+            wavUrl: statusData.wavUrl,
+          });
+          
+          toast.success('WAV конвертация завершена!');
+        } else if (statusData.failed) {
+          setConversionStatus({
+            status: 'failed',
+            error: statusData.error || 'Конвертация не удалась',
+          });
+          
+          toast.error('Ошибка конвертации WAV');
+        } else {
+          // Still processing
+          setConversionStatus({
+            status: 'processing',
+            progress: statusData.progress || 50,
+          });
+        }
+      } catch (error: any) {
+        console.error('Error checking WAV status:', error);
+        setConversionStatus({
+          status: 'failed',
+          error: error.message || 'Ошибка проверки статуса',
+        });
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    const interval = setInterval(pollStatus, 3000); // Check every 3 seconds
+    pollStatus(); // Initial check
+
+    return () => clearInterval(interval);
+  }, [currentTaskId, conversionStatus.status, getWAVConversionStatus]);
+
+  const handleStartConversion = async () => {
+    try {
+      const taskId = await convertToWAV(track);
+      setCurrentTaskId(taskId);
+      setConversionStatus({ status: 'processing', progress: 0 });
+    } catch (error: any) {
+      setConversionStatus({
+        status: 'failed',
+        error: error.message || 'Не удалось начать конвертацию',
+      });
+    }
+  };
+
+  const handleDownloadWAV = () => {
+    if (conversionStatus.wavUrl) {
+      window.open(conversionStatus.wavUrl, '_blank');
+      toast.success('Загрузка WAV файла начата');
+    }
+  };
+
+  const handleRetry = () => {
+    setCurrentTaskId(null);
+    setConversionStatus({ status: 'pending' });
+  };
+
+  const getStatusIcon = () => {
+    switch (conversionStatus.status) {
+      case 'processing':
+        return <Loader2 className="h-5 w-5 animate-spin text-blue-500" />;
+      case 'completed':
+        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+      case 'failed':
+        return <AlertCircle className="h-5 w-5 text-red-500" />;
+      default:
+        return <Music className="h-5 w-5 text-muted-foreground" />;
+    }
+  };
+
+  const getStatusText = () => {
+    switch (conversionStatus.status) {
+      case 'processing':
+        return 'Конвертируется в WAV...';
+      case 'completed':
+        return 'WAV файл готов!';
+      case 'failed':
+        return 'Ошибка конвертации';
+      default:
+        return 'Готов к конвертации';
+    }
+  };
+
+  if (!isSupported) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Cannot Convert to WAV
+              <Music className="h-5 w-5" />
+              WAV Конвертация
             </DialogTitle>
+            <DialogDescription>
+              Конвертация недоступна для этого трека
+            </DialogDescription>
           </DialogHeader>
-          <div className="text-center py-4">
-            <p className="text-muted-foreground">
-              No valid task ID or audio ID available for WAV conversion.
-            </p>
+          
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center space-y-4">
+              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
+              <div>
+                <p className="font-medium text-muted-foreground">
+                  WAV конвертация доступна только для треков Suno
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Этот трек был создан через {track.metadata?.service || 'другой'} сервис
+                </p>
+              </div>
+            </div>
           </div>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Закрыть
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     );
@@ -194,115 +219,144 @@ export function WAVConversionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileAudio className="h-5 w-5" />
-            Convert to WAV Format{trackTitle ? ` - "${trackTitle}"` : ''}
+            <Music className="h-5 w-5" />
+            WAV Конвертация
           </DialogTitle>
+          <DialogDescription>
+            Конвертировать трек в высококачественный WAV формат
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Track Info */}
-          <div className="p-4 bg-muted/50 rounded-lg">
-            {taskId && <p className="text-sm text-muted-foreground">Task ID: {taskId}</p>}
-            {audioId && <p className="text-sm text-muted-foreground">Audio ID: {audioId}</p>}
-            {trackTitle && <p className="font-medium">{trackTitle}</p>}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Трек</h4>
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <Music className="h-8 w-8 text-muted-foreground" />
+              <div className="flex-1">
+                <p className="font-medium text-sm">{track.title}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="secondary" className="text-xs">
+                    {track.metadata?.service || 'Suno'}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    ID: {track.metadata?.external_id?.slice(-8)}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Convert Button */}
-          {!wavTaskId && (
+          {/* Conversion Status */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              {getStatusIcon()}
+              <div className="flex-1">
+                <p className="text-sm font-medium">{getStatusText()}</p>
+                {conversionStatus.error && (
+                  <p className="text-xs text-red-500 mt-1">{conversionStatus.error}</p>
+                )}
+              </div>
+              {isChecking && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+
+            {/* Progress Bar */}
+            {conversionStatus.status === 'processing' && (
+              <div className="space-y-2">
+                <Progress 
+                  value={conversionStatus.progress || 0} 
+                  className="h-2"
+                />
+                <p className="text-xs text-center text-muted-foreground">
+                  {conversionStatus.progress || 0}% завершено
+                </p>
+              </div>
+            )}
+
+            {/* WAV File Info */}
+            {conversionStatus.status === 'completed' && conversionStatus.wavUrl && (
+              <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="text-sm font-medium">WAV файл готов к загрузке</span>
+                </div>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  Высокое качество • 44.1kHz • 16-bit
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* TODO: Add quality options in future */}
+          {conversionStatus.status === 'pending' && (
             <div className="space-y-3">
-              <Button
-                onClick={handleConvertToWAV}
+              <h4 className="text-sm font-medium">Параметры конвертации</h4>
+              <div className="text-sm text-muted-foreground">
+                <p>• Формат: WAV (без сжатия)</p>
+                <p>• Качество: 44.1kHz, 16-bit</p>
+                <p>• Время конвертации: ~30-60 секунд</p>
+              </div>
+              {/* TODO: Add quality selector component */}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex items-center gap-2">
+          {conversionStatus.status === 'pending' && (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Отмена
+              </Button>
+              <Button 
+                onClick={handleStartConversion} 
                 disabled={isConverting}
-                className="w-full"
+                className="flex items-center gap-2"
               >
                 {isConverting ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Starting Conversion...
-                  </>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <>
-                    <FileAudio className="h-4 w-4 mr-2" />
-                    Convert to WAV Format
-                  </>
+                  <Music className="h-4 w-4" />
                 )}
+                Конвертировать
               </Button>
-              <p className="text-sm text-muted-foreground text-center">
-                Convert your track to high-quality WAV format for professional use.
-              </p>
-            </div>
+            </>
           )}
 
-          {/* Status Section */}
-          {wavTaskId && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border">
-                <div className="flex items-center gap-2">
-                  {isPolling && <RefreshCw className="h-4 w-4 animate-spin" />}
-                  <span className="font-medium">WAV Conversion</span>
-                </div>
-                <Badge variant={result?.isCompleted ? "default" : result?.isFailed ? "destructive" : "secondary"}>
-                  {result?.isCompleted ? "Completed" : 
-                   result?.isFailed ? "Failed" : 
-                   "Converting"}
-                </Badge>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                WAV Task ID: {wavTaskId}
-              </p>
-
-              {result?.isFailed && (
-                <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-                  <p className="text-sm text-destructive">
-                    {result.errorMessage || 'WAV conversion failed'}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Download Section */}
-          {result?.isCompleted && result.wavUrl && (
-            <div className="space-y-4">
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-green-800">Conversion Complete!</h4>
-                  <Badge variant="default" className="bg-green-600">
-                    WAV Ready
-                  </Badge>
-                </div>
-                <Button
-                  onClick={() => downloadWAV(result.wavUrl!)}
-                  className="w-full"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download WAV File
-                </Button>
-              </div>
-              
-              {result.completeTime && (
-                <p className="text-sm text-muted-foreground text-center">
-                  Completed: {new Date(result.completeTime).toLocaleString()}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Close Button */}
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isConverting}
-            >
-              {isPolling ? 'Close' : 'Cancel'}
+          {conversionStatus.status === 'processing' && (
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Свернуть
             </Button>
-          </div>
-        </div>
+          )}
+
+          {conversionStatus.status === 'completed' && (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Закрыть
+              </Button>
+              <Button onClick={handleDownloadWAV} className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Скачать WAV
+              </Button>
+            </>
+          )}
+
+          {conversionStatus.status === 'failed' && (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Закрыть
+              </Button>
+              <Button onClick={handleRetry} className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Попробовать снова
+              </Button>
+            </>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

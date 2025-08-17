@@ -345,12 +345,12 @@ export function TrackActionButtons({
         track={track}
       />
 
-      {/* TODO: WAV Conversion Dialog */}
-      {/* <WAVConversionDialog
+      {/* WAV Conversion Dialog */}
+      <WAVConversionDialog
         open={showWAVConversion}
         onOpenChange={setShowWAVConversion}
         track={track}
-      /> */}
+      />
     </div>
   );
 }
