@@ -61,40 +61,93 @@ Deno.serve(async (req: Request) => {
     for (const generation of processingGenerations) {
       try {
         if (generation.service === 'suno') {
+          console.log(`Checking Suno status for ${generation.external_id}`);
+          
           // Check Suno status via edge function
           const { data: statusResult, error: statusError } = await supabase.functions.invoke(
             'get-suno-record-info',
-            { body: { taskId: generation.external_id } }
+            { 
+              body: { 
+                taskId: generation.external_id,
+                generationId: generation.id 
+              } 
+            }
           );
 
-          if (!statusError && statusResult) {
+          if (statusError) {
+            console.error(`Error checking Suno status for ${generation.external_id}:`, statusError);
+            continue;
+          }
+
+          if (statusResult) {
             console.log(`Suno status for ${generation.external_id}:`, statusResult);
             
-            if (statusResult.status === 'completed' && statusResult.audio_url) {
-              // Update to completed
-              const { error: updateError } = await supabase
-                .from('ai_generations')
-                .update({
-                  status: 'completed',
-                  result_url: statusResult.audio_url,
-                  metadata: {
-                    ...generation.metadata,
-                    suno_completion_data: statusResult
-                  }
-                })
-                .eq('id', generation.id);
+            if (statusResult.completed && statusResult.tracks && statusResult.tracks.length > 0) {
+              const firstTrack = statusResult.tracks[0];
+              if (firstTrack.audio_url) {
+                // Update to completed
+                const { error: updateError } = await supabase
+                  .from('ai_generations')
+                  .update({
+                    status: 'completed',
+                    result_url: firstTrack.audio_url,
+                    completed_at: new Date().toISOString(),
+                    metadata: {
+                      ...generation.metadata,
+                      suno_completion_data: statusResult,
+                      track_data: firstTrack
+                    }
+                  })
+                  .eq('id', generation.id);
 
-              if (!updateError) {
-                updatedCount++;
-                console.log(`Updated generation ${generation.id} to completed`);
+                if (!updateError) {
+                  updatedCount++;
+                  console.log(`Updated generation ${generation.id} to completed`);
+                  
+                  // Create track if it doesn't exist
+                  if (!generation.metadata?.track_created) {
+                    try {
+                      const { data: trackData, error: trackError } = await supabase
+                        .from('tracks')
+                        .insert({
+                          title: firstTrack.title || generation.metadata?.title || 'AI Generated Track',
+                          audio_url: firstTrack.audio_url,
+                          lyrics: firstTrack.lyric,
+                          duration: firstTrack.duration || null,
+                          project_id: generation.metadata?.project_id,
+                          track_number: 1,
+                          metadata: {
+                            generated_by_ai: true,
+                            suno_data: firstTrack,
+                            generation_id: generation.id
+                          }
+                        })
+                        .select()
+                        .single();
+
+                      if (!trackError && trackData) {
+                        // Link track to generation
+                        await supabase
+                          .from('ai_generations')
+                          .update({ track_id: trackData.id })
+                          .eq('id', generation.id);
+                        
+                        console.log(`Created track ${trackData.id} for generation ${generation.id}`);
+                      }
+                    } catch (trackCreateError) {
+                      console.error(`Error creating track for generation ${generation.id}:`, trackCreateError);
+                    }
+                  }
+                }
               }
-            } else if (statusResult.status === 'failed') {
+            } else if (statusResult.failed) {
               // Update to failed
               const { error: updateError } = await supabase
                 .from('ai_generations')
                 .update({
                   status: 'failed',
-                  error_message: statusResult.error || 'Generation failed'
+                  error_message: statusResult.errorMessage || 'Generation failed',
+                  completed_at: new Date().toISOString()
                 })
                 .eq('id', generation.id);
 
@@ -113,7 +166,8 @@ Deno.serve(async (req: Request) => {
               .from('ai_generations')
               .update({
                 status: 'failed',
-                error_message: 'Generation timeout - exceeded 1 hour processing time'
+                error_message: 'Generation timeout - exceeded 1 hour processing time',
+                completed_at: new Date().toISOString()
               })
               .eq('id', generation.id);
 

@@ -263,6 +263,39 @@ export default function AIGeneration() {
     }
   };
 
+  const testSunoConnection = async () => {
+    try {
+      console.log("Testing Suno API connection...");
+      const { data, error } = await supabase.functions.invoke('test-suno-connection');
+      
+      if (error) {
+        console.error("Suno connection test error:", error);
+        toast({
+          title: "Ошибка соединения",
+          description: `Не удалось подключиться к Suno API: ${error.message}`,
+          variant: "destructive"
+        });
+      } else {
+        console.log("Suno connection test result:", data);
+        const success = data.tests.credits.success;
+        toast({
+          title: success ? "Соединение успешно" : "Проблема соединения",
+          description: success 
+            ? `Suno API работает. Кредитов: ${data.tests.credits.data?.data || 'н/а'}`
+            : `Проблема с Suno API. Статус: ${data.tests.credits.status}`,
+          variant: success ? "default" : "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error("Test error:", error);
+      toast({
+        title: "Ошибка тестирования",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
 
   const handlePlayTrack = (track: any) => {
     if (!track.audio_url) {
@@ -331,12 +364,22 @@ export default function AIGeneration() {
           <span className="hidden sm:inline">ИИ Генерация</span>
           <span className="sm:hidden">ИИ</span>
         </h1>
-        {isGenerating && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-            Отслеживаем прогресс...
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={testSunoConnection}
+            className="text-xs"
+          >
+            Тест Suno API
+          </Button>
+          {isGenerating && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+              Отслеживаем прогресс...
+            </div>
+          )}
+        </div>
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">

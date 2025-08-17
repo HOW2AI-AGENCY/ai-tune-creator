@@ -143,12 +143,16 @@ serve(async (req) => {
     console.log('=== END DEBUG ===');
 
     // Получаем Suno API ключ
-    const sunoApiKey = Deno.env.get('SUNOAPI_ORG_KEY');
+    const sunoApiKey = Deno.env.get('SUNOAPI_ORG_TOKEN') || Deno.env.get('SUNOAPI_ORG_KEY');
     const sunoApiUrl = Deno.env.get('SUNO_API_URL') || 'https://api.sunoapi.org';
 
     if (!sunoApiKey) {
-      throw new Error('SUNOAPI_ORG_KEY not configured');
+      console.error('Suno API key not found. Checked SUNOAPI_ORG_TOKEN and SUNOAPI_ORG_KEY');
+      throw new Error('SUNOAPI_ORG_TOKEN not configured');
     }
+
+    console.log('Using Suno API URL:', sunoApiUrl);
+    console.log('API Key length:', sunoApiKey.length);
 
     // Подготавливаем данные согласно официальной документации SunoAPI.org
     let requestPrompt = prompt;
