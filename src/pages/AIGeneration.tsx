@@ -236,8 +236,13 @@ export default function AIGeneration() {
     }
     try {
       await generateTrack(params);
-      await fetchGenerations();
-      await fetchAllTracks();
+      // Принудительно обновляем данные после генерации
+      console.log("Generation completed, refreshing data...");
+      await Promise.all([
+        fetchGenerations(),
+        fetchAllTracks()
+      ]);
+      console.log("Data refreshed successfully");
     } catch (e: any) {
       console.error("Generation error:", e);
     }
