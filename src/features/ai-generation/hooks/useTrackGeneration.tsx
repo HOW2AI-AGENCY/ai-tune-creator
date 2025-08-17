@@ -420,6 +420,56 @@ export function useTrackGeneration({
   }, []);
 
   /**
+   * PERFORMANCE + RELIABILITY: Обертка для AI функций с кешированием и retry
+   * 
+   * @param functionName - Название Edge Function
+   * @param requestBody - Тело запроса
+   * @param operationName - Название операции для UI
+   * @param cacheOptions - Опции кеширования
+   * @returns Результат операции
+   */
+  const executeAIFunction = useCallback(async (
+    functionName: string,
+    requestBody: any,
+    operationName: string,
+    cacheOptions: { enabled: boolean; ttl?: number } = { enabled: true, ttl: 5 * 60 * 1000 }
+  ): Promise<any> => {
+    // Проверяем кеш если кеширование включено
+    let cacheKey: string | null = null;
+    if (cacheOptions.enabled) {
+      cacheKey = generateCacheKey(functionName, requestBody);
+      const cachedData = getCachedData(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+    }
+    
+    // Выполняем запрос с retry логикой
+    const result = await executeWithRetry(async () => {
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: requestBody
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (!data.success) {
+        throw new Error(data.error || `Ошибка выполнения ${operationName}`);
+      }
+      
+      return data.data;
+    }, operationName);
+    
+    // Сохраняем в кеш если кеширование включено
+    if (cacheOptions.enabled && cacheKey) {
+      setCachedData(cacheKey, result, cacheOptions.ttl);
+    }
+    
+    return result;
+  }, [generateCacheKey, getCachedData, setCachedData, executeWithRetry]);
+
+  /**
    * RELIABILITY: Выполняет запрос с retry логикой
    * 
    * @param operation - Функция для выполнения
@@ -470,56 +520,6 @@ export function useTrackGeneration({
     
     throw lastError!;
   }, [toast]);
-
-  /**
-   * PERFORMANCE + RELIABILITY: Обертка для AI функций с кешированием и retry
-   * 
-   * @param functionName - Название Edge Function
-   * @param requestBody - Тело запроса
-   * @param operationName - Название операции для UI
-   * @param cacheOptions - Опции кеширования
-   * @returns Результат операции
-   */
-  const executeAIFunction = useCallback(async (
-    functionName: string,
-    requestBody: any,
-    operationName: string,
-    cacheOptions: { enabled: boolean; ttl?: number } = { enabled: true, ttl: 5 * 60 * 1000 }
-  ): Promise<any> => {
-    // Проверяем кеш если кеширование включено
-    let cacheKey: string | null = null;
-    if (cacheOptions.enabled) {
-      cacheKey = generateCacheKey(functionName, requestBody);
-      const cachedData = getCachedData(cacheKey);
-      if (cachedData) {
-        return cachedData;
-      }
-    }
-    
-    // Выполняем запрос с retry логикой
-    const result = await executeWithRetry(async () => {
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: requestBody
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (!data.success) {
-        throw new Error(data.error || `Ошибка выполнения ${operationName}`);
-      }
-      
-      return data.data;
-    }, operationName);
-    
-    // Сохраняем в кеш если кеширование включено
-    if (cacheOptions.enabled && cacheKey) {
-      setCachedData(cacheKey, result, cacheOptions.ttl);
-    }
-    
-    return result;
-  }, [generateCacheKey, getCachedData, setCachedData, executeWithRetry]);
 
   /**
    * UTILITY: Очищает кеш (может быть полезно для принудительного обновления)
