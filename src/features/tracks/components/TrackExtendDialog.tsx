@@ -670,8 +670,6 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
         />
 
         {/* TODO: WAV Conversion Dialog - temporarily disabled */}
-        />
-        
         <VocalSeparationDialog
           open={vocalSeparationOpen}
           onOpenChange={setVocalSeparationOpen}
