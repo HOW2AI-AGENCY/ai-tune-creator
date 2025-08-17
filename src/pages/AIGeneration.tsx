@@ -8,7 +8,7 @@ import type { GenerationParams } from "@/features/ai-generation/types";
 import { GenerationFeed } from "@/features/ai-generation/components/GenerationFeed";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TaskQueuePanel } from "@/components/ai-generation/TaskQueuePanel";
+import { TaskQueuePanel } from "@/features/ai-generation/components/TaskQueuePanel";
 import { AIServiceStatusBanner } from "@/components/ai-generation/AIServiceStatusBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,8 +42,11 @@ export default function AIGeneration() {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<any | null>(null);
 
-  // Polling hook для отслеживания прогресса
+  // Polling hook для отслеживания прогресса и персистентные генерации
   const { generateTrack, isGenerating, generationProgress } = useTrackGenerationWithProgress();
+  
+  // Temporary mock data for TaskQueuePanel - this will be replaced with real persistence integration
+  const [mockGenerations] = useState<any[]>([]);
 
   const fetchGenerations = async () => {
     if (!user) return;
@@ -386,7 +389,9 @@ export default function AIGeneration() {
         <div className="w-full lg:w-80 xl:w-96 border-b lg:border-b-0 lg:border-r bg-card">
           <div className="p-4 space-y-4">
             <AIServiceStatusBanner />
-            <TaskQueuePanel className="lg:max-h-80 overflow-auto" />
+            <TaskQueuePanel 
+              tasks={mockGenerations}
+            />
           </div>
           <TrackGenerationSidebar
             projects={projects}

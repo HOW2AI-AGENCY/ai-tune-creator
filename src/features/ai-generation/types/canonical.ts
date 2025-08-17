@@ -34,6 +34,7 @@ export interface CanonicalGenerationInput {
   
   // Project context
   context: {
+    trackId?: string;
     projectId?: string;
     artistId?: string;
     useInbox: boolean;

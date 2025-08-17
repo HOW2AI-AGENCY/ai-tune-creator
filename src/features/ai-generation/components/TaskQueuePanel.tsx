@@ -91,7 +91,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
   };
 
   const formatEstimatedTime = (seconds?: number) => {
-    if (!seconds) return t('unknown');
+    if (!seconds) return 'неизвестно';
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return minutes > 0 ? `${minutes}м ${remainingSeconds}с` : `${remainingSeconds}с`;
@@ -102,8 +102,8 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
   }
 
   return (
-    <div className="border-b border-border bg-card/30">
-      <div className="p-3 md:p-4 max-w-5xl mx-auto">
+    <Card className="border border-border bg-card">
+      <CardContent className="p-3">
         {/* Panel Header with Collapse Button */}
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium flex items-center gap-2">
@@ -157,7 +157,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
                                 {task.service}
                               </span>
                               <Badge variant={getStatusColor(task.status)} className="text-xs">
-                                {task.status === 'pending' ? t('statusPending') : t('statusRunning')}
+                                {task.status === 'pending' ? 'Ожидание' : 'Генерация'}
                               </Badge>
                             </div>
                             
@@ -177,7 +177,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
                             
                             {task.status === 'pending' && (
                               <div className="text-xs text-muted-foreground">
-                                {t('estimatedTime')}: {formatEstimatedTime(task.estimated_time)}
+                                Ожидаемое время: {formatEstimatedTime(task.estimated_time)}
                               </div>
                             )}
                           </div>
@@ -198,7 +198,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-medium flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  {t('recentTasks')}
+                  Недавние задачи
                 </h3>
                 <Badge variant="outline" className="text-xs">
                   {recentTasks.length}
@@ -231,7 +231,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
                             size="sm" 
                             variant="ghost" 
                             className="h-6 w-6 p-0"
-                            aria-label={t('playTrack')}
+                            aria-label="Воспроизвести трек"
                           >
                             <Play className="h-3 w-3" />
                           </Button>
@@ -239,7 +239,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
                             size="sm" 
                             variant="ghost" 
                             className="h-6 w-6 p-0"
-                            aria-label={t('downloadTrack')}
+                            aria-label="Скачать трек"
                           >
                             <Download className="h-3 w-3" />
                           </Button>
@@ -251,7 +251,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
                           size="sm" 
                           variant="ghost" 
                           className="h-6 w-6 p-0 text-destructive"
-                          aria-label={t('retry')}
+                          aria-label="Повторить"
                         >
                           <AlertCircle className="h-3 w-3" />
                         </Button>
@@ -270,7 +270,7 @@ export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
             </div>
           </>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

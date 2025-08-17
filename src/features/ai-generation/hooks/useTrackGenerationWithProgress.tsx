@@ -352,7 +352,7 @@ export function useTrackGenerationWithProgress() {
     isGenerating,
     generationProgress,
     currentTask,
-    ongoingGenerations,
+    ongoingGenerations: [], // Will be integrated with useGenerationPersistence
     cancelGeneration: () => {
       stopPolling();
       setIsGenerating(false);

@@ -167,6 +167,7 @@ export function SunoStyleGenerationForm({
       mode: 'quick',
       inputType,
       context: {
+        trackId: selectedTrack?.id,
         projectId: createNewSingle ? undefined : (selectedProjectId !== "none" ? selectedProjectId : undefined),
         artistId: createNewSingle ? undefined : (selectedArtistId !== "none" ? selectedArtistId : undefined),
         useInbox: false
@@ -193,35 +194,93 @@ export function SunoStyleGenerationForm({
       {/* AI Service Status */}
       <AIServiceStatusPanel compact={true} />
 
-      {/* Track Selection */}
+      {/* Context Selection */}
       <Card className="border-2 border-accent/30 bg-gradient-subtle">
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Music2 className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold">Выбрать трек для редактирования</h3>
+            <h3 className="font-semibold">Контекст генерации</h3>
           </div>
           
-          <Select value={selectedTrack?.id || "none"} onValueChange={handleTrackSelect}>
-            <SelectTrigger>
-              <SelectValue placeholder="Выберите трек или создайте новый" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Создать новый трек</SelectItem>
-              {tracks.map(track => (
-                <SelectItem key={track.id} value={track.id}>
-                  {track.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {selectedTrack && (
-            <div className="mt-3 p-3 bg-background/50 rounded-lg">
-              <div className="text-sm text-muted-foreground">
-                Выбран трек: <span className="font-medium text-foreground">{selectedTrack.name}</span>
-              </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="create-new"
+                checked={createNewSingle}
+                onCheckedChange={setCreateNewSingle}
+              />
+              <label htmlFor="create-new" className="text-sm font-medium">
+                Создать новый трек
+              </label>
             </div>
-          )}
+
+            {!createNewSingle && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Выбрать трек для редактирования</label>
+                  <Select value={selectedTrack?.id || "none"} onValueChange={handleTrackSelect}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите существующий трек" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Не выбрано</SelectItem>
+                      {tracks.map(track => (
+                        <SelectItem key={track.id} value={track.id}>
+                          {track.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {!selectedTrack && (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Проект</label>
+                      <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Выберите проект" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Не выбрано</SelectItem>
+                          {projects.map(project => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Артист</label>
+                      <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Выберите артиста" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Не выбрано</SelectItem>
+                          {artists.map(artist => (
+                            <SelectItem key={artist.id} value={artist.id}>
+                              {artist.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            
+            {selectedTrack && (
+              <div className="p-3 bg-background/50 rounded-lg">
+                <div className="text-sm text-muted-foreground">
+                  Выбран трек: <span className="font-medium text-foreground">{selectedTrack.name}</span>
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
