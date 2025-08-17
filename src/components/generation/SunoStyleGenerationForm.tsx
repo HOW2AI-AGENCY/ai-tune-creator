@@ -88,6 +88,46 @@ export function SunoStyleGenerationForm({
     "rhythmic", "atmospheric", "energetic", "smooth", "vibrant", "soulful"
   ];
 
+  // Преобразование лирики из JSON/структур в формат Suno AI с секциями
+  const toSunoLyricsFormat = (raw: string): string => {
+    if (!raw) return '';
+    const trim = raw.trim();
+    const header = (name: string) => {
+      const map: Record<string, string> = {
+        verse: 'Verse', chorus: 'Chorus', bridge: 'Bridge', outro: 'Outro', intro: 'Intro', prechorus: 'Pre-Chorus'
+      };
+      const key = name?.toLowerCase?.() || 'section';
+      return `[${map[key] || name || 'Section'}]`;
+    };
+
+    // Попытка распарсить JSON
+    if ((trim.startsWith('{') || trim.startsWith('['))) {
+      try {
+        const data = JSON.parse(trim);
+        let out: string[] = [];
+        if (Array.isArray(data)) {
+          for (const part of data) {
+            const name = (part as any).section || (part as any).name || (part as any).type || 'Section';
+            const lines = Array.isArray((part as any).lines)
+              ? (part as any).lines.join('\n')
+              : ((part as any).text || (part as any).content || '');
+            if (lines) {
+              out.push(`${header(name)}\n${lines}`);
+            }
+          }
+        } else if (typeof data === 'object' && data) {
+          for (const [key, value] of Object.entries<any>(data)) {
+            const text = Array.isArray(value) ? value.join('\n') : (value?.text || value?.content || String(value));
+            if (text) out.push(`${header(key)}\n${text}`);
+          }
+        }
+        if (out.length) return out.join('\n\n');
+      } catch { /* ignore */ }
+    }
+
+    return trim;
+  };
+
   const handlePresetSelect = (preset: any) => {
     setSelectedPreset(preset.id);
     setDescription(preset.prompt);
@@ -98,53 +138,86 @@ export function SunoStyleGenerationForm({
   };
 
   const handleTagToggle = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
+    setSelectedTags(prev =>
+      prev.includes(tag)
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     );
   };
 
-  const handleTrackSelect = (trackId: string) => {
-    if (trackId === "none") {
+  const handleProjectChange = (value: string) => {
+    setSelectedProjectId(value);
+    if (selectedTrack) {
       onTrackSelect?.(null);
+    }
+    setLyrics('');
+    setDescription('');
+  };
+
+  const handleArtistChange = (value: string) => {
+    setSelectedArtistId(value);
+    if (selectedTrack) {
+      onTrackSelect?.(null);
+    }
+    setLyrics('');
+  };
+
+  const handleToggleCreateNew = (flag: boolean) => {
+    setCreateNewSingle(flag);
+    if (flag) {
+      onTrackSelect?.(null);
+      setSelectedProjectId('none');
+      setSelectedArtistId('none');
+      setLyrics('');
+      setDescription('');
+    }
+  };
+
+  const handleTrackSelect = (trackId: string) => {
+    if (trackId === 'none') {
+      onTrackSelect?.(null);
+      setCreateNewSingle(true);
+      setSelectedProjectId('none');
+      setSelectedArtistId('none');
+      setLyrics('');
+      setDescription('');
+      setSelectedTags([]);
+      setInputType('description');
       return;
     }
 
-    const track = tracks.find(t => t.id === trackId);
+    const track = tracks.find(t => t.id === trackId) as any;
     if (!track) return;
 
     onTrackSelect?.(track);
-    
-    // Auto-populate form with track data
+    setCreateNewSingle(false);
+
+    // Автоподстановка контента
     if (track.description) {
       setDescription(track.description);
       setInputType('description');
+      setLyrics('');
     }
-    
     if (track.lyrics) {
-      setLyrics(track.lyrics);
+      const normalized = toSunoLyricsFormat(String(track.lyrics));
+      setLyrics(normalized);
       if (!track.description) {
         setInputType('lyrics');
+        setDescription('');
       }
     }
 
-    // Enable custom mode automatically
-    setIsCustomMode(true);
-    setSelectedPreset("");
-
-    // Auto-select project and artist if available
     if (track.project_id) {
       setSelectedProjectId(track.project_id);
-      setCreateNewSingle(false);
+    }
+    if (track.artist_id) {
+      setSelectedArtistId(track.artist_id);
     }
 
-    // Extract genre tags if available
     if (track.genre_tags && track.genre_tags.length > 0) {
       setSelectedTags(track.genre_tags);
     }
   };
-
   const handleGenerate = () => {
     const mainContent = inputType === 'description' ? description : lyrics;
     if (!mainContent.trim()) {
@@ -222,7 +295,7 @@ export function SunoStyleGenerationForm({
               <Switch
                 id="create-new"
                 checked={createNewSingle}
-                onCheckedChange={setCreateNewSingle}
+                onCheckedChange={handleToggleCreateNew}
               />
               <label htmlFor="create-new" className="text-sm font-medium">
                 Создать новый трек
@@ -237,7 +310,7 @@ export function SunoStyleGenerationForm({
                     <SelectTrigger>
                       <SelectValue placeholder="Выберите существующий трек" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[60] bg-popover">
                       <SelectItem value="none">Не выбрано</SelectItem>
                       {tracks.map(track => (
                         <SelectItem key={track.id} value={track.id}>
@@ -252,11 +325,11 @@ export function SunoStyleGenerationForm({
                   <>
                     <div>
                       <label className="text-sm font-medium mb-2 block">Проект</label>
-                      <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                      <Select value={selectedProjectId} onValueChange={handleProjectChange}>
                         <SelectTrigger>
                           <SelectValue placeholder="Выберите проект" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[60] bg-popover">
                           <SelectItem value="none">Не выбрано</SelectItem>
                           {projects.map(project => (
                             <SelectItem key={project.id} value={project.id}>
@@ -269,7 +342,7 @@ export function SunoStyleGenerationForm({
 
                     <div>
                       <label className="text-sm font-medium mb-2 block">Артист</label>
-                      <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
+                      <Select value={selectedArtistId} onValueChange={handleArtistChange}>
                         <SelectTrigger>
                           <SelectValue placeholder="Выберите артиста" />
                         </SelectTrigger>
@@ -411,8 +484,13 @@ export function SunoStyleGenerationForm({
               }
               setSelectedPreset("");
             }}
+            onBlur={(e) => {
+              if (inputType === 'lyrics') {
+                setLyrics(toSunoLyricsFormat(e.currentTarget.value));
+              }
+            }}
             className={inputType === 'lyrics' 
-              ? "min-h-[300px] text-base border-2 focus:border-primary/50 transition-colors resize-none font-mono text-sm leading-relaxed"
+              ? "min-h-[360px] text-base border-2 focus:border-primary/50 transition-colors resize-none font-mono text-sm leading-relaxed"
               : "min-h-[120px] text-base border-2 focus:border-primary/50 transition-colors resize-none"
             }
           />
@@ -556,7 +634,7 @@ export function SunoStyleGenerationForm({
                   <Switch
                     id="create-single"
                     checked={createNewSingle}
-                    onCheckedChange={setCreateNewSingle}
+                    onCheckedChange={handleToggleCreateNew}
                   />
                   <label htmlFor="create-single" className="text-sm font-medium">
                     Создать новый сингл (ИИ выберет название)
