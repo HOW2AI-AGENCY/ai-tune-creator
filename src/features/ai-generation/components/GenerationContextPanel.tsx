@@ -71,6 +71,9 @@ export function GenerationContextPanel({
   const [referenceTrackId, setReferenceTrackId] = useState<string>("none");
   const [referenceTrackOptions, setReferenceTrackOptions] = useState<{id: string; name: string}[]>([]);
 
+  // Synced project/artist options
+  const [projectOptions, setProjectOptions] = useState<Option[]>(projects);
+
   const loadReferenceTracks = async () => {
     try {
       let query = supabase
@@ -100,8 +103,9 @@ export function GenerationContextPanel({
 
   useEffect(() => {
     loadReferenceTracks();
+    setProjectOptions(projects);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProjectId, sendToInbox]);
+  }, [selectedProjectId, sendToInbox, projects]);
 
   const applyReferenceFromTrack = async (trackId: string) => {
     if (!trackId || trackId === 'none') return;
@@ -320,13 +324,24 @@ export function GenerationContextPanel({
             <>
               <div>
                 <Label className="text-xs text-muted-foreground">Проект</Label>
-                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <Select value={selectedProjectId} onValueChange={async (v) => {
+                  setSelectedProjectId(v);
+                  if (v && v !== 'none') {
+                    // Fetch artist for selected project and sync artist select
+                    const { data } = await supabase
+                      .from('projects')
+                      .select('artist_id')
+                      .eq('id', v)
+                      .single();
+                    if (data?.artist_id) setSelectedArtistId(data.artist_id);
+                  }
+                }}>
                   <SelectTrigger className="h-8">
                     <SelectValue placeholder="Выберите проект" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Без проекта</SelectItem>
-                    {projects.map(project => (
+                    {projectOptions.map(project => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}
                       </SelectItem>
@@ -337,7 +352,21 @@ export function GenerationContextPanel({
 
               <div>
                 <Label className="text-xs text-muted-foreground">Артист</Label>
-                <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
+                <Select value={selectedArtistId} onValueChange={async (v) => {
+                  setSelectedArtistId(v);
+                  if (v && v !== 'none') {
+                    // Filter projects by artist
+                    const { data } = await supabase
+                      .from('projects')
+                      .select('id, title')
+                      .eq('artist_id', v)
+                      .order('updated_at', { ascending: false });
+                    setProjectOptions((data || []).map((p: any) => ({ id: p.id, name: p.title })));
+                  } else {
+                    // Reset to original list
+                    setProjectOptions(projects);
+                  }
+                }}>
                   <SelectTrigger className="h-8">
                     <SelectValue placeholder="Выберите артиста" />
                   </SelectTrigger>
