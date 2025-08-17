@@ -141,7 +141,7 @@ export function useGenerationPersistence() {
             await supabase.functions.invoke('download-and-save-track', {
               body: {
                 generation_id: generation.generationId,
-                audio_url: track.audio_url || track.result_url,
+                external_url: track.audioUrl || track.audio_url || track.result_url,
                 taskId: generation.taskId
               }
             });
