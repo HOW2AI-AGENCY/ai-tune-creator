@@ -72,6 +72,10 @@ export function SunoStyleGenerationForm({
   // Quick presets and custom mode
   const [selectedPreset, setSelectedPreset] = useState<string>("");
   const [isCustomMode, setIsCustomMode] = useState(false);
+  const [styleInfluence, setStyleInfluence] = useState([65]); // 0-100%
+  const [weirdness, setWeirdness] = useState([50]); // Креативность 0-100%
+  const [vocalGender, setVocalGender] = useState("auto"); // male, female, auto
+  const [excludeStyles, setExcludeStyles] = useState<string[]>([]);
 
   const genres = [
     "Поп", "Рок", "Хип-хоп", "Электронная музыка", 
@@ -219,7 +223,7 @@ export function SunoStyleGenerationForm({
     }
   };
   const handleGenerate = () => {
-    const mainContent = inputType === 'description' ? description : lyrics;
+    const mainContent = (!isCustomMode || inputType === 'description') ? description : lyrics;
     if (!mainContent.trim()) {
       return;
     }
@@ -229,16 +233,17 @@ export function SunoStyleGenerationForm({
     if (selectedMood && selectedMood !== "auto") tags.push(selectedMood);
 
     const canonicalInput: CanonicalGenerationInput = {
-      description: inputType === 'description' ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
-      lyrics: inputType === 'lyrics' ? lyrics : undefined,
+      description: (!isCustomMode || inputType === 'description') ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
+      lyrics: (isCustomMode && inputType === 'lyrics') ? lyrics : undefined,
       tags,
       flags: {
         instrumental,
         language,
-        duration: duration[0]
+        duration: duration[0],
+        voiceStyle: vocalGender !== 'auto' ? vocalGender : undefined
       },
       mode: 'quick',
-      inputType,
+      inputType: isCustomMode ? inputType : 'description',
       context: {
         trackId: selectedTrack?.id,
         projectId: createNewSingle ? undefined : (selectedProjectId !== "none" ? selectedProjectId : undefined),
@@ -250,17 +255,20 @@ export function SunoStyleGenerationForm({
 
     // Преобразуем в старый формат для совместимости
     const legacyParams = {
-      prompt: canonicalInput.description,
+      prompt: (!isCustomMode || inputType === 'description') ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
       service: canonicalInput.service,
-      customLyrics: canonicalInput.lyrics,
-      inputType: canonicalInput.inputType,
+      customLyrics: (isCustomMode && inputType === 'lyrics') ? lyrics : undefined,
+      inputType: isCustomMode ? inputType : 'description',
       genreTags: canonicalInput.tags,
       instrumental: canonicalInput.flags.instrumental,
       language: canonicalInput.flags.language,
       duration: canonicalInput.flags.duration,
       projectId: canonicalInput.context.projectId,
       artistId: canonicalInput.context.artistId,
-      mode: canonicalInput.mode
+      mode: canonicalInput.mode,
+      stylePrompt: tags.join(', '),
+      voiceStyle: vocalGender !== 'auto' ? vocalGender : undefined,
+      tempo: 'medium'
     };
 
     onGenerate(legacyParams as any);
@@ -424,37 +432,42 @@ export function SunoStyleGenerationForm({
       {/* Main Input */}
       <Card className="border-2 hover:border-primary/30 transition-colors">
         <CardContent className="p-6">
-          {/* Input Type Toggle */}
-          <div className="flex items-center justify-center mb-6">
-            <div className="bg-muted p-1 rounded-lg flex">
-              <Button
-                variant={inputType === 'description' ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setInputType('description')}
-                className="flex items-center gap-2"
-              >
-                <MessageSquare className="h-4 w-4" />
-                Описание
-              </Button>
-              <Button
-                variant={inputType === 'lyrics' ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setInputType('lyrics')}
-                className="flex items-center gap-2"
-              >
-                <FileText className="h-4 w-4" />
-                Лирика
-              </Button>
+          {/* Lyrcs Mode for Custom */}
+          {isCustomMode && selectedService === 'suno' && (
+            <div className="mb-4">
+              <div className="flex items-center justify-center mb-4">
+                <div className="bg-muted p-1 rounded-lg flex">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setInputType('description')}
+                    className={`flex items-center gap-2 ${inputType === 'description' ? 'bg-background text-foreground' : ''}`}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Авто-лирика
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setInputType('lyrics')}
+                    className={`flex items-center gap-2 ${inputType === 'lyrics' ? 'bg-background text-foreground' : ''}`}
+                  >
+                    <FileText className="h-4 w-4" />
+                    Своя лирика
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Text Input */}
+          {/* Main Content Input */}
           <Textarea
             placeholder={
-              inputType === 'description'
+              !isCustomMode
                 ? "Например: энергичный поп-трек о летней любви с гитарными соло..."
-                : inputType === 'lyrics'
-                ? `Введите текст песни в формате Suno AI:
+                : inputType === 'description'
+                ? "Опишите стиль и настроение вашей музыки..."
+                : `Введите текст песни в формате Suno AI:
 
 [Verse 1]
 Твой текст первого куплета
@@ -473,11 +486,14 @@ export function SunoStyleGenerationForm({
 
 [Outro]
 Твой текст концовки`
-                : "Введите текст..."
             }
-            value={inputType === 'description' ? description : lyrics}
+            value={
+              !isCustomMode || inputType === 'description' 
+                ? description 
+                : lyrics
+            }
             onChange={(e) => {
-              if (inputType === 'description') {
+              if (!isCustomMode || inputType === 'description') {
                 setDescription(e.target.value);
               } else {
                 setLyrics(e.target.value);
@@ -485,22 +501,26 @@ export function SunoStyleGenerationForm({
               setSelectedPreset("");
             }}
             onBlur={(e) => {
-              if (inputType === 'lyrics') {
+              if (isCustomMode && inputType === 'lyrics') {
                 setLyrics(toSunoLyricsFormat(e.currentTarget.value));
               }
             }}
-            className={inputType === 'lyrics' 
-              ? "min-h-[360px] text-base border-2 focus:border-primary/50 transition-colors resize-none font-mono text-sm leading-relaxed"
-              : "min-h-[120px] text-base border-2 focus:border-primary/50 transition-colors resize-none"
+            className={
+              isCustomMode && inputType === 'lyrics'
+                ? "min-h-[360px] text-base border-2 focus:border-primary/50 transition-colors resize-none font-mono text-sm leading-relaxed"
+                : "min-h-[120px] text-base border-2 focus:border-primary/50 transition-colors resize-none"
             }
           />
 
           <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
             <span>
-              {inputType === 'description' ? description.length : lyrics.length} символов
+              {(!isCustomMode || inputType === 'description') ? description.length : lyrics.length} символов
             </span>
             <span>
-              {inputType === 'description' ? 'Макс. 500' : 'Макс. 3000 (формат Suno: [Verse], [Chorus], [Bridge])'}
+              {(!isCustomMode || inputType === 'description') 
+                ? 'Макс. 500' 
+                : 'Макс. 3000 (формат Suno: [Verse], [Chorus], [Bridge])'
+              }
             </span>
           </div>
         </CardContent>
@@ -682,34 +702,109 @@ export function SunoStyleGenerationForm({
 
               <Separator />
 
-              {/* Generation Options */}
+              {/* Music Settings */}
               <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="instrumental"
-                    checked={instrumental}
-                    onCheckedChange={setInstrumental}
-                  />
-                  <label htmlFor="instrumental" className="text-sm font-medium">
-                    Инструментальная версия (без вокала)
-                  </label>
+                <div>
+                  <label className="text-sm font-medium mb-3 block">Настройки звучания</label>
+                  <div className="space-y-4">
+                    {/* Style Influence */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-muted-foreground">Влияние стиля</span>
+                        <span className="text-sm font-medium">{styleInfluence[0]}%</span>
+                      </div>
+                      <Slider
+                        value={styleInfluence}
+                        onValueChange={setStyleInfluence}
+                        max={100}
+                        step={1}
+                        className="w-full"
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Как сильно ИИ следует заданному стилю
+                      </div>
+                    </div>
+
+                    {/* Weirdness/Creativity */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-muted-foreground">Креативность</span>
+                        <span className="text-sm font-medium">{weirdness[0]}%</span>
+                      </div>
+                      <Slider
+                        value={weirdness}
+                        onValueChange={setWeirdness}
+                        max={100}
+                        step={1}
+                        className="w-full"
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Экспериментальность и неожиданность звучания
+                      </div>
+                    </div>
+
+                    {/* Vocal Gender */}
+                    {!instrumental && (
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Пол вокалиста</label>
+                        <Select value={vocalGender} onValueChange={setVocalGender}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="z-[60] bg-popover">
+                            <SelectItem value="auto">Автовыбор</SelectItem>
+                            <SelectItem value="male">Мужской</SelectItem>
+                            <SelectItem value="female">Женский</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {/* Exclude Styles */}
                 <div>
-                  <label className="text-sm font-medium mb-3 block">
-                    Продолжительность: {duration[0]} секунд
-                  </label>
+                  <label className="text-sm font-medium mb-3 block">Исключить стили</label>
+                  <div className="flex flex-wrap gap-2">
+                    {popularTags.map(tag => (
+                      <Badge
+                        key={tag}
+                        variant={excludeStyles.includes(tag) ? "destructive" : "outline"}
+                        className="cursor-pointer hover:bg-destructive/20 transition-colors"
+                        onClick={() => {
+                          setExcludeStyles(prev =>
+                            prev.includes(tag)
+                              ? prev.filter(t => t !== tag)
+                              : [...prev, tag]
+                          );
+                        }}
+                      >
+                        {excludeStyles.includes(tag) ? "✕ " : ""}{tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Стили, которые ИИ должен избегать
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Basic Settings */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Продолжительность (сек)</label>
                   <Slider
                     value={duration}
                     onValueChange={setDuration}
-                    max={300}
+                    max={240}
                     min={30}
                     step={10}
                     className="w-full"
                   />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>30 сек</span>
-                    <span>5 мин</span>
+                  <div className="text-center text-sm text-muted-foreground mt-1">
+                    {duration[0]} секунд
                   </div>
                 </div>
 
@@ -719,13 +814,23 @@ export function SunoStyleGenerationForm({
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[60] bg-popover">
                       <SelectItem value="ru">Русский</SelectItem>
                       <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="es">Español</SelectItem>
-                      <SelectItem value="fr">Français</SelectItem>
+                      <SelectItem value="auto">Авто</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="instrumental"
+                    checked={instrumental}
+                    onCheckedChange={setInstrumental}
+                  />
+                  <label htmlFor="instrumental" className="text-sm font-medium">
+                    Инструментальная версия
+                  </label>
                 </div>
               </div>
             </CardContent>
