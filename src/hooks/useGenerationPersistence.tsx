@@ -117,7 +117,7 @@ export function useGenerationPersistence() {
         let statusResponse;
         if (generation.service === 'suno') {
           statusResponse = await supabase.functions.invoke('get-suno-record-info', {
-            body: { task_id: generation.taskId }
+            body: { taskId: generation.taskId, generationId: generation.generationId }
           });
         } else if (generation.service === 'mureka') {
           // For Mureka, check the generation record in database
@@ -128,20 +128,21 @@ export function useGenerationPersistence() {
             .single();
           
           if (data?.status === 'completed') {
-            statusResponse = { data: { success: true, status: 'completed', data: data } };
+            statusResponse = { data: { completed: true, tracks: [data] } };
           }
         }
 
-        if (statusResponse?.data?.success) {
-          const result = statusResponse.data.data;
+        if (statusResponse?.data) {
+          const result = statusResponse.data;
           
-          if (result.status === 'completed' || result.audio_url) {
+          if (result.completed || result.tracks?.length > 0) {
             // Generation completed, trigger download and save
+            const track = result.tracks?.[0] || result;
             await supabase.functions.invoke('download-and-save-track', {
               body: {
                 generation_id: generation.generationId,
-                audio_url: result.audio_url,
-                task_id: generation.taskId
+                audio_url: track.audio_url || track.result_url,
+                taskId: generation.taskId
               }
             });
 
@@ -164,7 +165,7 @@ export function useGenerationPersistence() {
             }, 3000);
 
             clearInterval(syncInterval);
-          } else if (result.status === 'error' || result.error) {
+          } else if (result.failed || result.error) {
             // Generation failed
             updateGeneration(generation.taskId, {
               status: 'error',

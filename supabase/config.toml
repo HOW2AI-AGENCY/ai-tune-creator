@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.test-suno-connection]
 verify_jwt = false
+
+[functions.suno-callback]
+verify_jwt = false
