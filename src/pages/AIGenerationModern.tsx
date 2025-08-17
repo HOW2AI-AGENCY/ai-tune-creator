@@ -364,6 +364,28 @@ export default function AIGenerationModern() {
           <SunoStyleGenerationForm
             projects={projects}
             artists={artists}
+            tracks={allTracks.map(track => ({
+              id: track.id,
+              name: track.title,
+              description: track.description,
+              lyrics: track.lyrics,
+              genre_tags: track.genre_tags
+            }))}
+            selectedTrack={selectedTrack ? {
+              id: selectedTrack.id,
+              name: selectedTrack.title,
+              description: selectedTrack.description,
+              lyrics: selectedTrack.lyrics,
+              genre_tags: selectedTrack.genre_tags
+            } : null}
+            onTrackSelect={(track) => {
+              if (!track) {
+                setSelectedTrack(null);
+                return;
+              }
+              const foundTrack = allTracks.find(t => t.id === track.id);
+              setSelectedTrack(foundTrack || null);
+            }}
             onGenerate={handleGenerate}
             isGenerating={isGenerating}
             className="space-y-4"

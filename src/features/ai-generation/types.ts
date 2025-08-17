@@ -31,4 +31,8 @@ export interface GenerationParams {
 export interface Option {
   id: string;
   name: string;
+  description?: string;
+  lyrics?: string;
+  project_id?: string;
+  genre_tags?: string[];
 }

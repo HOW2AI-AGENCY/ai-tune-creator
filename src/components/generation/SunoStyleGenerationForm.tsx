@@ -31,7 +31,10 @@ import { Option } from "@/features/ai-generation/types";
 interface SunoStyleGenerationFormProps {
   projects: Option[];
   artists: Option[];
+  tracks: Option[];
+  selectedTrack?: Option | null;
   onGenerate: (input: CanonicalGenerationInput) => void;
+  onTrackSelect?: (track: Option | null) => void;
   isGenerating: boolean;
   className?: string;
 }
@@ -39,7 +42,10 @@ interface SunoStyleGenerationFormProps {
 export function SunoStyleGenerationForm({
   projects,
   artists,
+  tracks,
+  selectedTrack,
   onGenerate,
+  onTrackSelect,
   isGenerating,
   className
 }: SunoStyleGenerationFormProps) {
@@ -63,8 +69,9 @@ export function SunoStyleGenerationForm({
   const [duration, setDuration] = useState([120]);
   const [language, setLanguage] = useState("ru");
 
-  // Quick presets
+  // Quick presets and custom mode
   const [selectedPreset, setSelectedPreset] = useState<string>("");
+  const [isCustomMode, setIsCustomMode] = useState(false);
 
   const genres = [
     "Поп", "Рок", "Хип-хоп", "Электронная музыка", 
@@ -96,6 +103,46 @@ export function SunoStyleGenerationForm({
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     );
+  };
+
+  const handleTrackSelect = (trackId: string) => {
+    if (trackId === "none") {
+      onTrackSelect?.(null);
+      return;
+    }
+
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return;
+
+    onTrackSelect?.(track);
+    
+    // Auto-populate form with track data
+    if (track.description) {
+      setDescription(track.description);
+      setInputType('description');
+    }
+    
+    if (track.lyrics) {
+      setLyrics(track.lyrics);
+      if (!track.description) {
+        setInputType('lyrics');
+      }
+    }
+
+    // Enable custom mode automatically
+    setIsCustomMode(true);
+    setSelectedPreset("");
+
+    // Auto-select project and artist if available
+    if (track.project_id) {
+      setSelectedProjectId(track.project_id);
+      setCreateNewSingle(false);
+    }
+
+    // Extract genre tags if available
+    if (track.genre_tags && track.genre_tags.length > 0) {
+      setSelectedTags(track.genre_tags);
+    }
   };
 
   const handleGenerate = () => {
@@ -146,29 +193,84 @@ export function SunoStyleGenerationForm({
       {/* AI Service Status */}
       <AIServiceStatusPanel compact={true} />
 
-      {/* Quick Presets */}
+      {/* Track Selection */}
+      <Card className="border-2 border-accent/30 bg-gradient-subtle">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Music2 className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Выбрать трек для редактирования</h3>
+          </div>
+          
+          <Select value={selectedTrack?.id || "none"} onValueChange={handleTrackSelect}>
+            <SelectTrigger>
+              <SelectValue placeholder="Выберите трек или создайте новый" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Создать новый трек</SelectItem>
+              {tracks.map(track => (
+                <SelectItem key={track.id} value={track.id}>
+                  {track.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {selectedTrack && (
+            <div className="mt-3 p-3 bg-background/50 rounded-lg">
+              <div className="text-sm text-muted-foreground">
+                Выбран трек: <span className="font-medium text-foreground">{selectedTrack.name}</span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Mode Selection */}
       <Card className="border-2 border-primary/20 bg-gradient-accent">
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Zap className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold">Быстрый старт</h3>
+            <h3 className="font-semibold">Режим создания</h3>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {quickPresets.slice(0, 6).map((preset) => (
-              <Button
-                key={preset.id}
-                variant={selectedPreset === preset.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => handlePresetSelect(preset)}
-                className="h-auto p-3 text-left flex-col items-start justify-start"
-              >
-                <div className="text-xs font-medium">{preset.name}</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {preset.genre}
-                </div>
-              </Button>
-            ))}
+          
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <Button
+              variant={!isCustomMode ? "default" : "outline"}
+              onClick={() => setIsCustomMode(false)}
+              className="h-auto p-4 flex-col items-start justify-start space-y-2"
+            >
+              <div className="font-medium">Быстрый старт</div>
+              <div className="text-xs opacity-80">Готовые шаблоны</div>
+            </Button>
+            
+            <Button
+              variant={isCustomMode ? "default" : "outline"}
+              onClick={() => setIsCustomMode(true)}
+              className="h-auto p-4 flex-col items-start justify-start space-y-2"
+            >
+              <div className="font-medium">Кастомный режим</div>
+              <div className="text-xs opacity-80">Полный контроль</div>
+            </Button>
           </div>
+
+          {!isCustomMode && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {quickPresets.slice(0, 6).map((preset) => (
+                <Button
+                  key={preset.id}
+                  variant={selectedPreset === preset.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handlePresetSelect(preset)}
+                  className="h-auto p-3 text-left flex-col items-start justify-start"
+                >
+                  <div className="text-xs font-medium">{preset.name}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {preset.genre}
+                  </div>
+                </Button>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
