@@ -93,8 +93,8 @@ export function useTrackGenerationWithProgress() {
       if (params.service === 'suno') {
         const response = await supabase.functions.invoke('generate-suno-track', {
           body: {
-            prompt: params.customLyrics ? params.stylePrompt || '' : params.prompt, // Если есть custom_lyrics, то prompt = style описание
-            style: params.stylePrompt || '',
+            prompt: (params.customLyrics ? (params.stylePrompt || params.prompt) : params.prompt) || 'Создай музыку на основе предоставленного текста',
+            style: params.stylePrompt || (params.genreTags?.join(', ') || ''),
             title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
             tags: params.genreTags?.join(', ') || 'energetic, creative',
             make_instrumental: params.instrumental || false,
@@ -103,7 +103,7 @@ export function useTrackGenerationWithProgress() {
             trackId: null,
             projectId: params.projectId || null,
             artistId: params.artistId || null,
-            mode: params.mode || 'quick',
+            mode: params.customLyrics ? 'custom' : (params.mode || 'quick'),
             custom_lyrics: params.customLyrics || '', // Лирика отдельно
             voice_style: params.voiceStyle || '',
             language: params.language || 'ru',
