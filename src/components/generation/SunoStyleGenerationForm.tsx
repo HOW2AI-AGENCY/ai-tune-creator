@@ -253,25 +253,7 @@ export function SunoStyleGenerationForm({
       service: selectedService
     };
 
-    // Преобразуем в старый формат для совместимости
-    const legacyParams = {
-      prompt: (!isCustomMode || inputType === 'description') ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
-      service: canonicalInput.service,
-      customLyrics: (isCustomMode && inputType === 'lyrics') ? lyrics : undefined,
-      inputType: isCustomMode ? inputType : 'description',
-      genreTags: canonicalInput.tags,
-      instrumental: canonicalInput.flags.instrumental,
-      language: canonicalInput.flags.language,
-      duration: canonicalInput.flags.duration,
-      projectId: canonicalInput.context.projectId,
-      artistId: canonicalInput.context.artistId,
-      mode: canonicalInput.mode,
-      stylePrompt: tags.join(', '),
-      voiceStyle: vocalGender !== 'auto' ? vocalGender : undefined,
-      tempo: 'medium'
-    };
-
-    onGenerate(legacyParams as any);
+    onGenerate(canonicalInput);
   };
 
   return (
@@ -440,7 +422,7 @@ export function SunoStyleGenerationForm({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setInputType('description')}
+                    onClick={() => { setInputType('description'); setLyrics(''); }}
                     className={`flex items-center gap-2 ${inputType === 'description' ? 'bg-background text-foreground' : ''}`}
                   >
                     <MessageSquare className="h-4 w-4" />
@@ -449,7 +431,7 @@ export function SunoStyleGenerationForm({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setInputType('lyrics')}
+                    onClick={() => { setInputType('lyrics'); setDescription(''); }}
                     className={`flex items-center gap-2 ${inputType === 'lyrics' ? 'bg-background text-foreground' : ''}`}
                   >
                     <FileText className="h-4 w-4" />
