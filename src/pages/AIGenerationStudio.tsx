@@ -255,6 +255,7 @@ export default function AIGenerationStudio() {
           )
         `)
         .eq('projects.artists.user_id', user.id)
+        .not('audio_url', 'is', null)
         .order('updated_at', { ascending: false });
 
       if (error) {

@@ -94,14 +94,11 @@ serve(async (req) => {
         .from('tracks')
         .select('id, audio_url')
         .eq('metadata->>generation_id', gen.id)
-        .single();
+        .maybeSingle();
 
       console.log(`Generation ${gen.id} existing track:`, existingTrack, trackError?.message);
 
-      if (!existingTrack && !trackError?.message?.includes('not found')) {
-        console.error(`Error checking track for generation ${gen.id}:`, trackError);
-        continue;
-      }
+      // If no existing track, proceed to create it
 
       if (!existingTrack) {
         // Нет трека - нужно создать

@@ -772,6 +772,10 @@ export type Database = {
         Args: { p_project_id: string; p_title: string }
         Returns: string
       }
+      ensure_single_project: {
+        Args: { p_description?: string; p_title: string; p_user_id: string }
+        Returns: string
+      }
       ensure_user_inbox: {
         Args: { p_user_id: string }
         Returns: string
