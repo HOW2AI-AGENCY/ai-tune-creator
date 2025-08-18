@@ -7,6 +7,8 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { TranslationProvider } from "@/hooks/useTranslation";
 import { AppDataProvider } from "@/providers/AppDataProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { MobileLayout } from "@/components/mobile/MobileLayout";
+import { useIsMobile } from "@/hooks/use-mobile";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects"; 
 import Artists from "./pages/Artists";
@@ -43,6 +45,32 @@ const queryClient = new QueryClient({
   },
 });
 
+function AppContent() {
+  const isMobile = useIsMobile();
+  const Layout = isMobile ? MobileLayout : AppLayout;
+
+  return (
+    <Routes>
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/*" element={
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/tracks" element={<Tracks />} />
+            <Route path="/artists" element={<Artists />} />
+            <Route path="/generate" element={<AIGenerationStudio />} />
+            <Route path="/generate-old" element={<AIGeneration />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/demo/track-details" element={<TrackDetailsDemo />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Layout>
+      } />
+    </Routes>
+  );
+}
+
 /**
  * Application root с optimized provider hierarchy
  * 
@@ -63,18 +91,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
-              <Route path="/projects" element={<AppLayout><Projects /></AppLayout>} />
-              <Route path="/tracks" element={<AppLayout><Tracks /></AppLayout>} />
-              <Route path="/artists" element={<AppLayout><Artists /></AppLayout>} />
-              <Route path="/generate" element={<AppLayout><AIGenerationStudio /></AppLayout>} />
-              <Route path="/generate-old" element={<AppLayout><AIGeneration /></AppLayout>} />
-              <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
-              <Route path="/demo/track-details" element={<AppLayout><TrackDetailsDemo /></AppLayout>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+              <AppContent />
             </BrowserRouter>
           </TooltipProvider>
         </TranslationProvider>

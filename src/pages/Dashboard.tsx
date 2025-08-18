@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileDashboard } from "./mobile/MobileDashboard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +25,11 @@ import {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return <MobileDashboard />;
+  }
   const [stats, setStats] = useState({
     tracks: 0,
     projects: 0,
