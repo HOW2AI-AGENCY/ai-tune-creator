@@ -78,6 +78,11 @@ const TrackLibraryComponent = function TrackLibrary({
     }
 
     loadTracks();
+
+    // Обновляем список при глобальном событии обновления треков
+    const handler = () => loadTracks();
+    window.addEventListener('tracks-updated', handler);
+    return () => window.removeEventListener('tracks-updated', handler);
   }, [user]);
 
   /**

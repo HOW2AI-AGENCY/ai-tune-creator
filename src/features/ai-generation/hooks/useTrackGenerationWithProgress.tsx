@@ -265,6 +265,9 @@ export function useTrackGenerationWithProgress() {
                     title: "Трек готов!",
                     description: "Mureka AI завершил генерацию трека"
                   });
+                  // Обновим список треков в UI
+                  window.dispatchEvent(new CustomEvent('tracks-updated'));
+
                 }
               }
             } catch (error) {

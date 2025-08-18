@@ -159,7 +159,8 @@ export function useTrackActions(): TrackActions {
         variant: "default",
       });
 
-      // Track deleted successfully - no need to reload page
+      // Уведомим приложение об изменениях
+      window.dispatchEvent(new CustomEvent('tracks-updated'));
 
     } catch (error: any) {
       console.error('Error deleting track:', error);
