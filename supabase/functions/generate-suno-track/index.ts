@@ -65,6 +65,7 @@ const rateMap = new Map<string, { count: number; reset: number }>();
 /** Структура входящего запроса для генерации трека */
 interface GenerationRequest {
   prompt: string;                    // Основной контент (лирика ИЛИ описание)
+  lyrics?: string;                   // Готовая лирика (если inputType === 'lyrics')
   inputType: 'description' | 'lyrics'; // Что содержится в prompt
   style?: string;                   // Музыкальный стиль (Pop, Rock, Electronic и т.д.)
   stylePrompt?: string;             // Дополнительное описание стиля (только для description режима)
@@ -169,31 +170,38 @@ function normalizeModelName(model: string): NormalizedSunoModel {
   return normalized;
 }
 
-/**
- * Определяет параметры для Suno API на основе входных данных
- * @description Правильно распределяет лирику и описание стиля
- * @param request - Данные запроса
- * @returns Параметры для Suno API
- */
-function prepareSunoParams(request: GenerationRequest) {
-  const isLyricsInput = request.inputType === 'lyrics';
-  
-  // Если пользователь ввел лирику
-  if (isLyricsInput) {
+  /**
+   * Определяет параметры для Suno API на основе входных данных
+   * @description Правильно распределяет лирику и описание стиля
+   * @param request - Данные запроса
+   * @returns Параметры для Suno API
+   */
+  function prepareSunoParams(request: GenerationRequest) {
+    const isLyricsInput = request.inputType === 'lyrics';
+    
+    console.log('[SUNO PARAMS] Preparing with:', {
+      inputType: request.inputType,
+      hasLyrics: !!request.lyrics,
+      hasPrompt: !!request.prompt,
+      mode: request.mode
+    });
+    
+    // Если пользователь ввел лирику
+    if (isLyricsInput) {
+      return {
+        prompt: request.stylePrompt || request.style || 'Создай музыку к этой лирике',
+        lyrics: request.lyrics || request.prompt, // ИСПРАВЛЕНО: Используем правильное поле
+        customMode: true
+      };
+    }
+    
+    // Если пользователь ввел описание
     return {
-      prompt: request.stylePrompt || 'Создай музыку к этой лирике',
-      lyrics: request.prompt,
-      customMode: true
+      prompt: request.prompt,
+      lyrics: undefined,
+      customMode: request.mode === 'custom'
     };
   }
-  
-  // Если пользователь ввел описание
-  return {
-    prompt: request.prompt,
-    lyrics: undefined,
-    customMode: request.mode === 'custom'
-  };
-}
 
 /**
  * Вычисляет задержку для retry с экспоненциальным backoff и jitter

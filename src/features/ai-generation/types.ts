@@ -11,8 +11,10 @@ export interface QuickPreset {
 }
 
 export interface GenerationParams {
-  // Основной контент (всегда заполнен)
+  // Основной контент
   prompt: string;  // Описание стиля ИЛИ лирика (зависит от inputType)
+  lyrics?: string; // Готовая лирика (когда inputType === 'lyrics')
+  description?: string; // Описание стиля (когда inputType === 'description')
   
   // Контекст генерации
   service: 'suno' | 'mureka';

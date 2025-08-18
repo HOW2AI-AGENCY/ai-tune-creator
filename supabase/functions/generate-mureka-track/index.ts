@@ -55,6 +55,7 @@ const SUPPORTED_MODELS = ['auto', 'mureka-6', 'mureka-7', 'mureka-o1'] as const;
 interface TrackGenerationRequest {
   prompt?: string;
   lyrics?: string;
+  inputType?: 'description' | 'lyrics'; // Тип входного контента
   model?: typeof SUPPORTED_MODELS[number];
   style?: string;
   duration?: number;

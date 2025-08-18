@@ -125,8 +125,10 @@ export function TrackGenerationSidebar({
     if (selectedMood && selectedMood !== "none") genreTags.push(selectedMood);
 
     const params: GenerationParams = {
-      // Основной контент - берем из правильного поля в зависимости от типа
-      prompt: inputType === 'lyrics' ? prompt : (mode === 'custom' && customLyrics ? customLyrics : prompt),
+      // ИСПРАВЛЕНО: Правильное разделение лирики и описания
+      prompt: inputType === 'lyrics' ? (customLyrics || prompt) : prompt,
+      lyrics: inputType === 'lyrics' ? (customLyrics || prompt) : undefined,
+      description: inputType === 'description' ? prompt : undefined,
       inputType,
       
       // Сервис и режим

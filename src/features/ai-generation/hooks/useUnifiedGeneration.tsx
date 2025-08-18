@@ -124,7 +124,13 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
         const isLyricsMode = input.inputType === 'lyrics';
         
         return {
-          prompt: input.description,
+          // ИСПРАВЛЕНО: Правильная обработка prompt и lyrics
+          prompt: isLyricsMode ? 
+            (input.tags.join(', ') || 'Создай музыку к этой лирике') : 
+            input.description,
+          lyrics: isLyricsMode ? input.lyrics : undefined,
+          inputType: input.inputType,
+          
           style: input.tags.join(', '),
           title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
           tags: input.tags.join(', '),
@@ -132,15 +138,13 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
           wait_audio: false,
           model: 'chirp-v3-5',
           mode: input.mode,
-          custom_lyrics: isLyricsMode ? (input.lyrics || input.description) : '',
           voice_style: input.flags.voiceStyle || '',
           language: input.flags.language,
           tempo: input.flags.tempo || '',
           trackId: null,
           projectId: input.context.projectId || null,
           artistId: input.context.artistId || null,
-          useInbox: input.context.useInbox,
-          inputType: input.inputType // CRITICAL: Include inputType
+          useInbox: input.context.useInbox
         };
       };
 
@@ -148,51 +152,73 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
        * Maps canonical input to Mureka format with proper inputType handling
        */
       const mapToMurekaRequest = (input: CanonicalGenerationInput) => {
-        const isLyricsMode = input.inputType === 'lyrics';
+        const isInstrumental = input.flags.instrumental;
+        const isLyricsInput = input.inputType === 'lyrics';
+        
+        // ИСПРАВЛЕНО: Правильный роутинг к нужной функции
+        const functionName = isInstrumental ? 'generate-mureka-instrumental' : 'generate-mureka-track';
         
         return {
-          prompt: input.description,
-          lyrics: isLyricsMode ? (input.lyrics || input.description) : '',
-          custom_lyrics: isLyricsMode ? (input.lyrics || input.description) : '',
-          style: input.tags.join(', '),
-          duration: input.flags.duration || 120,
-          genre: input.tags[0] || 'electronic',
-          mood: input.tags[1] || 'energetic', 
-          tempo: input.flags.tempo || 'medium',
-          instrumental: input.flags.instrumental,
-          language: input.flags.language,
-          projectId: input.context.projectId || null,
-          artistId: input.context.artistId || null,
-          title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
-          inputType: input.inputType // CRITICAL: Include inputType
+          endpoint: functionName,
+          data: {
+            // ИСПРАВЛЕНО: Правильное разделение prompt и lyrics
+            prompt: isLyricsInput ? 
+              (input.tags.join(', ') || 'Generate music for these lyrics') : 
+              input.description,
+            lyrics: isLyricsInput ? input.lyrics : input.description,
+            instrumental: isInstrumental,
+            
+            model: 'auto',
+            style: input.tags.join(', '),
+            duration: input.flags.duration || 120,
+            genre: input.tags[0] || 'electronic',
+            mood: input.tags[1] || 'energetic',
+            tempo: input.flags.tempo || 'medium',
+            language: input.flags.language || 'auto',
+            projectId: input.context.projectId || null,
+            artistId: input.context.artistId || null,
+            useInbox: input.context.useInbox
+          }
         };
       };
       
-      let response;
+      // Call appropriate service
+      let taskId: string;
       if (input.service === 'suno') {
         const sunoRequest = mapToSunoRequest(input);
-        response = await supabase.functions.invoke('generate-suno-track', {
+        console.log('🎵 Calling Suno with request:', {
+          inputType: sunoRequest.inputType,
+          hasLyrics: !!sunoRequest.lyrics,
+          promptPreview: sunoRequest.prompt.slice(0, 100)
+        });
+        
+        const { data, error } = await supabase.functions.invoke('generate-suno-track', {
           body: sunoRequest
         });
+
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error || 'Suno generation failed');
+        
+        taskId = data.data.taskId;
       } else {
         const murekaRequest = mapToMurekaRequest(input);
-        response = await supabase.functions.invoke('generate-mureka-track', {
-          body: murekaRequest
+        console.log('🎶 Calling Mureka with request:', {
+          endpoint: murekaRequest.endpoint,
+          isInstrumental: murekaRequest.data.instrumental,
+          hasLyrics: !!murekaRequest.data.lyrics,
+          promptPreview: murekaRequest.data.prompt.slice(0, 100)
         });
+        
+        const { data, error } = await supabase.functions.invoke(murekaRequest.endpoint, {
+          body: murekaRequest.data
+        });
+
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error || 'Mureka generation failed');
+        
+        taskId = data.data.taskId || data.data.id;
       }
 
-      if (response.error) {
-        throw createStandardError('api', 'API call failed', response.error.message, undefined, input.service);
-      }
-
-      if (!response.data?.success) {
-        throw createStandardError('api', 'Generation failed', response.data?.error || 'Unknown error', undefined, input.service);
-      }
-
-      const taskId = response.data.data?.task_id || response.data.data?.generation?.id;
-      if (!taskId) {
-        throw createStandardError('api', 'No task ID returned', 'The API did not return a valid task identifier', undefined, input.service);
-      }
 
       // Update with real task ID
       updateProgress(generationId, { 
@@ -251,7 +277,25 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
   const startProgressMonitoring = useCallback((generationId: string, taskId: string, service: 'suno' | 'mureka') => {
     const pollInterval = setInterval(async () => {
       try {
-        const functionName = service === 'suno' ? 'get-suno-record-info' : 'get-mureka-instrumental-status';
+        // ИСПРАВЛЕНО: Правильный выбор функции мониторинга на основе типа генерации
+        const currentGeneration = activeGenerations.get(generationId);
+        const isInstrumental = currentGeneration?.metadata?.input?.flags?.instrumental;
+        
+        let functionName: string;
+        if (service === 'suno') {
+          functionName = 'get-suno-record-info';
+        } else {
+          // Для Mureka выбираем функцию на основе типа генерации
+          functionName = isInstrumental ? 'get-mureka-instrumental-status' : 'get-mureka-task-status';
+        }
+        
+        console.log(`📊 Monitoring ${service} generation:`, {
+          generationId,
+          taskId,
+          functionName,
+          isInstrumental
+        });
+        
         const { data, error } = await supabase.functions.invoke(functionName, {
           body: { taskId, generationId }
         });
