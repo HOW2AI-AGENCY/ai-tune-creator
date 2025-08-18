@@ -142,7 +142,7 @@ export function TrackResultsGrid({
               key={track.id} 
               className="bg-card/80 border-border/50 hover:bg-accent/10 transition-all cursor-pointer group backdrop-blur-sm"
               onClick={(e) => {
-                console.log('🎯 Card clicked:', track.title);
+                if (import.meta.env.DEV) console.log('🎯 Card clicked:', track.title);
                 onTrackClick(track);
               }}
             >

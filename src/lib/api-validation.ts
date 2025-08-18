@@ -47,6 +47,15 @@ export const trackMetadataSchema = z.object({
   audio_url: z.string().url().optional(),
   deleted: z.boolean().optional(),
   processing_status: z.enum(['pending', 'processing', 'completed', 'failed']).optional(),
+  local_storage_path: z.string().optional(),
+  generation_id: z.string().uuid().optional(),
+  image_url: z.string().url().optional(),
+  source_url: z.string().url().optional(),
+  suno_task_id: z.string().optional(),
+  task_id: z.string().optional(),
+  duration: z.number().optional(),
+  tags: z.array(z.string()).optional(),
+  style: z.string().optional(),
 });
 
 // API call validator

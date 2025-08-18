@@ -16,7 +16,7 @@ interface DownloadTrackRequest {
   task_id?: string;
 }
 
-// Edge Function для загрузки и сохранения треков в Supabase Storage
+// Edge Function для загрузки и сохранения треков в Supabase Storage с идемпотентностью
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -89,9 +89,28 @@ serve(async (req) => {
     }
 
     const incomingTaskId = taskId || task_id || null;
+    const lockKey = `download:${generation_id || incomingTaskId}`;
 
     console.log('Starting download for generation/task:', generation_id || incomingTaskId);
     console.log('External URL:', external_url);
+
+    // Try to acquire lock for idempotency
+    const { data: lockAcquired } = await supabase.rpc('acquire_lock', {
+      p_key: lockKey,
+      p_ttl_seconds: 120
+    });
+
+    if (!lockAcquired) {
+      console.log('Download already in progress or completed for:', generation_id || incomingTaskId);
+      return new Response(JSON.stringify({ 
+        success: true,
+        message: 'Download already in progress or completed',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Получаем информацию о генерации по generation_id или taskId
     let generation: any | null = null;
@@ -153,6 +172,7 @@ serve(async (req) => {
 
     if (genError || !generation) {
       console.error('Generation lookup error:', { generation_id, incomingTaskId, error: genError });
+      await supabase.rpc('release_lock', { p_key: lockKey });
       return new Response(JSON.stringify({ 
         success: false,
         error: `Generation not found by ${generation_id ? 'generation_id' : 'taskId'}: ${generation_id || incomingTaskId}`,
@@ -163,19 +183,41 @@ serve(async (req) => {
       });
     }
 
+    // Check if already downloaded (idempotency)
+    if (generation.metadata?.local_storage_path) {
+      console.log('File already downloaded:', generation.metadata.local_storage_path);
+      await supabase.rpc('release_lock', { p_key: lockKey });
+      return new Response(JSON.stringify({ 
+        success: true,
+        data: {
+          generation_id: generation.id,
+          track_id: generation.track_id,
+          local_audio_url: generation.result_url,
+          storage_path: generation.metadata.local_storage_path,
+          already_downloaded: true
+        }
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const resolvedGenerationId = generation.id;
 
-    // Определяем имя файла
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    // Build safe storage path using constants and helper
+    const BUCKET_AUDIO = Deno.env.get('AUDIO_BUCKET_NAME') || 'albert-tracks';
     const service = generation.service || 'unknown';
-    const baseFileName = filename || 
-      `${service}-track-${resolvedGenerationId.slice(0, 8)}-${timestamp}`;
+    const taskIdForPath = incomingTaskId || resolvedGenerationId.slice(0, 8);
     
-    // Добавляем расширение если его нет
+    // Build unique path to prevent collisions
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const baseFileName = filename || `${service}-track-${taskIdForPath}`;
     const audioFileName = baseFileName.includes('.') ? baseFileName : `${baseFileName}.mp3`;
+    const uniqueFileName = `${timestamp}-${random}-${audioFileName}`;
     
-    // Путь в storage: user_id/service/filename
-    const storagePath = `${generation.user_id}/${service}/${audioFileName}`;
+    // Storage path: user_id/service/taskId/unique-filename
+    const storagePath = `${generation.user_id}/${service}/${taskIdForPath}/${uniqueFileName}`;
 
     console.log('Downloading audio file from:', external_url);
 
@@ -197,12 +239,13 @@ serve(async (req) => {
 
     console.log('Audio file downloaded, size:', audioUint8Array.length, 'bytes');
 
-    // Сохраняем файл в Supabase Storage
+    // Save file to Supabase Storage with proper configuration
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('albert-tracks')
+      .from(BUCKET_AUDIO)
       .upload(storagePath, audioUint8Array, {
         contentType: 'audio/mpeg',
-        upsert: true
+        cacheControl: 'public, max-age=31536000, immutable',
+        upsert: false // Prevent overwrites due to unique path
       });
 
     if (uploadError) {
@@ -212,118 +255,66 @@ serve(async (req) => {
 
     console.log('File uploaded to storage:', uploadData.path);
 
-    // Получаем публичный URL
+    // Get public URL
     const { data: publicUrlData } = supabase.storage
-      .from('albert-tracks')
+      .from(BUCKET_AUDIO)
       .getPublicUrl(storagePath);
 
     const localAudioUrl = publicUrlData.publicUrl;
 
-    // Обновляем generation с локальной ссылкой
-    const { error: updateGenError } = await supabase
-      .from('ai_generations')
-      .update({
-        result_url: localAudioUrl,
-        metadata: {
-          ...generation.metadata,
-          local_storage_path: storagePath,
-          original_external_url: external_url,
-          downloaded_at: new Date().toISOString(),
-          file_size: audioUint8Array.length
+    try {
+      // Use transactional function to create/update track atomically
+      const { data: finalTrackId, error: rpcError } = await supabase.rpc(
+        'create_or_update_track_from_generation', 
+        {
+          p_generation_id: resolvedGenerationId,
+          p_project_id: generation.tracks?.project_id || null
         }
-      })
-      .eq('id', resolvedGenerationId);
+      );
 
-    if (updateGenError) {
-      console.error('Error updating generation:', updateGenError);
+      if (rpcError) {
+        console.error('Error in transactional track creation:', rpcError);
+        throw new Error(`Failed to create/update track: ${rpcError.message}`);
+      }
+
+      console.log('Track created/updated successfully:', finalTrackId);
+
+      // Release lock
+      await supabase.rpc('release_lock', { p_key: lockKey });
+      const response = {
+        success: true,
+        data: {
+          generation_id: resolvedGenerationId,
+          track_id: finalTrackId,
+          local_audio_url: localAudioUrl,
+          storage_path: storagePath,
+          file_size: audioUint8Array.length,
+          downloaded_at: new Date().toISOString()
+        }
+      };
+
+      return new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+
+    } catch (transactionError) {
+      console.error('Transaction error:', transactionError);
+      await supabase.rpc('release_lock', { p_key: lockKey });
+      throw transactionError;
     }
-
-    // Создаем или обновляем трек с локальной ссылкой
-    let finalTrackId = track_id || generation.track_id;
-    
-    if (finalTrackId) {
-      // Обновляем существующий трек
-      const { error: updateTrackError } = await supabase
-        .from('tracks')
-        .update({
-          audio_url: localAudioUrl,
-          metadata: {
-            ...((generation.tracks as any)?.metadata || {}),
-            local_storage_path: storagePath,
-            original_external_url: external_url,
-            downloaded_at: new Date().toISOString(),
-            file_size: audioUint8Array.length
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', finalTrackId);
-
-      if (updateTrackError) {
-        console.error('Error updating track:', updateTrackError);
-      } else {
-        console.log('Track updated with local URL:', finalTrackId);
-      }
-    } else {
-      // Создаем новый трек если его нет
-      const trackTitle = generation.metadata?.suno_track_data?.title || 
-                        generation.metadata?.title || 
-                        `Generated Track ${new Date().toLocaleDateString()}`;
-
-      const { data: newTrack, error: createTrackError } = await supabase
-        .from('tracks')
-        .insert({
-          title: trackTitle,
-          audio_url: localAudioUrl,
-          duration: (() => { const d = Number(generation.metadata?.suno_track_data?.duration); return Number.isFinite(d) ? Math.round(d) : null; })(),
-          lyrics: generation.metadata?.suno_track_data?.lyric || '',
-          description: `Generated with ${generation.service}`,
-          genre_tags: [],
-          metadata: {
-            generation_id: resolvedGenerationId,
-            service: generation.service,
-            local_storage_path: storagePath,
-            original_external_url: external_url,
-            downloaded_at: new Date().toISOString(),
-            file_size: audioUint8Array.length,
-            ...generation.metadata
-          }
-        })
-        .select()
-        .single();
-
-      if (createTrackError) {
-        console.error('Error creating track:', createTrackError);
-      } else {
-        console.log('New track created:', newTrack.id);
-        finalTrackId = newTrack.id;
-
-        // Обновляем generation с новым track_id
-        await supabase
-          .from('ai_generations')
-          .update({ track_id: finalTrackId })
-          .eq('id', resolvedGenerationId);
-      }
-    }
-
-    const response = {
-      success: true,
-      data: {
-        generation_id: resolvedGenerationId,
-        track_id: finalTrackId,
-        local_audio_url: localAudioUrl,
-        storage_path: storagePath,
-        file_size: audioUint8Array.length,
-        downloaded_at: new Date().toISOString()
-      }
-    };
-
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
 
   } catch (error: any) {
     console.error('Error downloading and saving track:', error);
+    
+    // Ensure lock is released on any error
+    try {
+      const lockKey = `download:${generation_id || (taskId || task_id)}`;
+      await supabase.rpc('release_lock', { p_key: lockKey });
+    } catch (lockError) {
+      console.error('Error releasing lock:', lockError);
+    }
+    
     return new Response(JSON.stringify({ 
       success: false,
       error: error.message,

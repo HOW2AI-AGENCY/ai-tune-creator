@@ -567,23 +567,14 @@ serve(async (req) => {
     console.log('Длина API ключа:', sunoApiKey.length);
     console.log('Callback URL:', callbackUrl);
 
-    // Используем новую логику на основе inputType
+    // Use inputType directly - no more guessing
     const sunoParams = prepareSunoParams(requestBody);
     let requestPrompt = sunoParams.prompt;
     let requestLyrics = sunoParams.lyrics || "";
     
-    // Если прислали "лирику", но она выглядит как короткий промпт, НЕ передаем ее как lyrics
-    const looksLikePrompt = inputType === 'lyrics' && (!prompt?.includes('\n') || (prompt?.length || 0) < 80);
-    if (looksLikePrompt && !make_instrumental) {
-      requestLyrics = "";
-      requestPrompt = prompt;
-      console.log('Определено, что введен промпт, а не лирика — lyrics не будет передан в Suno');
-    }
-
-    // Если передали явные кастомные лирики и они выглядят валидно — используем их
-    if (custom_lyrics && custom_lyrics.trim().length >= 80 && custom_lyrics.includes('\n')) {
-      requestLyrics = custom_lyrics;
-    }
+    console.log('Строго следуем inputType:', inputType);
+    console.log('Промпт:', requestPrompt?.substring(0, 100) + '...');
+    console.log('Лирика:', requestLyrics?.substring(0, 100) + '...');
     
     console.log(`Режим: ${inputType === 'lyrics' ? 'лирика' : 'описание стиля'}`);
     console.log('inputType:', inputType);

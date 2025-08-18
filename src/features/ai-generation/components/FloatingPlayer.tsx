@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useTrackActions } from "@/hooks/useTrackActions";
+import { isValidAudioUrl } from "@/lib/storage/constants";
 import {
   Play,
   Pause,
@@ -54,15 +55,23 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Сброс состояния и загрузка только при смене трека/источника
+  // Validate URL and reset state on track change
   useEffect(() => {
     const audio = audioRef.current;
     if (!track || !audio || !track.audio_url) return;
 
+    // Validate audio URL before setting
+    if (!isValidAudioUrl(track.audio_url)) {
+      console.error('Invalid audio URL:', track.audio_url);
+      setIsLoading(false);
+      setIsPlaying(false);
+      return;
+    }
+
     const isSameSrc = audio.src === track.audio_url;
 
     if (!isSameSrc) {
-      // Загружаем новый источник только если он изменился
+      // Load new source only if changed
       setIsLoading(true);
       setIsPlaying(false);
       setCurrentTime(0);
