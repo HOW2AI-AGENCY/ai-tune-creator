@@ -54,8 +54,7 @@ function AppContent() {
     <Routes>
       <Route path="/auth" element={<Auth />} />
       <Route path="/*" element={
-        <SidebarProvider>
-          <Layout>
+        <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/projects" element={<Projects />} />
@@ -68,7 +67,6 @@ function AppContent() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
-        </SidebarProvider>
       } />
     </Routes>
   );
@@ -94,7 +92,9 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <AppContent />
+              <SidebarProvider>
+                <AppContent />
+              </SidebarProvider>
             </BrowserRouter>
           </TooltipProvider>
         </TranslationProvider>

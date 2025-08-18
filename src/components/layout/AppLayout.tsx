@@ -22,7 +22,7 @@ function SidebarRouteSync() {
 
 export function AppLayout({ children }: AppLayoutProps) {
   return (
-    <SidebarProvider>
+    <>
       <SidebarRouteSync />
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
@@ -33,6 +33,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           </main>
         </SidebarInset>
       </div>
-    </SidebarProvider>
+    </>
   );
 }
