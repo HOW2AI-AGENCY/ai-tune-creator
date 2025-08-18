@@ -1000,7 +1000,53 @@ serve(async (req) => {
     }
     
     // ====================================
-    // 12. ФОРМИРОВАНИЕ УСПЕШНОГО ОТВЕТА
+    // 12. СОХРАНЕНИЕ ВСЕХ ТРЕКОВ ИЗ CHOICES
+    // ====================================
+    let allSavedTracks = [];
+    
+    if (finalTrack.choices && finalTrack.choices.length > 1) {
+      console.log(`[MULTI-TRACK] Найдено ${finalTrack.choices.length} треков, сохраняем все`);
+      
+      for (let i = 1; i < finalTrack.choices.length; i++) {
+        const choice = finalTrack.choices[i];
+        
+        try {
+          console.log(`[MULTI-TRACK] Сохраняем трек ${i + 1}/${finalTrack.choices.length}`);
+          
+          const additionalTrackResponse = await supabase.functions.invoke('download-and-save-track', {
+            body: {
+              audio_url: choice.audio_url,
+              generation_id: generationRecord?.id,
+              project_id: finalProjectId,
+              artist_id: finalArtistId,
+              title: `${requestBody.title || finalTrack.choices[0]?.title} (Вариант ${i + 1})`,
+              lyrics: processedLyrics,
+              duration: choice.duration || requestBody.duration,
+              metadata: {
+                ...requestBody,
+                generation_prompt: requestPrompt,
+                track_variant: i + 1,
+                total_variants: finalTrack.choices.length,
+                mureka_id: choice.id,
+                auto_saved: true
+              }
+            }
+          });
+          
+          if (additionalTrackResponse.error) {
+            console.error(`[MULTI-TRACK] Ошибка сохранения трека ${i + 1}:`, additionalTrackResponse.error);
+          } else {
+            allSavedTracks.push(additionalTrackResponse.data);
+            console.log(`[MULTI-TRACK] Трек ${i + 1} сохранен:`, additionalTrackResponse.data?.track?.id);
+          }
+        } catch (trackError) {
+          console.error(`[MULTI-TRACK] Критическая ошибка сохранения трека ${i + 1}:`, trackError);
+        }
+      }
+    }
+    
+    // ====================================
+    // 13. ФОРМИРОВАНИЕ УСПЕШНОГО ОТВЕТА
     // ====================================
     const processingTime = Date.now() - startTime;
     
@@ -1008,6 +1054,9 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({
       success: true,
+      message: allSavedTracks.length > 0 
+        ? `Успешно сгенерированы и сохранены ${allSavedTracks.length + 1} треков` 
+        : 'Трек успешно сгенерирован и сохранен',
       data: {
         mureka: finalTrack,
         track: trackRecord,
@@ -1018,7 +1067,10 @@ serve(async (req) => {
         lyrics: processedLyrics,
         status: finalTrack.status,
         taskId: finalTrack.id,
-        model: finalTrack.model
+        task_id: finalTrack.id, // Важно для polling
+        model: finalTrack.model,
+        total_tracks: allSavedTracks.length + 1,
+        additional_tracks: allSavedTracks
       },
       metadata: {
         service: 'mureka',
@@ -1032,6 +1084,8 @@ serve(async (req) => {
         vocal_id: requestBody.vocal_id,
         melody_id: requestBody.melody_id,
         stream: requestBody.stream,
+        generation_prompt: requestPrompt,
+        auto_saved: true,
         generatedAt: new Date().toISOString(),
         processingTime: `${processingTime}ms`,
         pollingAttempts: finalTrack.status !== murekaResponse.status ? 'completed' : 'none'

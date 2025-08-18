@@ -578,6 +578,7 @@ export default function AIGenerationStudio() {
             currentPlayingTrack={currentPlayingTrack}
             isPlaying={isPlaying}
             isSyncing={isSyncing}
+            onTrackDeleted={fetchTracks}
           />
         </div>
 
@@ -744,11 +745,12 @@ export default function AIGenerationStudio() {
           <TrackResultsGrid
             tracks={filteredTracks}
             onTrackClick={handleTrackClick}
-            onPlayTrack={handlePlayTrack}
-            currentPlayingTrack={currentPlayingTrack}
-            isPlaying={isPlaying}
-            isSyncing={isSyncing}
-          />
+              onPlayTrack={handlePlayTrack}
+              currentPlayingTrack={currentPlayingTrack}
+              isPlaying={isPlaying}
+              isSyncing={isSyncing}
+              onTrackDeleted={fetchTracks}
+            />
         </div>
       </div>
 

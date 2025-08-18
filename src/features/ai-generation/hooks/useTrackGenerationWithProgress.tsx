@@ -205,7 +205,7 @@ export function useTrackGenerationWithProgress() {
       });
 
       // Если получили task ID, начинаем polling и сохраняем в persistence
-      if (data.data?.task_id && params.service === 'suno') {
+      if (data.data?.task_id) {
         const taskData = {
           taskId: data.data.task_id,
           service: params.service,
@@ -238,8 +238,32 @@ export function useTrackGenerationWithProgress() {
           ]
         });
         
-        // Запускаем polling статуса
-        startPolling(data.data.task_id);
+        // Запускаем polling статуса для всех сервисов
+        if (params.service === 'suno') {
+          startPolling(data.data.task_id);
+        } else if (params.service === 'mureka') {
+          // Для Mureka используем периодическую проверку через get-mureka-task-status
+          const intervalId = setInterval(async () => {
+            try {
+              const statusResponse = await supabase.functions.invoke('get-mureka-task-status', {
+                body: { taskId: data.data.task_id }
+              });
+              
+              if (statusResponse.data?.success && statusResponse.data.data?.isCompleted) {
+                clearInterval(intervalId);
+                toast({
+                  title: "Трек готов!",
+                  description: "Mureka AI завершил генерацию трека"
+                });
+              }
+            } catch (error) {
+              console.error('Mureka polling error:', error);
+            }
+          }, 10000); // Проверяем каждые 10 секунд
+          
+          // Очистка интервала через 5 минут
+          setTimeout(() => clearInterval(intervalId), 300000);
+        }
       } else if (params.service === 'mureka') {
         // Для Mureka - сохраняем в persistence для фоновой обработки
         if (data.data?.generation?.id) {
