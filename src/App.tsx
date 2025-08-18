@@ -54,23 +54,7 @@ function AppContent() {
     <Routes>
       <Route path="/auth" element={<Auth />} />
       <Route path="/*" element={
-        isMobile ? (
-          <SidebarProvider>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/projects" element={<Projects />} />
-                <Route path="/tracks" element={<Tracks />} />
-                <Route path="/artists" element={<Artists />} />
-                <Route path="/generate" element={<AIGenerationStudio />} />
-                <Route path="/generate-old" element={<AIGeneration />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/demo/track-details" element={<TrackDetailsDemo />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Layout>
-          </SidebarProvider>
-        ) : (
+        <SidebarProvider>
           <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
@@ -84,7 +68,7 @@ function AppContent() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
-        )
+        </SidebarProvider>
       } />
     </Routes>
   );
