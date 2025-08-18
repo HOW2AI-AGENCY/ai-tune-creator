@@ -8,6 +8,7 @@ import { TranslationProvider } from "@/hooks/useTranslation";
 import { AppDataProvider } from "@/providers/AppDataProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects"; 
@@ -53,19 +54,37 @@ function AppContent() {
     <Routes>
       <Route path="/auth" element={<Auth />} />
       <Route path="/*" element={
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/tracks" element={<Tracks />} />
-            <Route path="/artists" element={<Artists />} />
-            <Route path="/generate" element={<AIGenerationStudio />} />
-            <Route path="/generate-old" element={<AIGeneration />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/demo/track-details" element={<TrackDetailsDemo />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
+        isMobile ? (
+          <SidebarProvider>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/tracks" element={<Tracks />} />
+                <Route path="/artists" element={<Artists />} />
+                <Route path="/generate" element={<AIGenerationStudio />} />
+                <Route path="/generate-old" element={<AIGeneration />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/demo/track-details" element={<TrackDetailsDemo />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          </SidebarProvider>
+        ) : (
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/tracks" element={<Tracks />} />
+              <Route path="/artists" element={<Artists />} />
+              <Route path="/generate" element={<AIGenerationStudio />} />
+              <Route path="/generate-old" element={<AIGeneration />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/demo/track-details" element={<TrackDetailsDemo />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Layout>
+        )
       } />
     </Routes>
   );
