@@ -245,16 +245,27 @@ export function useTrackGenerationWithProgress() {
           // Для Mureka используем периодическую проверку через get-mureka-task-status
           const intervalId = setInterval(async () => {
             try {
-              const statusResponse = await supabase.functions.invoke('get-mureka-task-status', {
-                body: { taskId: data.data.task_id }
-              });
+              const statusResponse = await fetch(
+                `https://zwbhlfhwymbmvioaikvs.supabase.co/functions/v1/get-mureka-task-status?taskId=${data.data.task_id}`,
+                {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+                    'Content-Type': 'application/json'
+                  }
+                }
+              );
               
-              if (statusResponse.data?.success && statusResponse.data.data?.isCompleted) {
-                clearInterval(intervalId);
-                toast({
-                  title: "Трек готов!",
-                  description: "Mureka AI завершил генерацию трека"
-                });
+              if (statusResponse.ok) {
+                const statusData = await statusResponse.json();
+                
+                if (statusData?.success && statusData.data?.isCompleted) {
+                  clearInterval(intervalId);
+                  toast({
+                    title: "Трек готов!",
+                    description: "Mureka AI завершил генерацию трека"
+                  });
+                }
               }
             } catch (error) {
               console.error('Mureka polling error:', error);

@@ -1015,13 +1015,14 @@ serve(async (req) => {
           
           const additionalTrackResponse = await supabase.functions.invoke('download-and-save-track', {
             body: {
-              audio_url: choice.audio_url,
+              external_url: choice.audio_url,
               generation_id: generationRecord?.id,
               project_id: finalProjectId,
               artist_id: finalArtistId,
               title: `${requestBody.title || finalTrack.choices[0]?.title} (Вариант ${i + 1})`,
               lyrics: processedLyrics,
               duration: choice.duration || requestBody.duration,
+              filename: `mureka_${generationRecord?.id}_${i + 1}.mp3`,
               metadata: {
                 ...requestBody,
                 generation_prompt: requestPrompt,
@@ -1030,6 +1031,9 @@ serve(async (req) => {
                 mureka_id: choice.id,
                 auto_saved: true
               }
+            },
+            headers: {
+              Authorization: authHeader || ''
             }
           });
           
