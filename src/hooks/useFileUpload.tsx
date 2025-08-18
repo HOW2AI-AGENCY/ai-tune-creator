@@ -9,6 +9,7 @@ interface UseFileUploadProps {
   allowedTypes?: string[];
   maxSize?: number; // in MB
   bucket?: string; // For backward compatibility
+  folder?: string; // Default folder for uploads
 }
 
 export function useFileUpload({
@@ -16,7 +17,8 @@ export function useFileUpload({
   onUploadError,
   allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/ogg'],
   maxSize = 50,
-  bucket // Ignored for now, using BUCKET_AUDIO constant
+  bucket, // Ignored for now, using BUCKET_AUDIO constant
+  folder
 }: UseFileUploadProps = {}) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -24,7 +26,7 @@ export function useFileUpload({
 
   const uploadFile = useCallback(async (
     file: File,
-    folder: string = 'uploads',
+    uploadFolder?: string,
     fileName?: string
   ): Promise<string | null> => {
     if (!file) {
@@ -72,9 +74,10 @@ export function useFileUpload({
 
       // Build safe file path using storage utilities
       const sanitizedFileName = fileName || file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const targetFolder = uploadFolder || folder || 'uploads';
       const filePath = buildStoragePath(
         user.id,
-        folder as 'suno' | 'mureka', // Type assertion for now
+        targetFolder as 'suno' | 'mureka', // Type assertion for now
         Date.now().toString(),
         sanitizedFileName
       );
@@ -144,7 +147,7 @@ export function useFileUpload({
       setUploading(false);
       setProgress(0);
     }
-  }, [allowedTypes, maxSize, toast, onUploadComplete, onUploadError]);
+  }, [allowedTypes, maxSize, toast, onUploadComplete, onUploadError, folder]);
 
   const deleteFile = useCallback(async (filePath: string): Promise<boolean> => {
     try {
