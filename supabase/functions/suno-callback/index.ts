@@ -200,7 +200,9 @@ serve(async (req) => {
             console.log('Track updated successfully:', generation.track_id);
             
             // Запускаем фоновую загрузку трека в Supabase Storage
-            EdgeRuntime.waitUntil(downloadTrackInBackground(generation.id, track.audio_url, generation.track_id));
+            downloadTrackInBackground(generation.id, track.audio_url, generation.track_id).catch(error => 
+              console.error('Background download failed:', error)
+            );
           }
         } else {
           // Создаем треки для всех вариантов (включая первый, если у него нет track_id)
@@ -305,8 +307,10 @@ serve(async (req) => {
                 .eq('id', generation.id);
             }
               
-            // Запускаем фоновую загрузку трека в Supabase Storage
-            EdgeRuntime.waitUntil(downloadTrackInBackground(generation.id, track.audio_url, newTrack.id));
+              // Запускаем фоновую загрузку трека в Supabase Storage
+            downloadTrackInBackground(generation.id, track.audio_url, newTrack.id).catch(error => 
+              console.error('Background download failed:', error)
+            );
           }
         }
       } // Конец цикла по трекам

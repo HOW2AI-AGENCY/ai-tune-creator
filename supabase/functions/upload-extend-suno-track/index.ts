@@ -142,11 +142,27 @@ serve(async (req) => {
       );
     }
 
+    // Extract user_id from JWT token
+    const authHeader = req.headers.get('authorization');
+    let userId = null;
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const jwt = authHeader.split(' ')[1];
+        const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+        if (!authError && user) {
+          userId = user.id;
+        }
+      } catch (authError) {
+        console.warn('Could not extract user from JWT:', authError);
+      }
+    }
+
     // Create AI generation record
     const { data: generation, error: genError } = await supabase
       .from('ai_generations')
       .insert({
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: userId,
         service: 'suno',
         external_id: taskId,
         prompt: requestBody.prompt || 'Upload and extend audio',
@@ -160,11 +176,12 @@ serve(async (req) => {
           instrumental,
           ...requestBody
         },
-        metadata: {
-          operationType: 'upload_extend',
-          uploadSource: 'user_file',
-          extensionPoint: continueAt
-        }
+         metadata: {
+           operationType: 'upload_extend',
+           uploadSource: 'user_file',
+           extensionPoint: continueAt,
+           project_id: projectId
+         }
       })
       .select()
       .single();

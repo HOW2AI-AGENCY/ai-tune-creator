@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
 import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
-import { UnifiedGenerationControls } from "@/components/ai-generation/UnifiedGenerationControls";
+import { UnifiedGenerationSidebar } from "@/features/ai-generation/components/UnifiedGenerationSidebar";
 import type { GenerationParams } from "@/features/ai-generation/types";
 import { GenerationFeed } from "@/features/ai-generation/components/GenerationFeed";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
@@ -243,16 +243,29 @@ export default function AIGeneration() {
     return Array.from({ length: t.currentVersion }, (_, i) => t.currentVersion - i);
   }, [tracks, selectedTrackId]);
 
-  const handleGenerate = async (params: GenerationParams) => {
+  const handleGenerate = async (input: any) => {
+    // Convert CanonicalGenerationInput to GenerationParams
+    const params: GenerationParams = {
+      prompt: input.description || input.lyrics || "",
+      service: input.service || 'suno',
+      projectId: input.context?.projectId,
+      artistId: input.context?.artistId,
+      useInbox: input.context?.useInbox || false,
+      genreTags: input.tags || [],
+      instrumental: input.flags?.instrumental || false,
+      language: input.flags?.language || 'ru',
+      duration: input.flags?.duration || 120
+    };
+    
     if (!user) {
       toast({ title: "Требуется вход", description: "Войдите, чтобы генерировать треки", variant: "destructive" });
       return;
     }
     
-    // CRITICAL: Ensure inputType is always provided
+    // CRITICAL: Ensure inputType is always provided  
     const paramsWithInputType = {
       ...params,
-      inputType: (params as any).customLyrics ? 'lyrics' as const : 'description' as const
+      inputType: input.inputType === 'lyrics' ? 'lyrics' as const : 'description' as const
     };
     
     try {
@@ -396,22 +409,13 @@ export default function AIGeneration() {
             <AIServiceStatusBanner />
             <TaskQueuePanel className="lg:max-h-80 overflow-auto" />
           </div>
-            {/* Legacy sidebar - TODO: Replace with UnifiedGenerationControls */}
-            <TrackGenerationSidebar
+            {/* Modern unified sidebar with Upload & Extend */}
+            <UnifiedGenerationSidebar
               projects={projects}
               artists={artists}
               onGenerate={handleGenerate}
               isGenerating={isGenerating}
-              generationProgress={generationProgress}
             />
-            
-            {/* Modern unified controls (hidden for now during migration) */}
-            <div className="hidden">
-              <UnifiedGenerationControls
-                projects={projects}
-                artists={artists}
-              />
-            </div>
         </div>
 
         <main className="flex-1 overflow-auto">

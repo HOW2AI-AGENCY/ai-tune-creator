@@ -14,7 +14,16 @@ serve(async (req) => {
   }
 
   try {
-    const { taskId } = await req.json();
+    let taskId: string;
+
+    // Support both GET with query params and POST with JSON body
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      taskId = url.searchParams.get('taskId') || '';
+    } else {
+      const body = await req.json();
+      taskId = body.taskId || '';
+    }
 
     if (!taskId) {
       return new Response(

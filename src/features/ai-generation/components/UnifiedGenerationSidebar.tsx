@@ -27,11 +27,13 @@ import {
   MessageSquare,
   HelpCircle,
   Timer,
-  Languages
+  Languages,
+  Upload
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QuickPresetsGrid } from "./QuickPresetsGrid";
 import { AIServiceStatusPanel } from "./AIServiceStatusPanel";
+import { UploadExtendDialog } from "./UploadExtendDialog";
 import { quickPresets } from "../data/presets";
 import { QuickPreset, Option } from "../types";
 import { CanonicalGenerationInput } from "../types/canonical";
@@ -77,6 +79,9 @@ export function UnifiedGenerationSidebar({
   
   // Quick presets
   const [selectedPresetId, setSelectedPresetId] = useState<string>("");
+  
+  // Upload & Extend dialog
+  const [uploadExtendOpen, setUploadExtendOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -554,26 +559,47 @@ export function UnifiedGenerationSidebar({
             </CardContent>
           </Card>
 
-          {/* Generate Button */}
-          <Button 
-            onClick={handleGenerate}
-            disabled={isGenerating || (!description.trim() && !lyrics.trim())}
-            className="w-full"
-            size="lg"
-          >
-            {isGenerating ? (
-              <>
-                <Music2 className="mr-2 h-4 w-4 animate-spin" />
-                Генерируется...
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Создать трек
-              </>
-            )}
-          </Button>
+          {/* Action Buttons */}
+          <div className="space-y-2">
+            <Button 
+              onClick={handleGenerate}
+              disabled={isGenerating || (!description.trim() && !lyrics.trim())}
+              className="w-full"
+              size="lg"
+            >
+              {isGenerating ? (
+                <>
+                  <Music2 className="mr-2 h-4 w-4 animate-spin" />
+                  Генерируется...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Создать трек
+                </>
+              )}
+            </Button>
+            
+            <Button 
+              variant="outline"
+              onClick={() => setUploadExtendOpen(true)}
+              disabled={isGenerating}
+              className="w-full"
+              size="lg"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Upload & Extend
+            </Button>
+          </div>
         </div>
+
+        {/* Upload & Extend Dialog */}
+        <UploadExtendDialog
+          open={uploadExtendOpen}
+          onOpenChange={setUploadExtendOpen}
+          projects={projects}
+          artists={artists}
+        />
       </div>
     </TooltipProvider>
   );
