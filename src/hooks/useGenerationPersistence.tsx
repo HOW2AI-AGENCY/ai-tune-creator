@@ -119,7 +119,7 @@ export function useGenerationPersistence() {
           statusResponse = await supabase.functions.invoke('get-suno-record-info', {
             body: { taskId: generation.taskId, generationId: generation.generationId }
           });
-        } else if (generation.service === 'mureka') {
+        } else if (generation.service === 'mureka' && generation.generationId) {
           // For Mureka, check the generation record in database
           const { data } = await supabase
             .from('ai_generations')
