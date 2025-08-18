@@ -148,9 +148,10 @@ export function GenerationTrackCard({
                 metadata: { 
                   service: generation.service,
                   external_id: generation.task_id
-                }
+                },
+                user_id: generation.user_id
               }}
-              variant="compact"
+              variant="full"
               onPlay={() => onPlay?.(generation.result_url!)}
             />
           </div>
