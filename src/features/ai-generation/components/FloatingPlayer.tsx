@@ -70,7 +70,7 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
     // Автозапуск только после загрузки данных
     const handleLoadedData = () => {
       setIsLoading(false);
-      if (playing === false) return; // Уважаем внешний флаг остановки
+      if (!playing) return; // Не автозапускаем без явного playing=true
       audio
         .play()
         .then(() => {
