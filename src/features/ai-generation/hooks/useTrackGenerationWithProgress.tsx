@@ -1,3 +1,8 @@
+/**
+ * TODO: This hook is in transition to unified generation system
+ * Will be replaced by useUnifiedGeneration in v0.01.037
+ * @deprecated Use useUnifiedGeneration instead
+ */
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
