@@ -39,12 +39,36 @@ serve(async (req) => {
 
     console.log('Upload and extend track:', { uploadUrl, continueAt, model, instrumental });
 
-    // Validate required fields
+    // Enhanced validation for upload-extend API according to Suno docs
     if (!uploadUrl) {
       return new Response(
         JSON.stringify({ error: 'Upload URL is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Validate custom mode requirements
+    if (defaultParamFlag) {
+      if (!style || !title) {
+        return new Response(
+          JSON.stringify({ error: 'style and title are required when defaultParamFlag is true' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (!instrumental && !prompt) {
+        return new Response(
+          JSON.stringify({ error: 'prompt is required when defaultParamFlag is true and instrumental is false' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (!continueAt) {
+        return new Response(
+          JSON.stringify({ error: 'continueAt is required when defaultParamFlag is true' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Validate audio duration (should be <= 120 seconds)

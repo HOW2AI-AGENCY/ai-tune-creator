@@ -235,6 +235,10 @@ serve(async (req) => {
 
           // Дедуплицируем название трека
           let finalTitle = smartTitle;
+          
+          // Получаем projectId из metadata генерации или используем inbox
+          const projectId = generation.metadata?.project_id;
+          
           if (projectId) {
             const { data: dedupedTitle, error: dedupError } = await supabase
               .rpc('dedupe_track_title', { 
