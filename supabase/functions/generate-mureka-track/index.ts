@@ -437,11 +437,12 @@ function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string
     prompt = stylePrompt;
     console.log('[PREPARE] Using prompt field as lyrics');
   } else {
-    // Нет готовой лирики - используем prompt для генерации
+    // Нет готовой лирики - используем prompt для генерации лирики
     const promptText = safePrompt || 'a beautiful song';
-    lyrics = promptText; // Просто передаем текст как есть, не добавляем префикс
+    // Для Mureka нужно добавить инструкцию для генерации лирики
+    lyrics = `Please generate lyrics for: ${promptText}`;
     prompt = stylePrompt;
-    console.log('[PREPARE] Using prompt text directly for lyrics generation');
+    console.log('[PREPARE] Using prompt text for lyrics generation with instruction');
   }
   
   console.log('[PREPARE] Final content prepared:', {

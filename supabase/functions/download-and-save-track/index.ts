@@ -95,7 +95,7 @@ serve(async (req) => {
     console.log('External URL:', external_url);
 
     // Try to acquire lock for idempotency
-    const { data: lockAcquired } = await supabase.rpc('acquire_lock', {
+    const { data: lockAcquired } = await supabase.rpc('acquire_operation_lock', {
       p_key: lockKey,
       p_ttl_seconds: 120
     });
@@ -172,7 +172,7 @@ serve(async (req) => {
 
     if (genError || !generation) {
       console.error('Generation lookup error:', { generation_id, incomingTaskId, error: genError });
-      await supabase.rpc('release_lock', { p_key: lockKey });
+      await supabase.rpc('release_operation_lock', { p_key: lockKey });
       return new Response(JSON.stringify({ 
         success: false,
         error: `Generation not found by ${generation_id ? 'generation_id' : 'taskId'}: ${generation_id || incomingTaskId}`,
@@ -186,7 +186,7 @@ serve(async (req) => {
     // Check if already downloaded (idempotency)
     if (generation.metadata?.local_storage_path) {
       console.log('File already downloaded:', generation.metadata.local_storage_path);
-      await supabase.rpc('release_lock', { p_key: lockKey });
+      await supabase.rpc('release_operation_lock', { p_key: lockKey });
       return new Response(JSON.stringify({ 
         success: true,
         data: {
@@ -280,7 +280,7 @@ serve(async (req) => {
       console.log('Track created/updated successfully:', finalTrackId);
 
       // Release lock
-      await supabase.rpc('release_lock', { p_key: lockKey });
+      await supabase.rpc('release_operation_lock', { p_key: lockKey });
       const response = {
         success: true,
         data: {
@@ -300,7 +300,7 @@ serve(async (req) => {
 
     } catch (transactionError) {
       console.error('Transaction error:', transactionError);
-      await supabase.rpc('release_lock', { p_key: lockKey });
+      await supabase.rpc('release_operation_lock', { p_key: lockKey });
       throw transactionError;
     }
 
@@ -310,7 +310,7 @@ serve(async (req) => {
     // Ensure lock is released on any error
     try {
       const lockKey = `download:${generation_id || (taskId || task_id)}`;
-      await supabase.rpc('release_lock', { p_key: lockKey });
+      await supabase.rpc('release_operation_lock', { p_key: lockKey });
     } catch (lockError) {
       console.error('Error releasing lock:', lockError);
     }

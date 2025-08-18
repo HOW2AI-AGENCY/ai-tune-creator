@@ -1,6 +1,29 @@
 import { QuickPreset } from '../types';
 
 export const quickPresets: QuickPreset[] = [
+  // English presets for testing
+  {
+    id: 'upbeat-pop',
+    name: 'Upbeat Pop',
+    description: 'Energetic pop song with catchy chorus',
+    icon: '🎤',
+    genre: 'pop',
+    mood: 'upbeat',
+    prompt: 'Create an upbeat pop song with bright vocals, catchy chorus and danceable beat. Use modern synthesizers and contemporary sound.',
+    tags: ['pop', 'upbeat', 'modern', 'danceable'],
+    service: 'suno'
+  },
+  {
+    id: 'rock-anthem-en',
+    name: 'Rock Anthem',
+    description: 'Powerful rock composition with electric guitars',
+    icon: '🎸',
+    genre: 'rock',
+    mood: 'aggressive',
+    prompt: 'Create a powerful rock composition with bright electric guitar riffs, energetic drums and driving vocals. Alternative rock style.',
+    tags: ['rock', 'aggressive', 'electric guitars', 'driving'],
+    service: 'suno'
+  },
   {
     id: 'pop-hit',
     name: 'Поп-хит',
@@ -88,6 +111,40 @@ export const quickPresets: QuickPreset[] = [
     prompt: 'Создай красивую оркестровую композицию с струнными, духовыми инструментами и выразительной мелодией в классическом стиле.',
     tags: ['классика', 'драматичное', 'оркестр', 'красота'],
     service: 'mureka'
+  },
+  // More English presets for testing
+  {
+    id: 'chill-lofi',
+    name: 'Chill Lo-Fi',
+    description: 'Relaxing lo-fi hip hop beats',
+    icon: '🌙',
+    genre: 'lo-fi',
+    mood: 'chill',
+    prompt: 'Create relaxing lo-fi hip hop beats with vinyl crackle, soft piano melodies, and mellow drums. Perfect for studying or relaxing.',
+    tags: ['lo-fi', 'chill', 'relaxing', 'hip-hop'],
+    service: 'mureka'
+  },
+  {
+    id: 'synthwave-retro',
+    name: 'Synthwave Retro',
+    description: '80s inspired synthwave track',
+    icon: '🌆',
+    genre: 'synthwave',
+    mood: 'nostalgic',
+    prompt: 'Create an 80s inspired synthwave track with retro synthesizers, driving basslines, and nostalgic melodies. Neon-soaked sound.',
+    tags: ['synthwave', 'retro', '80s', 'electronic'],
+    service: 'mureka'
+  },
+  {
+    id: 'epic-orchestral-en',
+    name: 'Epic Orchestral',
+    description: 'Cinematic orchestral composition',
+    icon: '🎬',
+    genre: 'orchestral',
+    mood: 'epic',
+    prompt: 'Create an epic cinematic orchestral composition with powerful brass, dramatic strings, and thunderous percussion. Perfect for movie trailers.',
+    tags: ['orchestral', 'epic', 'cinematic', 'dramatic'],
+    service: 'suno'
   }
 ];
 
