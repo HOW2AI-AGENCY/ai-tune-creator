@@ -452,6 +452,10 @@ export default function AIGeneration() {
                     <span>📊</span>
                     Аудит системы
                   </TabsTrigger>
+                  <TabsTrigger value="reset" className="flex items-center gap-2 text-destructive">
+                    <span>🗑️</span>
+                    Полный сброс
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="tracks">
@@ -545,6 +549,10 @@ export default function AIGeneration() {
 
                 <TabsContent value="audit">
                   <AIGenerationAudit />
+                </TabsContent>
+
+                <TabsContent value="reset">
+                  <UserDataReset />
                 </TabsContent>
               </Tabs>
             </div>
