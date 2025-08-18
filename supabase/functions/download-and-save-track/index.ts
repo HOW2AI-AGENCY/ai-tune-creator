@@ -46,8 +46,33 @@ serve(async (req) => {
 
     const { generation_id, external_url, filename, track_id } = requestBody;
 
-    if (!generation_id || !external_url) {
-      throw new Error('generation_id and external_url are required');
+    console.log('Request parameters:', { 
+      generation_id: generation_id || 'missing', 
+      external_url: external_url || 'missing',
+      filename,
+      track_id 
+    });
+
+    if (!generation_id) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'generation_id is required',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!external_url) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'external_url is required',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('Starting download for generation:', generation_id);
@@ -69,7 +94,15 @@ serve(async (req) => {
       .single();
 
     if (genError || !generation) {
-      throw new Error(`Generation not found: ${generation_id}`);
+      console.error('Generation lookup error:', { generation_id, error: genError });
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: `Generation not found: ${generation_id}`,
+        timestamp: new Date().toISOString()
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Определяем имя файла

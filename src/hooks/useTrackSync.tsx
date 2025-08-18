@@ -126,6 +126,10 @@ export function useTrackSync() {
     try {
       console.log('Downloading single track:', generationId);
 
+      if (!generationId || !externalUrl) {
+        throw new Error('Generation ID and external URL are required for track download');
+      }
+
       const { data, error } = await supabase.functions.invoke('download-and-save-track', {
         body: {
           generation_id: generationId,
