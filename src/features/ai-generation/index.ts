@@ -24,6 +24,7 @@ export { GenerationFeed } from './components/GenerationFeed';
 export { GenerationTrackCard } from './components/GenerationTrackCard';
 export { TaskQueuePanel } from './components/TaskQueuePanel';
 export { useTrackGenerationWithProgress } from './hooks/useTrackGenerationWithProgress';
+export { FileUploadZone } from './components/FileUploadZone';
 
 // Type exports
 export type { GenerationParams, QuickPreset, Option } from './types';

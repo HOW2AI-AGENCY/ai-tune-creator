@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { BUCKET_AUDIO, buildStoragePath, isValidAudioUrl } from '@/lib/storage/constants';
+import { BUCKET_AUDIO, buildStoragePath, isValidAudioUrl, BUCKET_PROJECT_COVERS, BUCKET_ARTIST_ASSETS, BUCKET_USER_UPLOADS } from '@/lib/storage/constants';
 
 interface UseFileUploadProps {
   onUploadComplete?: (url: string, metadata?: any) => void;
@@ -87,8 +87,13 @@ export function useFileUpload({
       setProgress(25);
 
       // Upload file to storage with proper configuration
+      const bucketToUse = bucket === 'project-covers' ? BUCKET_PROJECT_COVERS 
+                         : bucket === 'artist-assets' ? BUCKET_ARTIST_ASSETS
+                         : bucket === 'user-uploads' ? BUCKET_USER_UPLOADS
+                         : BUCKET_AUDIO;
+      
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(BUCKET_AUDIO)
+        .from(bucketToUse)
         .upload(filePath, file, {
           contentType: file.type,
           cacheControl: 'public, max-age=31536000, immutable',
@@ -103,7 +108,7 @@ export function useFileUpload({
 
       // Get public URL for the uploaded file
       const { data: urlData } = supabase.storage
-        .from(BUCKET_AUDIO)
+        .from(bucketToUse)
         .getPublicUrl(filePath);
 
       const publicUrl = urlData.publicUrl;
@@ -149,10 +154,11 @@ export function useFileUpload({
     }
   }, [allowedTypes, maxSize, toast, onUploadComplete, onUploadError, folder]);
 
-  const deleteFile = useCallback(async (filePath: string): Promise<boolean> => {
+  const deleteFile = useCallback(async (filePath: string, bucketName?: string): Promise<boolean> => {
     try {
+      const bucketToUse = bucketName || BUCKET_AUDIO;
       const { error } = await supabase.storage
-        .from(BUCKET_AUDIO)
+        .from(bucketToUse)
         .remove([filePath]);
 
       if (error) {

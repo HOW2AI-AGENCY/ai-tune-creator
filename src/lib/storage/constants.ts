@@ -1,9 +1,10 @@
 // Storage bucket constants
 export const BUCKET_AUDIO = 'albert-tracks';
-export const BUCKET_COVERS = 'project-covers';
+export const BUCKET_PROJECT_COVERS = 'project-covers';
 export const BUCKET_AVATARS = 'avatars';
 export const BUCKET_ARTIST_ASSETS = 'artist-assets';
 export const BUCKET_PROMO = 'promo-materials';
+export const BUCKET_USER_UPLOADS = 'user-uploads';
 
 // Storage configuration
 export const AUDIO_CONTENT_TYPE = 'audio/mpeg';
