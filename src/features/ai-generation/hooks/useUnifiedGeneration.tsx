@@ -334,16 +334,22 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
             }).catch(error => {
               console.error('Background download failed:', error);
             });
-          } else if (service === 'suno' && data.tracks?.length > 0) {
-            console.log('🎵 Triggering background download for Suno tracks:', data.tracks.length);
+          } else if (service === 'suno' && (data.tracks?.length > 0 || data.response?.sunoData?.length > 0)) {
+            console.log('🎵 Triggering background download for Suno tracks');
+            
+            // Get tracks from the correct path (Suno returns data in response.sunoData)
+            const sunoTracks = data.tracks || data.response?.sunoData || [];
+            console.log('🎵 Found Suno tracks:', sunoTracks.length);
             
             // Download and save each Suno track
-            data.tracks.forEach((track: any, index: number) => {
-              if (track.audioUrl) {
+            sunoTracks.forEach((track: any, index: number) => {
+              const audioUrl = track.audioUrl || track.audio_url;
+              if (audioUrl) {
+                console.log('🎵 Downloading Suno track:', audioUrl);
                 supabase.functions.invoke('download-and-save-track', {
                   body: {
                     generation_id: generationId,
-                    external_url: track.audioUrl,
+                    external_url: audioUrl,
                     taskId: taskId,
                     filename: track.title || `suno-${taskId}-${index + 1}`
                   }
@@ -362,14 +368,17 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
             description: "Трек успешно создан и сохранен в библиотеку"
           });
 
-          // Auto-remove completed task after 3 seconds
+          // Auto-remove completed task after 5 seconds and refresh tracks
           setTimeout(() => {
             setActiveGenerations(prev => {
               const newMap = new Map(prev);
               newMap.delete(generationId);
               return newMap;
             });
-          }, 3000);
+            
+            // Force refresh of tracks in the app
+            window.dispatchEvent(new CustomEvent('tracks-updated'));
+          }, 5000);
         } else if (data?.status === 'FAILED' || data?.failed) {
           updateProgress(generationId, { status: 'failed', overallProgress: 0 });
           updateStep(generationId, 'generate', { status: 'error' });
