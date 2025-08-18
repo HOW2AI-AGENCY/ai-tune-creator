@@ -37,9 +37,11 @@ interface FloatingPlayerProps {
   onPlayPause?: (playing: boolean) => void;
   onShowLyrics?: (track: Track) => void;
   playing?: boolean;
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
-export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyrics, playing }: FloatingPlayerProps) {
+export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyrics, playing, onPrev, onNext }: FloatingPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -288,7 +290,7 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
 
             {/* Управление воспроизведением */}
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPrev?.()} aria-label="Prev track">
                 <SkipBack className="h-4 w-4" />
               </Button>
 
@@ -307,7 +309,7 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
                 )}
               </Button>
 
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onNext?.()} aria-label="Next track">
                 <SkipForward className="h-4 w-4" />
               </Button>
             </div>

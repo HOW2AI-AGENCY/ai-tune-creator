@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
+import { useTrackActions } from "@/hooks/useTrackActions";
 
 interface Track {
   id: string;
@@ -67,7 +68,23 @@ export function TrackDetailsDrawer({
   onClose, 
   onPlay 
 }: TrackDetailsDrawerProps) {
+  const { likeTrack, unlikeTrack, isLiked, downloadMP3 } = useTrackActions();
   if (!track) return null;
+
+  const liked = isLiked(track.id);
+  const handleLike = async () => {
+    try {
+      if (liked) await unlikeTrack(track.id); else await likeTrack(track.id);
+    } catch (e) { console.error('Like error:', e); }
+  };
+  const handleDownload = async () => {
+    try { if (track.audio_url) await downloadMP3(track); } catch (e) { console.error('Download error:', e); }
+  };
+  const handleUseStyle = () => {
+    window.dispatchEvent(new CustomEvent('prefill-generation-from-track', { detail: { trackId: track.id } }));
+    window.dispatchEvent(new Event('open-generation-panel'));
+    onClose();
+  };
 
   const formatDuration = (seconds?: number) => {
     if (!seconds) return "--:--";
@@ -126,16 +143,22 @@ export function TrackDetailsDrawer({
               Воспроизвести
             </Button>
             
-            <Button variant="outline" size="icon">
-              <Heart className="h-4 w-4" />
+            <Button variant="outline" size="icon" onClick={handleLike} className={liked ? 'text-red-500' : ''} aria-label="Лайк">
+              <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
             </Button>
             
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" onClick={handleDownload} aria-label="Скачать">
               <Download className="h-4 w-4" />
             </Button>
             
             <Button variant="outline" size="icon">
               <Share2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="mt-2">
+            <Button variant="secondary" className="w-full" onClick={handleUseStyle}>
+              Использовать стиль и лирику
             </Button>
           </div>
         </SheetHeader>

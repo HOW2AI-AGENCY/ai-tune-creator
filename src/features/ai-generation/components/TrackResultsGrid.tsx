@@ -13,6 +13,7 @@ import {
   RefreshCw
 } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useTrackActions } from "@/hooks/useTrackActions";
 
 interface Track {
   id: string;
@@ -54,6 +55,7 @@ export function TrackResultsGrid({
   isSyncing
 }: TrackResultsGridProps) {
   const { t } = useTranslation();
+  const { likeTrack, unlikeTrack, isLiked, downloadMP3 } = useTrackActions();
   const formatDuration = (seconds?: number) => {
     if (!seconds) return "--:--";
     const minutes = Math.floor(seconds / 60);
@@ -146,14 +148,22 @@ export function TrackResultsGrid({
                   <Button 
                     size="sm" 
                     variant="ghost" 
-                    className="h-8 w-8 p-0 text-white hover:bg-white/20"
-                    onClick={(e) => {
+                    className={`h-8 w-8 p-0 text-white hover:bg-white/20 ${isLiked(track.id) ? 'text-red-500' : ''}`}
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      // TODO: Handle like functionality
+                      try {
+                        if (isLiked(track.id)) {
+                          await unlikeTrack(track.id);
+                        } else {
+                          await likeTrack(track.id);
+                        }
+                      } catch (err) {
+                        console.error('Like toggle error:', err);
+                      }
                     }}
                     aria-label={t('likeTrack')}
                   >
-                    <Heart className="h-4 w-4" />
+                    <Heart className={`h-4 w-4 ${isLiked(track.id) ? 'fill-current' : ''}`} />
                   </Button>
                   
                   <Button 
@@ -188,9 +198,15 @@ export function TrackResultsGrid({
                     size="sm" 
                     variant="ghost" 
                     className="h-8 w-8 p-0 text-white hover:bg-white/20"
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      // TODO: Handle download functionality
+                      try {
+                        if (track.audio_url) {
+                          await downloadMP3(track);
+                        }
+                      } catch (err) {
+                        console.error('Download error:', err);
+                      }
                     }}
                     aria-label={t('downloadTrack')}
                   >

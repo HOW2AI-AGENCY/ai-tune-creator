@@ -103,18 +103,39 @@ export function GenerationContextPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProjectId, sendToInbox]);
 
+  // Listen for external prefill requests (from track details)
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      const trackId = (e.detail as any)?.trackId;
+      if (trackId) {
+        setMode('custom');
+        applyReferenceFromTrack(trackId);
+      }
+    };
+    // @ts-ignore
+    window.addEventListener('prefill-generation-from-track', handler as EventListener);
+    return () => {
+      // @ts-ignore
+      window.removeEventListener('prefill-generation-from-track', handler as EventListener);
+    };
+  }, []);
+
   const applyReferenceFromTrack = async (trackId: string) => {
     if (!trackId || trackId === 'none') return;
     try {
       const { data, error } = await supabase
         .from('tracks')
-        .select('id,title,lyrics,description,genre_tags,style_prompt')
+        .select('id,title,lyrics,description,genre_tags,style_prompt,metadata')
         .eq('id', trackId)
         .single();
 
       if (error || !data) return;
 
       console.log('Reference track data:', data);
+
+      // Try to set service from metadata
+      const svc = (data as any).metadata?.service || (data as any).metadata?.ai_service;
+      if (svc === 'suno' || svc === 'mureka') setSelectedService(svc);
 
       // Switch to custom mode for precise control
       setMode('custom');

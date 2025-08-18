@@ -143,6 +143,13 @@ export default function AIGenerationStudio() {
     }
   }, [isMobile]);
 
+  // Open generation panel on request (from track details button)
+  useEffect(() => {
+    const openHandler = () => setIsGenerationPanelOpen(true);
+    window.addEventListener('open-generation-panel', openHandler);
+    return () => window.removeEventListener('open-generation-panel', openHandler);
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     
@@ -431,6 +438,24 @@ export default function AIGenerationStudio() {
     setIsTrackDetailsOpen(true);
   };
 
+  const playNextTrack = () => {
+    if (!currentPlayingTrack || filteredTracks.length === 0) return;
+    const idx = filteredTracks.findIndex(t => t.id === currentPlayingTrack.id);
+    if (idx === -1) return;
+    const next = filteredTracks[(idx + 1) % filteredTracks.length];
+    setCurrentPlayingTrack(next);
+    setIsPlaying(true);
+  };
+
+  const playPrevTrack = () => {
+    if (!currentPlayingTrack || filteredTracks.length === 0) return;
+    const idx = filteredTracks.findIndex(t => t.id === currentPlayingTrack.id);
+    if (idx === -1) return;
+    const prev = filteredTracks[(idx - 1 + filteredTracks.length) % filteredTracks.length];
+    setCurrentPlayingTrack(prev);
+    setIsPlaying(true);
+  };
+
   const handleCommandAction = (action: string, data?: any) => {
     switch (action) {
       case 'search':
@@ -615,6 +640,8 @@ export default function AIGenerationStudio() {
             playing={isPlaying}
             onClose={() => setCurrentPlayingTrack(null)}
             onPlayPause={handlePlayerPlayPause}
+            onPrev={playPrevTrack}
+            onNext={playNextTrack}
           />
         )}
 
@@ -751,6 +778,8 @@ export default function AIGenerationStudio() {
           playing={isPlaying}
           onClose={() => setCurrentPlayingTrack(null)}
           onPlayPause={handlePlayerPlayPause}
+          onPrev={playPrevTrack}
+          onNext={playNextTrack}
         />
       )}
     </div>
