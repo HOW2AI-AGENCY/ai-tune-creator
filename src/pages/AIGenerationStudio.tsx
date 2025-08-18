@@ -43,6 +43,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
+import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
 
 interface Track {
   id: string;
@@ -116,6 +117,7 @@ export default function AIGenerationStudio() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [currentPlayingTrack, setCurrentPlayingTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showRecoveryTools, setShowRecoveryTools] = useState(false);
   
   // Mobile State
   const [isGenerationPanelOpen, setIsGenerationPanelOpen] = useState(false);
@@ -546,11 +548,27 @@ export default function AIGenerationStudio() {
                 isSyncing && "animate-spin"
               )} />
             </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowRecoveryTools(v => !v)}
+              className="tap-highlight"
+              aria-label="Загрузить 2 трека"
+              title="Ручная загрузка последних 2 треков"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
           </div>
         </MobileHeader>
 
         {/* Task Queue */}
         <TaskQueuePanel tasks={tasks} />
+
+        {showRecoveryTools && (
+          <div className="p-4">
+            <ManualUploadLastTwo />
+          </div>
+        )}
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
@@ -710,6 +728,16 @@ export default function AIGenerationStudio() {
                   isSyncing && "animate-spin"
                 )} />
                 {isSyncing ? 'Синхронизация...' : 'Синхронизация'}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowRecoveryTools(v => !v)}
+                className="flex items-center gap-2 hover-lift"
+                title="Ручная загрузка последних 2 треков"
+              >
+                <Download className="h-4 w-4" />
+                Загрузить 2 трека
               </Button>
               <Badge variant="secondary" className="px-3 py-1 bg-primary/10 text-primary">
                 {filteredTracks.length} треков
