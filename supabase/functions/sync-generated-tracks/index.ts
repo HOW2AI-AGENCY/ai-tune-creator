@@ -45,7 +45,7 @@ serve(async (req) => {
 
     console.log('Syncing generated tracks for user:', user.id);
 
-    // Находим все completed генерации с result_url, которые еще не имеют соответствующих треков
+    // Find all completed generations with result_url that need track creation/update
     const { data: generations, error: fetchError } = await supabase
       .from('ai_generations')
       .select(`
@@ -54,22 +54,32 @@ serve(async (req) => {
         service,
         status,
         result_url,
+        external_id,
         metadata,
         track_id,
-        created_at,
         prompt,
-        parameters
+        created_at,
+        completed_at
       `)
       .eq('user_id', user.id)
       .eq('status', 'completed')
       .not('result_url', 'is', null)
-      .order('created_at', { ascending: false });
+      .order('completed_at', { ascending: false })
+      .limit(50); // Process recent generations first
 
     if (fetchError) {
       throw new Error(`Failed to fetch generations: ${fetchError.message}`);
     }
 
-    console.log(`Found ${generations?.length || 0} completed generations`);
+    console.log(`Found ${generations?.length || 0} completed generations to process`);
+
+    const results = {
+      processed: 0,
+      created: 0,
+      updated: 0,
+      downloaded: 0,
+      errors: [] as any[]
+    };
 
     const syncResults = [];
     const toCreateTracks = [];
@@ -136,118 +146,49 @@ serve(async (req) => {
     })));
     console.log(`Found ${toDownload.length} tracks to download`);
 
-    // Создаем/обновляем треки в базе данных
+    // Create/update tracks using the new transactional function
     for (const gen of toCreateTracks) {
       try {
+        results.processed++;
         
-        // Извлекаем лирику из Suno track data - проверяем все треки
-        const sunoTrackData = gen.metadata?.suno_track_data;
-        const allTracks = gen.metadata?.all_tracks || [sunoTrackData].filter(Boolean);
-        const primaryTrack = allTracks[0] || sunoTrackData;
-        const extractedLyrics = primaryTrack?.prompt || primaryTrack?.lyric || null;
+        console.log(`Processing generation ${gen.id} with transactional function`);
         
-        
-        // Генерируем умное название из лирики или используем из Suno
-        let smartTitle = gen.metadata?.title || 'Сгенерированный трек';
-        if (primaryTrack?.title && primaryTrack.title !== 'AI Generated Track 17.08.2025') {
-          smartTitle = primaryTrack.title;
-        } else if (extractedLyrics) {
-          // Извлекаем первую строку после [Куплет] или [Verse] как название
-          const lyricsMatch = extractedLyrics.match(/\[(?:Куплет|Verse|Intro|Интро)\s*\d*\]?\s*\n(.+)/i);
-          if (lyricsMatch && lyricsMatch[1]) {
-            smartTitle = lyricsMatch[1].trim().slice(0, 50);
-          } else {
-            // Используем первую осмысленную строку
-            const lines = extractedLyrics.split('\n').filter(line => 
-              line.trim() && 
-              !line.includes('[') && 
-              !line.toLowerCase().includes('создай') &&
-              line.length > 10
-            );
-            if (lines.length > 0) {
-              smartTitle = lines[0].trim().slice(0, 50);
-            }
+        // Use transactional function for atomic track creation/update
+        const { data: trackId, error: rpcError } = await supabase.rpc(
+          'create_or_update_track_from_generation', 
+          {
+            p_generation_id: gen.id,
+            p_project_id: null // Will use user's inbox automatically
           }
-        }
+        );
 
-        const trackData = {
-          title: smartTitle,
-          description: gen.prompt || null,
-          lyrics: extractedLyrics, // ← КРИТИЧЕСКИ ВАЖНО: сохраняем лирику!
-          audio_url: gen.result_url,
-          project_id: inboxProject,
-          track_number: await getNextTrackNumber(supabase, inboxProject),
-          metadata: {
-            ...gen.metadata,
+        if (rpcError) {
+          console.error(`RPC error for generation ${gen.id}:`, rpcError);
+          results.errors.push({
             generation_id: gen.id,
-            service: gen.service,
-            generated_by_ai: true,
-            ai_service: gen.service,
-            suno_id: gen.metadata?.suno_id || gen.external_id,
-            suno_task_id: gen.metadata?.suno_task_id || gen.external_id,
-            image_url: primaryTrack?.image_url || primaryTrack?.sourceImageUrl, // Обложка
-            total_tracks_available: allTracks.length, // Информация о доступных вариантах
-            original_title_generated: smartTitle !== (gen.metadata?.title || 'Сгенерированный трек')
-          },
-          genre_tags: gen.metadata?.tags || [],
-          style_prompt: gen.metadata?.style || null,
-          duration: gen.metadata?.duration || null
-        };
+            error: rpcError.message
+          });
+          continue;
+        }
 
-        let trackResult;
         if (gen.existing_track_id) {
-          // Обновляем существующий трек
-          const { data, error } = await supabase
-            .from('tracks')
-            .update(trackData)
-            .eq('id', gen.existing_track_id)
-            .select()
-            .single();
-            
-          trackResult = { data, error };
+          results.updated++;
+          console.log(`Updated track ${trackId} for generation ${gen.id}`);
         } else {
-          // Создаем новый трек
-          const { data, error } = await supabase
-            .from('tracks')
-            .insert(trackData)
-            .select()
-            .single();
-            
-          trackResult = { data, error };
+          results.created++;
+          console.log(`Created track ${trackId} for generation ${gen.id}`);
         }
 
-        if (trackResult.error) {
-          throw trackResult.error;
-        }
-
-        // Обновляем генерацию с ссылкой на трек
-        if (!gen.existing_track_id) {
-          await supabase
-            .from('ai_generations')
-            .update({ track_id: trackResult.data.id })
-            .eq('id', gen.id);
-        }
-
-        syncResults.push({
-          generation_id: gen.id,
-          success: true,
-          action: gen.existing_track_id ? 'updated' : 'created',
-          track_id: trackResult.data.id
-        });
-
-        console.log(`Successfully ${gen.existing_track_id ? 'updated' : 'created'} track for generation ${gen.id}`);
-        
       } catch (error: any) {
-        console.error(`Error creating/updating track for generation ${gen.id}:`, error);
-        syncResults.push({
+        console.error(`Error processing generation ${gen.id}:`, error);
+        results.errors.push({
           generation_id: gen.id,
-          success: false,
           error: error.message
         });
       }
     }
 
-    // Загружаем треки порциями для избежания таймаутов (только для внешних URL)
+    // Download tracks in batches to avoid timeouts (external URLs only)
     const batchSize = 3;
     for (let i = 0; i < toDownload.length; i += batchSize) {
       const batch = toDownload.slice(i, i + batchSize);
@@ -256,7 +197,7 @@ serve(async (req) => {
         try {
           console.log(`Downloading track for generation ${gen.id}`);
           
-          // Вызываем функцию загрузки трека
+          // Call download function with locking
           const { data: downloadResult, error: downloadError } = await supabase.functions.invoke(
             'download-and-save-track',
             {
@@ -272,13 +213,19 @@ serve(async (req) => {
             throw downloadError;
           }
 
+          results.downloaded++;
           return {
             generation_id: gen.id,
             success: true,
+            action: 'downloaded',
             result: downloadResult
           };
         } catch (error: any) {
           console.error(`Error downloading track for generation ${gen.id}:`, error);
+          results.errors.push({
+            generation_id: gen.id,
+            error: error.message
+          });
           return {
             generation_id: gen.id,
             success: false,
@@ -290,7 +237,7 @@ serve(async (req) => {
       const batchResults = await Promise.all(batchPromises);
       syncResults.push(...batchResults);
 
-      // Небольшая пауза между батчами
+      // Small pause between batches
       if (i + batchSize < toDownload.length) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
@@ -304,14 +251,11 @@ serve(async (req) => {
       return data || 1;
     }
 
-    // Статистика
+    // Statistics
     const successful = syncResults.filter(r => r.success).length;
-    const failed = syncResults.filter(r => !r.success).length;
-    const created = syncResults.filter(r => r.success && r.action === 'created').length;
-    const updated = syncResults.filter(r => r.success && r.action === 'updated').length;
-    const downloaded = syncResults.filter(r => r.success && r.result).length;
+    const failed = results.errors.length;
 
-    console.log(`Sync completed. Created: ${created}, Updated: ${updated}, Downloaded: ${downloaded}, Failed: ${failed}`);
+    console.log(`Sync completed. Created: ${results.created}, Updated: ${results.updated}, Downloaded: ${results.downloaded}, Failed: ${failed}`);
 
     // Получаем обновленный список треков
     const { data: updatedTracks, error: tracksError } = await supabase
@@ -340,11 +284,12 @@ serve(async (req) => {
         summary: {
           total_checked: generations?.length || 0,
           tracks_to_create: toCreateTracks.length,
-          tracks_created: created,
-          tracks_updated: updated,
+          tracks_created: results.created,
+          tracks_updated: results.updated,
           needed_download: toDownload.length,
-          successful_downloads: downloaded,
-          failed_operations: failed
+          successful_downloads: results.downloaded,
+          failed_operations: results.errors.length,
+          errors: results.errors
         },
         tracks: updatedTracks || []
       }

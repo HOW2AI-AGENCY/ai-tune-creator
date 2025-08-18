@@ -1,28 +1,35 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { BUCKET_AUDIO, buildStoragePath, isValidAudioUrl } from '@/lib/storage/constants';
 
-interface UseFileUploadOptions {
-  bucket: string;
-  folder?: string;
-  maxSize?: number;
+interface UseFileUploadProps {
+  onUploadComplete?: (url: string, metadata?: any) => void;
+  onUploadError?: (error: string) => void;
   allowedTypes?: string[];
+  maxSize?: number; // in MB
+  bucket?: string; // For backward compatibility
 }
 
 export function useFileUpload({
-  bucket,
-  folder = '',
-  maxSize = 5 * 1024 * 1024, // 5MB default
-  allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
-}: UseFileUploadOptions) {
+  onUploadComplete,
+  onUploadError,
+  allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/m4a', 'audio/ogg'],
+  maxSize = 50,
+  bucket // Ignored for now, using BUCKET_AUDIO constant
+}: UseFileUploadProps = {}) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
-  const uploadFile = async (file: File, fileName?: string): Promise<string | null> => {
+  const uploadFile = useCallback(async (
+    file: File,
+    folder: string = 'uploads',
+    fileName?: string
+  ): Promise<string | null> => {
     if (!file) {
       toast({
-        title: "Ошибка",
+        title: "Ошибка", 
         description: "Файл не выбран",
         variant: "destructive"
       });
@@ -30,22 +37,26 @@ export function useFileUpload({
     }
 
     // Validate file size
-    if (file.size > maxSize) {
+    if (file.size > maxSize * 1024 * 1024) {
+      const errorMsg = `Файл слишком большой. Максимальный размер: ${maxSize}MB`;
       toast({
-        title: "Ошибка",
-        description: `Файл слишком большой. Максимальный размер: ${Math.round(maxSize / (1024 * 1024))}MB`,
+        title: "Ошибка", 
+        description: errorMsg,
         variant: "destructive"
       });
+      onUploadError?.(errorMsg);
       return null;
     }
 
     // Validate file type
     if (!allowedTypes.includes(file.type)) {
+      const errorMsg = "Неподдерживаемый тип файла";
       toast({
         title: "Ошибка", 
-        description: "Неподдерживаемый тип файла",
+        description: errorMsg,
         variant: "destructive"
       });
+      onUploadError?.(errorMsg);
       return null;
     }
 
@@ -59,27 +70,45 @@ export function useFileUpload({
         throw new Error('Пользователь не авторизован');
       }
 
-      // Generate file name if not provided
-      const fileExtension = file.name.split('.').pop();
-      const finalFileName = fileName || `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`;
-      const filePath = folder ? `${folder}/${user.id}/${finalFileName}` : `${user.id}/${finalFileName}`;
+      // Build safe file path using storage utilities
+      const sanitizedFileName = fileName || file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = buildStoragePath(
+        user.id,
+        folder as 'suno' | 'mureka', // Type assertion for now
+        Date.now().toString(),
+        sanitizedFileName
+      );
 
-      // Upload file
-      const { data, error } = await supabase.storage
-        .from(bucket)
+      console.log('Uploading to path:', filePath);
+
+      setProgress(25);
+
+      // Upload file to storage with proper configuration
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(BUCKET_AUDIO)
         .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
+          contentType: file.type,
+          cacheControl: 'public, max-age=31536000, immutable',
+          upsert: false // Prevent overwrites due to unique filename
         });
 
-      if (error) {
-        throw error;
+      if (uploadError) {
+        throw uploadError;
       }
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
+      setProgress(75);
+
+      // Get public URL for the uploaded file
+      const { data: urlData } = supabase.storage
+        .from(BUCKET_AUDIO)
         .getPublicUrl(filePath);
+
+      const publicUrl = urlData.publicUrl;
+
+      // Validate the generated URL
+      if (!isValidAudioUrl(publicUrl)) {
+        throw new Error('Generated URL failed validation');
+      }
 
       setProgress(100);
       
@@ -88,25 +117,39 @@ export function useFileUpload({
         description: "Файл загружен"
       });
 
+      const metadata = {
+        fileName: sanitizedFileName,
+        fileSize: file.size,
+        fileType: file.type,
+        uploadedAt: new Date().toISOString(),
+        storagePath: filePath
+      };
+
+      onUploadComplete?.(publicUrl, metadata);
       return publicUrl;
+
     } catch (error: any) {
       console.error('Upload error:', error);
+      const errorMsg = error.message || 'Ошибка загрузки файла';
+      
       toast({
         title: "Ошибка загрузки",
-        description: error.message || "Произошла ошибка при загрузке файла",
+        description: errorMsg,
         variant: "destructive"
       });
+
+      onUploadError?.(errorMsg);
       return null;
     } finally {
       setUploading(false);
       setProgress(0);
     }
-  };
+  }, [allowedTypes, maxSize, toast, onUploadComplete, onUploadError]);
 
-  const deleteFile = async (filePath: string): Promise<boolean> => {
+  const deleteFile = useCallback(async (filePath: string): Promise<boolean> => {
     try {
       const { error } = await supabase.storage
-        .from(bucket)
+        .from(BUCKET_AUDIO)
         .remove([filePath]);
 
       if (error) {
@@ -122,13 +165,13 @@ export function useFileUpload({
     } catch (error: any) {
       console.error('Delete error:', error);
       toast({
-        title: "Ошибка",
-        description: error.message || "Произошла ошибка при удалении файла",
+        title: "Ошибка удаления",
+        description: error.message || 'Не удалось удалить файл',
         variant: "destructive"
       });
       return false;
     }
-  };
+  }, [toast]);
 
   return {
     uploadFile,
