@@ -42,6 +42,7 @@ serve(async (req) => {
         id,
         title,
         project_id,
+        audio_url,
         metadata,
         projects!inner(
           id,
@@ -105,7 +106,8 @@ serve(async (req) => {
       // Hard delete: полное удаление
       console.log('[DELETE] Starting hard delete process...');
 
-      // Удаляем связанные записи
+      // Удаляем связанные записи в правильном порядке
+      console.log('[DELETE] Deleting track assets...');
       const { error: assetsError } = await supabase
         .from('track_assets')
         .delete()
@@ -115,6 +117,7 @@ serve(async (req) => {
         console.error('[DELETE] Error deleting track assets:', assetsError);
       }
 
+      console.log('[DELETE] Deleting track versions...');
       const { error: versionsError } = await supabase
         .from('track_versions')
         .delete()
@@ -124,16 +127,48 @@ serve(async (req) => {
         console.error('[DELETE] Error deleting track versions:', versionsError);
       }
 
+      console.log('[DELETE] Updating AI generations...');
       const { error: generationsError } = await supabase
         .from('ai_generations')
-        .delete()
+        .update({ track_id: null })
         .eq('track_id', trackId);
 
       if (generationsError) {
-        console.error('[DELETE] Error deleting AI generations:', generationsError);
+        console.error('[DELETE] Error updating AI generations:', generationsError);
+      }
+
+      console.log('[DELETE] Deleting promo materials...');
+      const { error: promoError } = await supabase
+        .from('promo_materials')
+        .delete()
+        .eq('entity_type', 'track')
+        .eq('entity_id', trackId);
+
+      if (promoError) {
+        console.error('[DELETE] Error deleting promo materials:', promoError);
+      }
+
+      console.log('[DELETE] Deleting track from storage...');
+      if (track.audio_url && track.audio_url.includes('supabase.co/storage')) {
+        const urlParts = track.audio_url.split('/storage/v1/object/public/');
+        if (urlParts[1]) {
+          const [bucket, ...pathParts] = urlParts[1].split('/');
+          const filePath = pathParts.join('/');
+          
+          const { error: storageError } = await supabase.storage
+            .from(bucket)
+            .remove([filePath]);
+          
+          if (storageError) {
+            console.error('[DELETE] Error deleting from storage:', storageError);
+          } else {
+            console.log('[DELETE] File deleted from storage:', filePath);
+          }
+        }
       }
 
       // Удаляем сам трек
+      console.log('[DELETE] Deleting track record...');
       const { error: deleteError } = await supabase
         .from('tracks')
         .delete()
