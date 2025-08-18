@@ -133,32 +133,40 @@ export function useTrackActions(): TrackActions {
 
     setIsDeleting(true);
     try {
-      if (softDelete) {
-        // Soft delete - skip for now, implement later
-        console.log('Soft delete requested for track:', trackId);
-        toast({
-          title: "🗑️ Трек удален",
-          description: "Трек помещен в корзину (функция в разработке)",
-        });
-        return;
-      } else {
-        // Hard delete - use edge function to avoid type issues
-        const { data, error } = await supabase.functions.invoke('delete-track', {
-          body: { trackId, userId: user.id }
-        });
-        
-        if (error) throw error;
+      console.log(`[DELETE] Deleting track ${trackId}, soft=${softDelete}`);
+      
+      // Используем новую Edge Function для удаления
+      const { data, error } = await supabase.functions.invoke('delete-track', {
+        body: { 
+          trackId, 
+          userId: user.id,
+          softDelete 
+        }
+      });
+      
+      if (error) {
+        console.error('[DELETE] Edge function error:', error);
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Unknown error during deletion');
       }
 
       toast({
-        title: "🗑️ Трек удален",
-        description: softDelete ? "Трек помещен в корзину" : "Трек удален навсегда",
+        title: softDelete ? "🗑️ Трек перемещен в корзину" : "🗑️ Трек удален навсегда",
+        description: data.message,
+        variant: "default",
       });
+
+      // Перезагружаем данные после удаления
+      window.location.reload();
+
     } catch (error: any) {
       console.error('Error deleting track:', error);
       toast({
         title: "Ошибка удаления",
-        description: error.message,
+        description: error.message || "Не удалось удалить трек",
         variant: "destructive",
       });
     } finally {
