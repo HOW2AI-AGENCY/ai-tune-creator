@@ -273,6 +273,18 @@ export default function AIGenerationStudio() {
     }
   };
 
+  const handleSync = async () => {
+    try {
+      await syncTracks();
+      await fetchTracks();
+      await fetchTasks();
+      toast({ title: 'Синхронизация завершена', description: 'Список треков обновлен' });
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({ title: 'Ошибка синхронизации', description: 'Не удалось обновить список треков', variant: 'destructive' });
+    }
+  };
+
   const filteredTracks = useMemo(() => {
     return tracks.filter(track => {
       if (!searchQuery) return true;
@@ -342,7 +354,7 @@ export default function AIGenerationStudio() {
         }
         break;
       case 'sync':
-        syncTracks();
+        handleSync();
         break;
       case 'play':
         if (data?.track) {
@@ -411,7 +423,7 @@ export default function AIGenerationStudio() {
 
             <Button
               size="icon"
-              onClick={syncTracks}
+              onClick={handleSync}
               disabled={isSyncing}
               className="tap-highlight bg-gradient-primary"
               aria-label={t('syncTracks')}
@@ -573,7 +585,7 @@ export default function AIGenerationStudio() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={syncTracks}
+                onClick={handleSync}
                 disabled={isSyncing}
                 className="flex items-center gap-2 hover-lift"
               >
