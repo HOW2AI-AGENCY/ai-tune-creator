@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.recover-suno-tracks]
 verify_jwt = true
+
+[functions.reset-user-data]
+verify_jwt = true

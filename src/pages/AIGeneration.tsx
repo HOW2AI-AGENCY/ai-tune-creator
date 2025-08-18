@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import { SunoTrackRecovery } from "@/components/dev/SunoTrackRecovery";
+import { UserDataReset } from "@/components/dev/UserDataReset";
 
 
 interface Option { id: string; name: string }
@@ -531,6 +532,7 @@ export default function AIGeneration() {
                 </TabsContent>
 
                 <TabsContent value="recovery" className="space-y-6">
+                  <UserDataReset />
                   <SunoTrackRecovery />
                 </TabsContent>
               </Tabs>
