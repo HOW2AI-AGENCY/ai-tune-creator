@@ -850,56 +850,64 @@ serve(async (req) => {
     let trackRecord = null;
     let generationRecord = null;
     
-    // Создаем запись в ai_generations
+    // Создаем запись в ai_generations только если у нас есть валидный userId UUID
     try {
-      const { data: generation, error: genError } = await supabase
-        .from('ai_generations')
-        .insert({
-          user_id: userId,
-          prompt: requestBody.prompt || requestLyrics.substring(0, 500),
-          service: 'mureka',
-          status: finalTrack.status === 'succeeded' ? 'completed' : 
-                  finalTrack.status === 'failed' ? 'failed' : 'processing',
-          result_url: finalTrack.choices?.[0]?.audio_url,
-          external_id: finalTrack.id,
-          metadata: {
-            mureka_task_id: finalTrack.id,
-            model: finalTrack.model,
-            created_at: finalTrack.created_at,
-            finished_at: finalTrack.finished_at,
-            failed_reason: finalTrack.failed_reason,
-            duration: finalTrack.choices?.[0]?.duration || requestBody.duration,
-            title: finalTrack.choices?.[0]?.title,
-            genre: requestBody.genre,
-            mood: requestBody.mood,
-            tempo: requestBody.tempo,
-            key: requestBody.key,
-            instruments: requestBody.instruments,
-            style: requestBody.style,
-            mode: requestBody.mode,
-            custom_lyrics: requestBody.custom_lyrics,
-            lyrics: requestLyrics,
-            instrumental: requestBody.instrumental,
-            language: requestBody.language,
-            reference_id: requestBody.reference_id,
-            vocal_id: requestBody.vocal_id,
-            melody_id: requestBody.melody_id,
-            stream: requestBody.stream,
-            mureka_response: finalTrack,
-            project_id: finalProjectId,
-            artist_id: finalArtistId
-          },
-          parameters: requestBody,
-          track_id: requestBody.trackId || null
-        })
-        .select()
-        .single();
+      // Проверяем, что userId это валидный UUID, а не 'anonymous'
+      const isValidUUID = userId !== 'anonymous' && 
+                         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
       
-      if (genError) {
-        console.error('[DB] Ошибка сохранения generation:', genError);
+      if (isValidUUID) {
+        const { data: generation, error: genError } = await supabase
+          .from('ai_generations')
+          .insert({
+            user_id: userId,
+            prompt: requestBody.prompt || requestLyrics.substring(0, 500),
+            service: 'mureka',
+            status: finalTrack.status === 'succeeded' ? 'completed' : 
+                    finalTrack.status === 'failed' ? 'failed' : 'processing',
+            result_url: finalTrack.choices?.[0]?.audio_url,
+            external_id: finalTrack.id,
+            metadata: {
+              mureka_task_id: finalTrack.id,
+              model: finalTrack.model,
+              created_at: finalTrack.created_at,
+              finished_at: finalTrack.finished_at,
+              failed_reason: finalTrack.failed_reason,
+              duration: finalTrack.choices?.[0]?.duration || requestBody.duration,
+              title: finalTrack.choices?.[0]?.title,
+              genre: requestBody.genre,
+              mood: requestBody.mood,
+              tempo: requestBody.tempo,
+              key: requestBody.key,
+              instruments: requestBody.instruments,
+              style: requestBody.style,
+              mode: requestBody.mode,
+              custom_lyrics: requestBody.custom_lyrics,
+              lyrics: requestLyrics,
+              instrumental: requestBody.instrumental,
+              language: requestBody.language,
+              reference_id: requestBody.reference_id,
+              vocal_id: requestBody.vocal_id,
+              melody_id: requestBody.melody_id,
+              stream: requestBody.stream,
+              mureka_response: finalTrack,
+              project_id: finalProjectId,
+              artist_id: finalArtistId
+            },
+            parameters: requestBody,
+            track_id: requestBody.trackId || null
+          })
+          .select()
+          .single();
+        
+        if (genError) {
+          console.error('[DB] Ошибка сохранения generation:', genError);
+        } else {
+          generationRecord = generation;
+          console.log(`[DB] Generation сохранен: ${generation.id}`);
+        }
       } else {
-        generationRecord = generation;
-        console.log(`[DB] Generation сохранен: ${generation.id}`);
+        console.warn(`[DB] Пропускаем создание ai_generation для невалидного userId: ${userId}`);
       }
     } catch (error) {
       console.error('[DB] Критическая ошибка при сохранении generation:', error);
