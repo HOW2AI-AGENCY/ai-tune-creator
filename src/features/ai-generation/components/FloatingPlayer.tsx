@@ -43,6 +43,7 @@ interface FloatingPlayerProps {
 }
 
 export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyrics, playing, onPrev, onNext }: FloatingPlayerProps) {
+  // Import the hook with full path to fix module resolution
   const { likeTrack, unlikeTrack, isLiked } = useTrackActions();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
