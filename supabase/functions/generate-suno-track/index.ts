@@ -480,6 +480,9 @@ serve(async (req) => {
       tempo = "",
       useInbox = false
     } = requestBody;
+
+    // ЯВНО: поддержка поля custom_lyrics (может приходить из клиента)
+    const custom_lyrics: string = (requestBody as any).custom_lyrics?.toString?.() || "";
     
     console.log('Параметры запроса:', {
       prompt: prompt ? `"${prompt.substring(0, 100)}..."` : '[пустой]',
@@ -496,7 +499,8 @@ serve(async (req) => {
       useInbox,
       trackId,
       projectId,
-      artistId
+      artistId,
+      custom_lyrics_len: custom_lyrics.length
     });
 
     // Валидируем входные данные
@@ -567,6 +571,19 @@ serve(async (req) => {
     const sunoParams = prepareSunoParams(requestBody);
     let requestPrompt = sunoParams.prompt;
     let requestLyrics = sunoParams.lyrics || "";
+    
+    // Если прислали "лирику", но она выглядит как короткий промпт, НЕ передаем ее как lyrics
+    const looksLikePrompt = inputType === 'lyrics' && (!prompt?.includes('\n') || (prompt?.length || 0) < 80);
+    if (looksLikePrompt && !make_instrumental) {
+      requestLyrics = "";
+      requestPrompt = prompt;
+      console.log('Определено, что введен промпт, а не лирика — lyrics не будет передан в Suno');
+    }
+
+    // Если передали явные кастомные лирики и они выглядят валидно — используем их
+    if (custom_lyrics && custom_lyrics.trim().length >= 80 && custom_lyrics.includes('\n')) {
+      requestLyrics = custom_lyrics;
+    }
     
     console.log(`Режим: ${inputType === 'lyrics' ? 'лирика' : 'описание стиля'}`);
     console.log('inputType:', inputType);
@@ -862,16 +879,28 @@ serve(async (req) => {
           console.log('Трек обновлен:', updatedTrack.id);
         }
       } else if (finalProjectId) {
-        // Создаем новый трек
         console.log('Создание нового трека в проекте:', finalProjectId);
         
-        const trackData = {
+        // Получаем следующий номер трека атомарно через RPC
+        let nextNumber = 1;
+        try {
+          const { data: nextNum, error: nextErr } = await supabase.rpc('get_next_track_number', { p_project_id: finalProjectId });
+          if (nextErr) {
+            console.warn('Не удалось получить следующий номер трека через RPC, используем 1:', nextErr);
+          } else if (typeof nextNum === 'number') {
+            nextNumber = nextNum;
+          }
+        } catch (e) {
+          console.warn('Исключение при получении следующего номера трека:', e);
+        }
+        
+        const baseTrackData = {
           title: generatedTrack.title || title || 'AI Generated Track',
-          track_number: 1,
+          track_number: nextNumber,
           lyrics: requestLyrics || (mode === 'custom' && custom_lyrics ? custom_lyrics : ''),
           description: prompt,
-          audio_url: null, // Будет обновлен через callback
-          genre_tags: tags.split(', ').filter(Boolean),
+          audio_url: null as string | null, // Будет обновлен через callback
+          genre_tags: tags.split(',').map(t => t.trim()).filter(Boolean),
           style_prompt: style,
           project_id: finalProjectId,
           metadata: {
@@ -890,24 +919,45 @@ serve(async (req) => {
           }
         };
         
-        const createPromise = supabase
-          .from('tracks')
-          .insert(trackData)
-          .select()
-          .single();
+        // Пытаемся создать трек, при конфликте уникальности track_number — получаем новый номер и повторяем
+        let createError: any = null;
+        let newTrack: any = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const createPromise = supabase
+            .from('tracks')
+            .insert(baseTrackData)
+            .select()
+            .single();
           
-        const createTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Track create timeout')), TIMEOUT_CONFIG.DB_OPERATION)
-        );
+          const createTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Track create timeout')), TIMEOUT_CONFIG.DB_OPERATION)
+          );
+          
+          const result: any = await Promise.race([createPromise, createTimeout]).catch(err => ({ error: err }));
+          createError = result?.error || null;
+          newTrack = result?.data || result;
+          
+          if (!createError) break;
+          
+          // Если конфликт по уникальному индексу — получаем новый номер и пробуем еще раз
+          if (createError?.code === '23505') {
+            console.warn('Конфликт уникальности track_number, повторная попытка с новым номером');
+            const { data: nextNum2 } = await supabase.rpc('get_next_track_number', { p_project_id: finalProjectId });
+            if (typeof nextNum2 === 'number') {
+              (baseTrackData as any).track_number = nextNum2;
+            } else {
+              (baseTrackData as any).track_number = (baseTrackData as any).track_number + 1;
+            }
+            continue;
+          }
+          
+          // Иная ошибка — выходим
+          break;
+        }
         
-        const { data: newTrack, error: trackError } = await Promise.race([
-          createPromise,
-          createTimeout
-        ]) as any;
-
-        if (trackError) {
-          console.error('Ошибка создания трека:', trackError);
-        } else {
+        if (createError) {
+          console.error('Ошибка создания трека:', createError);
+        } else if (newTrack && newTrack.id) {
           trackRecord = newTrack;
           console.log('Трек создан:', newTrack.id);
 
