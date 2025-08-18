@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useTrackActions } from "@/hooks/useTrackActions";
 import {
   Play,
   Pause,
@@ -42,6 +43,7 @@ interface FloatingPlayerProps {
 }
 
 export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyrics, playing, onPrev, onNext }: FloatingPlayerProps) {
+  const { likeTrack, unlikeTrack, isLiked } = useTrackActions();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -240,6 +242,17 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
     }
   };
 
+  const handleLike = async () => {
+    if (!track) return;
+    try {
+      const liked = isLiked(track.id);
+      if (liked) await unlikeTrack(track.id); 
+      else await likeTrack(track.id);
+    } catch (e) { 
+      console.error('Like error:', e); 
+    }
+  };
+
   const formatTime = (time: number) => {
     if (isNaN(time)) return '0:00';
     const minutes = Math.floor(time / 60);
@@ -248,6 +261,8 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
   };
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  const liked = track ? isLiked(track.id) : false;
 
   if (!isOpen || !track) {
     return null;
@@ -326,8 +341,14 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
 
             {/* Дополнительные контролы */}
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Heart className="h-4 w-4" />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className={`h-8 w-8 ${liked ? 'text-red-500 hover:text-red-400' : ''}`}
+                onClick={handleLike}
+                aria-label="Лайк"
+              >
+                <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
               </Button>
 
               {onShowLyrics && (
