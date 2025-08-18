@@ -323,26 +323,25 @@ export default function AIGenerationStudio() {
   };
 
   const handleSync = async () => {
+    console.log('🔄 Starting manual sync...');
     try {
-      console.log('[handleSync] Starting sync process...');
-      
       // Сначала синхронизируем треки
-      await syncTracks();
-      console.log('[handleSync] Track sync completed');
+      const result = await syncTracks();
+      console.log('🔄 Sync result:', result);
       
-      // Затем перезагружаем данные
+      // Затем перезагружаем данные  
       await Promise.all([
         fetchTracks(),
         fetchTasks()
       ]);
-      console.log('[handleSync] Data refresh completed');
+      console.log('✅ Data refresh completed');
       
       toast({ 
         title: 'Синхронизация завершена', 
         description: 'Список треков обновлен' 
       });
     } catch (error) {
-      console.error('[handleSync] Sync error:', error);
+      console.error('❌ Sync error:', error);
       toast({ 
         title: 'Ошибка синхронизации', 
         description: `Не удалось обновить список треков: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`, 
@@ -392,6 +391,22 @@ export default function AIGenerationStudio() {
   };
 
   const handlePlayTrack = (track: Track) => {
+    console.log('🎵 handlePlayTrack called with:', { 
+      id: track.id, 
+      title: track.title, 
+      audio_url: track.audio_url 
+    });
+    
+    if (!track.audio_url) {
+      console.warn('❌ Cannot play track without audio_url');
+      toast({
+        title: "Ошибка воспроизведения",
+        description: "У этого трека нет аудио файла для воспроизведения",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (currentPlayingTrack?.id === track.id) {
       setIsPlaying(!isPlaying);
     } else {
@@ -407,6 +422,10 @@ export default function AIGenerationStudio() {
   };
 
   const handleTrackClick = (track: Track) => {
+    console.log('🔍 handleTrackClick called with:', { 
+      id: track.id, 
+      title: track.title 
+    });
     setSelectedTrack(track);
     setIsTrackDetailsOpen(true);
   };

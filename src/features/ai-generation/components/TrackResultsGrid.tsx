@@ -104,7 +104,10 @@ export function TrackResultsGrid({
           <Card 
             key={track.id} 
             className="bg-card border-border hover:bg-accent/10 transition-all cursor-pointer group hover:scale-[1.02] hover:shadow-lg"
-            onClick={() => onTrackClick(track)}
+            onClick={(e) => {
+              console.log('🎯 Card clicked:', track.title);
+              onTrackClick(track);
+            }}
           >
             <CardContent className="p-0 relative">
               {/* Cover Image */}
@@ -164,9 +167,12 @@ export function TrackResultsGrid({
                       e.stopPropagation();
                     }}
                     onClick={(e) => {
+                      console.log('▶️ Play button clicked:', track.title, 'has audio_url:', !!track.audio_url);
                       e.stopPropagation();
                       if (track.audio_url) {
                         onPlayTrack(track);
+                      } else {
+                        console.warn('❌ Play button clicked but no audio_url');
                       }
                     }}
                     aria-label={isCurrentTrackPlaying(track) ? t('pauseTrack') : t('playTrack')}
