@@ -184,7 +184,7 @@ export function mapToSunoRequest(input: CanonicalGenerationInput) {
   const isLyricsMode = input.inputType === 'lyrics';
   
   return {
-    prompt: isLyricsMode ? input.description : input.description,
+    prompt: input.description,
     style: input.tags.join(', '),
     title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
     tags: input.tags.join(', '),
@@ -192,14 +192,15 @@ export function mapToSunoRequest(input: CanonicalGenerationInput) {
     wait_audio: false,
     model: 'chirp-v3-5',
     mode: input.mode,
-    custom_lyrics: isLyricsMode ? input.lyrics || input.description : '',
+    custom_lyrics: isLyricsMode ? (input.lyrics || input.description) : '',
     voice_style: input.flags.voiceStyle || '',
     language: input.flags.language,
     tempo: input.flags.tempo || '',
     trackId: null,
     projectId: input.context.projectId || null,
     artistId: input.context.artistId || null,
-    useInbox: input.context.useInbox
+    useInbox: input.context.useInbox,
+    inputType: input.inputType // CRITICAL: Include inputType
   };
 }
 
@@ -222,7 +223,8 @@ export function mapToMurekaRequest(input: CanonicalGenerationInput) {
     language: input.flags.language,
     projectId: input.context.projectId || null,
     artistId: input.context.artistId || null,
-    title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`
+    title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
+    inputType: input.inputType // CRITICAL: Include inputType
   };
 }
 

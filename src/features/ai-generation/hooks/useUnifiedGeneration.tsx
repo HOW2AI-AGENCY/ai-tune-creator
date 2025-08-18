@@ -13,8 +13,6 @@ import {
   UnifiedTaskProgress, 
   UnifiedTaskStatus,
   STANDARD_STEPS,
-  mapToSunoRequest,
-  mapToMurekaRequest,
   createStandardError,
   StandardError
 } from '../types/canonical';
@@ -118,6 +116,57 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
 
       // Step 2: Queue submission
       updateStep(generationId, 'queue', { status: 'running' });
+      
+      /**
+       * Maps canonical input to Suno format with proper inputType handling
+       */
+      const mapToSunoRequest = (input: CanonicalGenerationInput) => {
+        const isLyricsMode = input.inputType === 'lyrics';
+        
+        return {
+          prompt: input.description,
+          style: input.tags.join(', '),
+          title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
+          tags: input.tags.join(', '),
+          make_instrumental: input.flags.instrumental,
+          wait_audio: false,
+          model: 'chirp-v3-5',
+          mode: input.mode,
+          custom_lyrics: isLyricsMode ? (input.lyrics || input.description) : '',
+          voice_style: input.flags.voiceStyle || '',
+          language: input.flags.language,
+          tempo: input.flags.tempo || '',
+          trackId: null,
+          projectId: input.context.projectId || null,
+          artistId: input.context.artistId || null,
+          useInbox: input.context.useInbox,
+          inputType: input.inputType // CRITICAL: Include inputType
+        };
+      };
+
+      /**
+       * Maps canonical input to Mureka format with proper inputType handling
+       */
+      const mapToMurekaRequest = (input: CanonicalGenerationInput) => {
+        const isLyricsMode = input.inputType === 'lyrics';
+        
+        return {
+          prompt: input.description,
+          lyrics: isLyricsMode ? (input.lyrics || input.description) : '',
+          custom_lyrics: isLyricsMode ? (input.lyrics || input.description) : '',
+          style: input.tags.join(', '),
+          duration: input.flags.duration || 120,
+          genre: input.tags[0] || 'electronic',
+          mood: input.tags[1] || 'energetic', 
+          tempo: input.flags.tempo || 'medium',
+          instrumental: input.flags.instrumental,
+          language: input.flags.language,
+          projectId: input.context.projectId || null,
+          artistId: input.context.artistId || null,
+          title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
+          inputType: input.inputType // CRITICAL: Include inputType
+        };
+      };
       
       let response;
       if (input.service === 'suno') {

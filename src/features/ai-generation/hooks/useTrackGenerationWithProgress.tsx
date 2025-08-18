@@ -30,6 +30,7 @@ interface GenerationParams {
   voiceStyle?: string;
   language?: string;
   stylePrompt?: string;
+  inputType: 'description' | 'lyrics'; // CRITICAL: Add this field
 }
 
 export function useTrackGenerationWithProgress() {
@@ -93,21 +94,22 @@ export function useTrackGenerationWithProgress() {
       if (params.service === 'suno') {
         const response = await supabase.functions.invoke('generate-suno-track', {
           body: {
-            prompt: params.customLyrics ? params.stylePrompt || '' : params.prompt, // Если есть custom_lyrics, то prompt = style описание
-            style: params.stylePrompt || '',
+            prompt: params.prompt, // Always use prompt field
+            style: params.stylePrompt || params.genreTags?.join(', ') || '',
             title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
             tags: params.genreTags?.join(', ') || 'energetic, creative',
             make_instrumental: params.instrumental || false,
-            wait_audio: false, // Используем асинхронный режим
+            wait_audio: false,
             model: 'chirp-v3-5',
             trackId: null,
             projectId: params.projectId || null,
             artistId: params.artistId || null,
             mode: params.mode || 'quick',
-            custom_lyrics: params.customLyrics || '', // Лирика отдельно
+            custom_lyrics: params.customLyrics || '',
             voice_style: params.voiceStyle || '',
             language: params.language || 'ru',
-            tempo: params.tempo || ''
+            tempo: params.tempo || '',
+            inputType: params.inputType // CRITICAL: Pass inputType
           }
         });
         
@@ -127,10 +129,10 @@ export function useTrackGenerationWithProgress() {
       } else if (params.service === 'mureka') {
         const response = await supabase.functions.invoke('generate-mureka-track', {
           body: {
-            prompt: params.customLyrics ? params.stylePrompt || '' : params.prompt, // Если есть custom_lyrics, то prompt = style описание
-            lyrics: params.customLyrics || '', // Лирика отдельно
-            custom_lyrics: params.customLyrics || '', // Дублируем для совместимости
-            style: params.stylePrompt || '',
+            prompt: params.prompt, // Always use prompt field
+            lyrics: params.customLyrics || '',
+            custom_lyrics: params.customLyrics || '',
+            style: params.stylePrompt || params.genreTags?.join(', ') || '',
             duration: params.duration || 120,
             genre: params.genreTags?.[0] || 'electronic',
             mood: params.genreTags?.[1] || 'energetic',
@@ -139,7 +141,8 @@ export function useTrackGenerationWithProgress() {
             language: params.language || 'ru',
             projectId: params.projectId || null,
             artistId: params.artistId || null,
-            title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`
+            title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
+            inputType: params.inputType // CRITICAL: Pass inputType
           }
         });
         

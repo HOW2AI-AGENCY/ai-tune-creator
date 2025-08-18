@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
 import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
+import { UnifiedGenerationControls } from "@/components/ai-generation/UnifiedGenerationControls";
 import type { GenerationParams } from "@/features/ai-generation/types";
 import { GenerationFeed } from "@/features/ai-generation/components/GenerationFeed";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
@@ -247,8 +248,15 @@ export default function AIGeneration() {
       toast({ title: "Требуется вход", description: "Войдите, чтобы генерировать треки", variant: "destructive" });
       return;
     }
+    
+    // CRITICAL: Ensure inputType is always provided
+    const paramsWithInputType = {
+      ...params,
+      inputType: (params as any).customLyrics ? 'lyrics' as const : 'description' as const
+    };
+    
     try {
-      await generateTrack(params);
+      await generateTrack(paramsWithInputType);
       // Принудительно обновляем данные после генерации
       console.log("Generation completed, refreshing data...");
       setTimeout(async () => {
@@ -388,13 +396,22 @@ export default function AIGeneration() {
             <AIServiceStatusBanner />
             <TaskQueuePanel className="lg:max-h-80 overflow-auto" />
           </div>
-          <TrackGenerationSidebar
-            projects={projects}
-            artists={artists}
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating}
-            generationProgress={generationProgress}
-          />
+            {/* Legacy sidebar - TODO: Replace with UnifiedGenerationControls */}
+            <TrackGenerationSidebar
+              projects={projects}
+              artists={artists}
+              onGenerate={handleGenerate}
+              isGenerating={isGenerating}
+              generationProgress={generationProgress}
+            />
+            
+            {/* Modern unified controls (hidden for now during migration) */}
+            <div className="hidden">
+              <UnifiedGenerationControls
+                projects={projects}
+                artists={artists}
+              />
+            </div>
         </div>
 
         <main className="flex-1 overflow-auto">
