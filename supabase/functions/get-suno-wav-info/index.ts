@@ -67,34 +67,42 @@ serve(async (req) => {
     const data = await response.json();
     console.log('Suno WAV conversion response:', data);
 
-    // Transform Suno response to our format
+    // Check if request was successful according to API documentation
+    if (data.code !== 200) {
+      console.error('Suno API returned error:', data);
+      return new Response(
+        JSON.stringify({ error: data.msg || 'Unknown Suno API error' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Transform Suno response to our format based on API documentation
+    const responseData = data.data;
     const transformedData = {
-      taskId: taskId,
-      wavUrl: data.data?.wav_url || null,
-      status: data.data?.status || 'unknown',
+      taskId: responseData.taskId,
+      musicId: responseData.musicId,
+      callbackUrl: responseData.callbackUrl,
+      completeTime: responseData.completeTime,
+      createTime: responseData.createTime,
       
-      // Status flags for easier checking
-      completed: data.code === 200 && data.data?.wav_url ? true : false,
-      failed: data.code !== 200 || data.data?.status === 'failed',
-      pending: data.data?.status === 'processing' || data.data?.status === 'pending',
+      // WAV file URL from response
+      wavUrl: responseData.response?.audio_wav_url || null,
       
-      // Progress estimation based on status
-      progress: (() => {
-        if (data.data?.wav_url) return 100;
-        if (data.data?.status === 'processing') return 50;
-        if (data.data?.status === 'pending') return 10;
-        return 0;
-      })(),
+      // Status mapping based on API documentation
+      status: responseData.status,
+      isCompleted: responseData.status === 'SUCCESS',
+      isFailed: ['CREATE_TASK_FAILED', 'GENERATE_WAV_FAILED', 'CALLBACK_EXCEPTION'].includes(responseData.status),
+      isPending: responseData.status === 'PENDING',
+      
+      // Error information
+      errorCode: responseData.errorCode,
+      errorMessage: responseData.errorMessage,
       
       // Additional metadata
       metadata: {
         originalCode: data.code,
         originalMessage: data.msg,
-        originalData: data.data,
-      },
-      
-      // Error info if available
-      error: data.code !== 200 ? data.msg : null,
+      }
     };
 
     return new Response(JSON.stringify(transformedData), {

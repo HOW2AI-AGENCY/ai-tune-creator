@@ -28,12 +28,13 @@ serve(async (req) => {
   }
 
   try {
-    const { audioId, title, quality = 'standard' } = await req.json();
+    const { taskId, audioId } = await req.json();
     
-    console.log('Converting Suno track to WAV:', { audioId, title, quality });
+    console.log('Converting Suno track to WAV:', { taskId, audioId });
     
-    if (!audioId) {
-      throw new Error('audioId is required');
+    // Validate required parameters per API documentation
+    if (!taskId && !audioId) {
+      throw new Error('At least one of taskId or audioId is required');
     }
 
     const sunoApiKey = Deno.env.get('SUNOAPI_ORG_TOKEN');
@@ -52,11 +53,8 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        audioId,
-        // TODO: Add quality options when supported by API
-        // quality: quality, // 'standard' | 'high' | 'lossless'
-        // sampleRate: 44100, // 44100 | 48000 | 96000
-        // bitDepth: 16, // 16 | 24 | 32
+        ...(taskId && { taskId }),
+        ...(audioId && { audioId }),
         callBackUrl
       }),
     });
