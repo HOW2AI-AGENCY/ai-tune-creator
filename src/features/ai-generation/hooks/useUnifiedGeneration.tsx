@@ -319,7 +319,7 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
           updateStep(generationId, 'process', { status: 'done', progress: 100 });
           updateStep(generationId, 'save', { status: 'done', progress: 100 });
           
-          // For Mureka, trigger background download if we have the CDN URL
+          // Trigger background download for completed tracks
           if (service === 'mureka' && data.mureka?.choices?.[0]?.url) {
             console.log('🎵 Triggering background download for Mureka track:', data.mureka.choices[0].url);
             
@@ -334,6 +334,24 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
             }).catch(error => {
               console.error('Background download failed:', error);
             });
+          } else if (service === 'suno' && data.tracks?.length > 0) {
+            console.log('🎵 Triggering background download for Suno tracks:', data.tracks.length);
+            
+            // Download and save each Suno track
+            data.tracks.forEach((track: any, index: number) => {
+              if (track.audioUrl) {
+                supabase.functions.invoke('download-and-save-track', {
+                  body: {
+                    generation_id: generationId,
+                    external_url: track.audioUrl,
+                    taskId: taskId,
+                    filename: track.title || `suno-${taskId}-${index + 1}`
+                  }
+                }).catch(error => {
+                  console.error('Background download failed for Suno track:', error);
+                });
+              }
+            });
           }
           
           clearInterval(pollInterval);
@@ -343,6 +361,15 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
             title: "Генерация завершена",
             description: "Трек успешно создан и сохранен в библиотеку"
           });
+
+          // Auto-remove completed task after 3 seconds
+          setTimeout(() => {
+            setActiveGenerations(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(generationId);
+              return newMap;
+            });
+          }, 3000);
         } else if (data?.status === 'FAILED' || data?.failed) {
           updateProgress(generationId, { status: 'failed', overallProgress: 0 });
           updateStep(generationId, 'generate', { status: 'error' });
