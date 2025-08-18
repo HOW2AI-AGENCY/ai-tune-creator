@@ -32,3 +32,6 @@ verify_jwt = true
 
 [functions.get-suno-vocal-separation-info]
 verify_jwt = true
+
+[functions.recover-suno-tracks]
+verify_jwt = true

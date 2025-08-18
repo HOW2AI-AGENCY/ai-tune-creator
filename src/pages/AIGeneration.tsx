@@ -14,6 +14,7 @@ import { AIServiceStatusBanner } from "@/components/ai-generation/AIServiceStatu
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
+import { SunoTrackRecovery } from "@/components/dev/SunoTrackRecovery";
 
 
 interface Option { id: string; name: string }
@@ -440,6 +441,10 @@ export default function AIGeneration() {
                 <TabsList className="mb-4">
                   <TabsTrigger value="tracks">Все треки</TabsTrigger>
                   <TabsTrigger value="generations">Генерации ИИ</TabsTrigger>
+                  <TabsTrigger value="recovery" className="flex items-center gap-2">
+                    <span>🔄</span>
+                    Восстановление
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="tracks">
@@ -523,6 +528,10 @@ export default function AIGeneration() {
                       document.body.removeChild(link);
                     }}
                   />
+                </TabsContent>
+
+                <TabsContent value="recovery" className="space-y-6">
+                  <SunoTrackRecovery />
                 </TabsContent>
               </Tabs>
             </div>
