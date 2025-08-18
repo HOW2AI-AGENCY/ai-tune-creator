@@ -14,8 +14,9 @@ import { AIServiceStatusBanner } from "@/components/ai-generation/AIServiceStatu
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
-import { SunoTrackRecovery } from "@/components/dev/SunoTrackRecovery";
-import { UserDataReset } from "@/components/dev/UserDataReset";
+import { SunoTrackRecovery } from '@/components/dev/SunoTrackRecovery';
+import { UserDataReset } from '@/components/dev/UserDataReset';
+import { AIGenerationAudit } from '@/components/dev/AIGenerationAudit';
 
 
 interface Option { id: string; name: string }
@@ -446,6 +447,10 @@ export default function AIGeneration() {
                     <span>🔄</span>
                     Восстановление
                   </TabsTrigger>
+                  <TabsTrigger value="audit" className="flex items-center gap-2">
+                    <span>📊</span>
+                    Аудит системы
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="tracks">
@@ -534,6 +539,10 @@ export default function AIGeneration() {
                 <TabsContent value="recovery" className="space-y-6">
                   <UserDataReset />
                   <SunoTrackRecovery />
+                </TabsContent>
+
+                <TabsContent value="audit">
+                  <AIGenerationAudit />
                 </TabsContent>
               </Tabs>
             </div>
