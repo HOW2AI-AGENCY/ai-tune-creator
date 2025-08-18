@@ -297,7 +297,10 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
         });
         
         const { data, error } = await supabase.functions.invoke(functionName, {
-          body: { taskId, generationId }
+          body: { 
+            taskId, 
+            ...(generationId && generationId !== 'pending' ? { generationId } : {})
+          }
         });
 
         if (error) {

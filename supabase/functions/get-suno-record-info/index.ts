@@ -96,8 +96,8 @@ serve(async (req) => {
       failed: isFailed
     };
 
-    // Update database if we have a generation ID
-    if (generationId) {
+    // Update database if we have a valid generation ID
+    if (generationId && generationId !== 'undefined' && generationId.length === 36) {
       try {
         if (isCompleted) {
           const tracks = data.response?.sunoData || [];
@@ -105,7 +105,7 @@ serve(async (req) => {
           
           if (firstTrack?.audio_url) {
             console.log('Updating generation to completed:', generationId);
-            await supabase
+            const { error: updateError } = await supabase
               .from('ai_generations')
               .update({
                 status: 'completed',
@@ -118,10 +118,14 @@ serve(async (req) => {
                 }
               })
               .eq('id', generationId);
+            
+            if (updateError) {
+              console.error('Failed to update generation:', updateError);
+            }
           }
         } else if (isFailed) {
           console.log('Updating generation to failed:', generationId);
-          await supabase
+          const { error: updateError } = await supabase
             .from('ai_generations')
             .update({
               status: 'failed',
@@ -129,6 +133,10 @@ serve(async (req) => {
               completed_at: new Date().toISOString()
             })
             .eq('id', generationId);
+          
+          if (updateError) {
+            console.error('Failed to update generation to failed:', updateError);
+          }
         }
       } catch (dbError) {
         console.error('Database update error:', dbError);
