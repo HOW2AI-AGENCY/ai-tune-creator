@@ -23,7 +23,6 @@ export async function callEdgeFunction<T = any>(
 
       const { data, error } = await supabase.functions.invoke(functionName, {
         body,
-        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);

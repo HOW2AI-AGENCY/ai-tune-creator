@@ -784,6 +784,19 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: number
       }
+      log_critical_operation: {
+        Args: {
+          details?: Json
+          entity_id: string
+          entity_type: string
+          operation_type: string
+        }
+        Returns: undefined
+      }
+      validate_track_metadata: {
+        Args: { metadata_json: Json }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
