@@ -19,14 +19,7 @@ interface Artist {
   description?: string;
   avatar_url?: string;
   created_at: string;
-  metadata?: {
-    genre?: string;
-    location?: string;
-    influences?: string[];
-    style?: string;
-    background?: string;
-    banner_url?: string;
-  };
+  metadata?: any;
 }
 
 export default function MobileArtists() {
@@ -51,7 +44,11 @@ export default function MobileArtists() {
 
       if (error) throw error;
 
-      setArtists(data || []);
+      const transformedData = (data || []).map(artist => ({
+        ...artist,
+        metadata: typeof artist.metadata === 'string' ? {} : artist.metadata || {}
+      }));
+      setArtists(transformedData);
       
       if (data && data.length > 0) {
         await fetchProjectCounts(data.map(artist => artist.id));
@@ -201,7 +198,9 @@ export default function MobileArtists() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
-            <MobileCard key={i} className="h-20 animate-pulse bg-muted" />
+            <MobileCard key={i} className="h-20 animate-pulse bg-muted">
+              <div />
+            </MobileCard>
           ))}
         </div>
       ) : filteredArtists.length === 0 ? (

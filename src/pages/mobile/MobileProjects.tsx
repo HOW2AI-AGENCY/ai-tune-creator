@@ -204,7 +204,9 @@ export default function MobileProjects() {
       {loading ? (
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <MobileCard key={i} className="h-24 animate-pulse bg-muted" />
+            <MobileCard key={i} className="h-24 animate-pulse bg-muted">
+              <div />
+            </MobileCard>
           ))}
         </div>
       ) : filteredProjects.length === 0 ? (

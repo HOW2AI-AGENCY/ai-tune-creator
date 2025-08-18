@@ -266,7 +266,9 @@ export default function MobileTracks() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <MobileCard key={i} className="h-16 animate-pulse bg-muted" />
+            <MobileCard key={i} className="h-16 animate-pulse bg-muted">
+              <div />
+            </MobileCard>
           ))}
         </div>
       ) : tracks.length === 0 ? (
