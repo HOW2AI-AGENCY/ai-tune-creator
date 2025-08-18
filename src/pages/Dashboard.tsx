@@ -26,10 +26,6 @@ import {
 export default function Dashboard() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-
-  if (isMobile) {
-    return <MobileDashboard />;
-  }
   const [stats, setStats] = useState({
     tracks: 0,
     projects: 0,
@@ -38,6 +34,10 @@ export default function Dashboard() {
     recentGenerations: [] as any[]
   });
   const [loading, setLoading] = useState(true);
+
+  if (isMobile) {
+    return <MobileDashboard />;
+  }
 
   const loadStats = async () => {
     if (!user) return;
