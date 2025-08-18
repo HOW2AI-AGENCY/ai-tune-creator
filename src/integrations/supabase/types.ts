@@ -724,6 +724,30 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           category: string
@@ -761,6 +785,10 @@ export type Database = {
     Functions: {
       acquire_lock: {
         Args: { p_key: string; p_ttl_seconds?: number }
+        Returns: boolean
+      }
+      acquire_operation_lock: {
+        Args: { _key: string; _ttl_seconds?: number }
         Returns: boolean
       }
       create_activity_log: {
@@ -807,6 +835,17 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: number
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       log_critical_operation: {
         Args: {
           details?: Json
@@ -820,13 +859,17 @@ export type Database = {
         Args: { p_key: string }
         Returns: undefined
       }
+      release_operation_lock: {
+        Args: { _key: string }
+        Returns: undefined
+      }
       validate_track_metadata: {
         Args: { metadata_json: Json }
         Returns: boolean
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -953,6 +996,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
