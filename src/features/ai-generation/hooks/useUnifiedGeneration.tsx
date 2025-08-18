@@ -309,7 +309,7 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
         }
 
         // Update progress based on response
-        if (data?.status === 'SUCCESS' || data?.completed) {
+        if (data?.status === 'SUCCESS' || data?.completed || data?.response?.sunoData?.length > 0 || data?.all_tracks?.length > 0) {
           updateProgress(generationId, { 
             status: 'completed', 
             overallProgress: 100,
@@ -334,11 +334,11 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
             }).catch(error => {
               console.error('Background download failed:', error);
             });
-          } else if (service === 'suno' && (data.tracks?.length > 0 || data.response?.sunoData?.length > 0)) {
+          } else if (service === 'suno' && (data.tracks?.length > 0 || data.response?.sunoData?.length > 0 || data.all_tracks?.length > 0)) {
             console.log('🎵 Triggering background download for Suno tracks');
             
-            // Get tracks from the correct path (Suno returns data in response.sunoData)
-            const sunoTracks = data.tracks || data.response?.sunoData || [];
+            // Get tracks from the correct path (Suno returns data in response.sunoData or all_tracks from metadata)
+            const sunoTracks = data.tracks || data.response?.sunoData || data.all_tracks || [];
             console.log('🎵 Found Suno tracks:', sunoTracks.length);
             
             // Download and save each Suno track
