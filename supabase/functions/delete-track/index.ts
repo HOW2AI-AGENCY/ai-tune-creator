@@ -73,11 +73,12 @@ serve(async (req) => {
 
     if (softDelete) {
       // Soft delete: помечаем трек как удаленный в metadata
+      const currentMetadata = track.metadata || {};
       const { error: updateError } = await supabase
         .from('tracks')
         .update({
           metadata: {
-            ...track.metadata || {},
+            ...currentMetadata,
             deleted: true,
             deleted_at: new Date().toISOString(),
             deleted_by: userId

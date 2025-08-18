@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Music, Play, MoreHorizontal, Clock, Filter, RefreshCw } from "lucide-react";
+import { Plus, Search, Music, Play, MoreHorizontal, Clock, Filter, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { MobileTrackRow } from "@/components/mobile/MobileTrackRow";
 import { MobileFAB } from "@/components/mobile/MobileFAB";
 import { MobileBottomSheet } from "@/components/mobile/MobileBottomSheet";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
+import { TrackCleanupDialog } from "@/components/tracks/TrackCleanupDialog";
 
 interface Track {
   id: string;
@@ -51,6 +52,7 @@ export default function MobileTracks() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [playerOpen, setPlayerOpen] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
+  const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
 
   // Restore cached state quickly to avoid empty list flicker
   useEffect(() => {
@@ -99,7 +101,8 @@ export default function MobileTracks() {
               name
             )
           )
-        `);
+        `)
+        .not('metadata->deleted', 'eq', true); // Исключаем удаленные треки
 
       if (selectedProject !== "all") {
         query = query.eq('project_id', selectedProject);
@@ -313,6 +316,14 @@ export default function MobileTracks() {
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCleanupDialogOpen(true)}
+            className="gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -519,6 +530,13 @@ export default function MobileTracks() {
           onPrev={() => {}}
         />
       )}
+      
+      {/* Track Cleanup Dialog */}
+      <TrackCleanupDialog
+        open={cleanupDialogOpen}
+        onOpenChange={setCleanupDialogOpen}
+        onCleanupComplete={loadTracks}
+      />
     </MobilePageWrapper>
   );
 }
