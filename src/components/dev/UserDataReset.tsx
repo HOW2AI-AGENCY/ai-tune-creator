@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, Trash2, RefreshCw } from 'lucide-react';
+import { AlertCircle, Trash2, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -21,6 +21,7 @@ interface ResetResults {
 
 export const UserDataReset: React.FC = () => {
   const [isResetting, setIsResetting] = useState(false);
+  const [isWiping, setIsWiping] = useState(false);
   const [results, setResults] = useState<ResetResults | null>(null);
 
   const handleReset = async () => {
@@ -38,6 +39,7 @@ export const UserDataReset: React.FC = () => {
 
       if (data.success) {
         setResults(data.data);
+        window.dispatchEvent(new CustomEvent('tracks-updated'));
         toast.success('Данные пользователя успешно сброшены');
       } else {
         throw new Error(data.error || 'Неизвестная ошибка');
@@ -47,6 +49,25 @@ export const UserDataReset: React.FC = () => {
       toast.error(`Ошибка сброса: ${error.message}`);
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  const handleWipeAll = async () => {
+    if (!confirm('ВНИМАНИЕ: Это удалит ВСЕ треки, файлы и историю без возможности восстановления. Продолжить?')) return;
+    setIsWiping(true);
+    setResults(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('wipe-user-data', { body: {} });
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error || 'Не удалось выполнить полный сброс');
+      setResults(data.data);
+      window.dispatchEvent(new CustomEvent('tracks-updated'));
+      toast.success('Полный сброс выполнен');
+    } catch (error: any) {
+      console.error('Wipe error:', error);
+      toast.error(`Ошибка полного сброса: ${error.message}`);
+    } finally {
+      setIsWiping(false);
     }
   };
 
@@ -77,20 +98,39 @@ export const UserDataReset: React.FC = () => {
         </Alert>
 
         <Button
+          onClick={handleWipeAll}
+          disabled={isWiping}
+          variant="destructive"
+          className="w-full"
+        >
+          {isWiping ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              Полный сброс выполняется...
+            </>
+          ) : (
+            <>
+              <ShieldAlert className="mr-2 h-4 w-4" />
+              Полный сброс: удалить ВСЕ данные
+            </>
+          )}
+        </Button>
+
+        <Button
           onClick={handleReset}
           disabled={isResetting}
-          variant="destructive"
+          variant="outline"
           className="w-full"
         >
           {isResetting ? (
             <>
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              Выполняется сброс...
+              Выполняется выборочная очистка...
             </>
           ) : (
             <>
               <Trash2 className="mr-2 h-4 w-4" />
-              Сбросить данные пользователя
+              Очистить проблемные данные
             </>
           )}
         </Button>
@@ -133,6 +173,12 @@ export const UserDataReset: React.FC = () => {
 
             <div className="text-xs text-muted-foreground">
               Операция выполнена: {new Date(results.timestamp).toLocaleString('ru-RU')}
+              {results.summary && (
+                <>
+                  <div>Удалено треков: {(results as any).summary.deleted_tracks ?? results.summary.total_deleted_tracks}</div>
+                  <div>Удалено из хранилища: {(results as any).summary.deleted_storage_objects ?? 0}</div>
+                </>
+              )}
             </div>
           </div>
         )}

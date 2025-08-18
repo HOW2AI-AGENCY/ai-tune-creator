@@ -467,7 +467,7 @@ export default function AIGeneration() {
                           <div className="h-12 w-12 text-muted-foreground mb-4">🎵</div>
                           <h3 className="text-lg font-semibold mb-2">Треков пока нет</h3>
                           <p className="text-muted-foreground text-center">
-                            Создайте свой первый трек с помощью ИИ генерации
+                            Создайте свой первый трек с помощью ИИ генерации или выполните полный сброс, чтобы начать с нуля
                           </p>
                         </CardContent>
                       </Card>
