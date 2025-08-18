@@ -137,6 +137,13 @@ All colors MUST be HSL.
     --shadow-elevated: 0 10px 30px -5px hsl(0 0% 0% / 0.3);
     --shadow-card: 0 4px 12px -2px hsl(0 0% 0% / 0.2);
 
+    /* Telegram Mini App Variables */
+    --telegram-safe-top: 48px;
+    --telegram-safe-bottom: 16px;
+    --tg-bg-color: var(--background);
+    --tg-text-color: var(--foreground);
+    --tg-button-color: var(--primary);
+
     /* Sidebar */
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -167,17 +174,23 @@ All colors MUST be HSL.
     }
   }
   
-  /* Safe area support */
-  .mobile-safe-area {
-    padding-top: var(--mobile-safe-area-top);
+  /* Telegram Mini App Styles */
+  .telegram-layout {
+    background-color: var(--tg-bg-color);
+    color: var(--tg-text-color);
+    min-height: 100vh;
+    min-height: calc(var(--tg-vh, 1vh) * 100);
+    padding-top: var(--telegram-safe-top);
+    padding-bottom: var(--telegram-safe-bottom);
   }
   
+  /* Safe area support */
   .pt-safe-top {
-    padding-top: var(--mobile-safe-area-top);
+    padding-top: max(env(safe-area-inset-top), var(--telegram-safe-top, 0px));
   }
   
   .pb-safe-bottom {
-    padding-bottom: var(--mobile-safe-area-bottom);
+    padding-bottom: max(env(safe-area-inset-bottom), var(--telegram-safe-bottom, 0px));
   }
   
   .safe-area-inset {

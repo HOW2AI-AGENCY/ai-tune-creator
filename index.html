@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>ai-tune-creator</title>
     <link rel="icon" href="/lovable-uploads/3fa15532-e16b-48f1-8df1-cefb76ba2691.png" type="image/png">
     <meta name="description" content="Lovable Generated Project" />
@@ -20,6 +23,47 @@
 
   <body>
     <div id="root"></div>
+    
+    <!-- Telegram Mini App Script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      // Telegram Mini App initialization
+      if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        
+        // Initialize app
+        tg.ready();
+        tg.expand();
+        tg.enableClosingConfirmation();
+        
+        // Apply theme
+        if (tg.colorScheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+        
+        // Set CSS variables for Telegram theme
+        if (tg.themeParams) {
+          const root = document.documentElement.style;
+          Object.entries(tg.themeParams).forEach(([key, value]) => {
+            root.setProperty(`--tg-${key.replace(/_/g, '-')}`, value);
+          });
+        }
+        
+        // Disable context menu and text selection for app-like feel
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('selectstart', e => e.preventDefault());
+        
+        // Viewport adjustments
+        function adjustViewport() {
+          const vh = tg.viewportHeight * 0.01;
+          document.documentElement.style.setProperty('--tg-vh', vh + 'px');
+        }
+        
+        adjustViewport();
+        tg.onEvent('viewportChanged', adjustViewport);
+      }
+    </script>
+    
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
