@@ -35,9 +35,6 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
 
-  if (isMobile) {
-    return <MobileDashboard />;
-  }
 
   const loadStats = async () => {
     if (!user) return;
@@ -83,6 +80,10 @@ export default function Dashboard() {
   useEffect(() => {
     loadStats();
   }, [user]);
+
+  if (isMobile) {
+    return <MobileDashboard />;
+  }
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
