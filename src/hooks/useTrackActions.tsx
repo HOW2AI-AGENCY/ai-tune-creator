@@ -159,8 +159,7 @@ export function useTrackActions(): TrackActions {
         variant: "default",
       });
 
-      // Перезагружаем данные после удаления
-      window.location.reload();
+      // Track deleted successfully - no need to reload page
 
     } catch (error: any) {
       console.error('Error deleting track:', error);

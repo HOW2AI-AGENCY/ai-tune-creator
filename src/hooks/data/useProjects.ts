@@ -450,7 +450,6 @@ export function useCreateProject() {
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert({
-          user_id: user.id,
           title: payload.title,
           type: projectType,
           status: 'draft',

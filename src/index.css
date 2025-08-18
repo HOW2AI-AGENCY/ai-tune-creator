@@ -81,6 +81,10 @@ All colors MUST be HSL.
     --mobile-safe-area-bottom: env(safe-area-inset-bottom);
     --mobile-safe-area-left: env(safe-area-inset-left);
     --mobile-safe-area-right: env(safe-area-inset-right);
+    
+    /* Telegram safe area */
+    --telegram-safe-top: 0px;
+    --telegram-safe-bottom: 0px;
   }
 
   .dark {

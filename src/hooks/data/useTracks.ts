@@ -442,7 +442,7 @@ export function useCreateTrack() {
           console.log('[useCreateTrack] Generating track with AI...');
           
           const { data: aiData, error: aiError } = await supabase.functions.invoke(
-            payload.ai_generation.provider === 'suno' ? 'generate-track-suno' : 'generate-track-mureka',
+            payload.ai_generation.provider === 'suno' ? 'generate-suno-track' : 'generate-mureka-track',
             {
               body: {
                 prompt: payload.ai_generation.prompt,

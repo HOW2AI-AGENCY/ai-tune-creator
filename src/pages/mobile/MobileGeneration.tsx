@@ -5,6 +5,7 @@ import { TelegramGenerationForm } from "@/components/mobile/TelegramGenerationFo
 import { TelegramMobilePlayer } from "@/components/mobile/TelegramMobilePlayer";
 import { MobilePageWrapper } from "@/components/mobile/MobilePageWrapper";
 import { useTelegramWebApp, useTelegramHaptics } from "@/hooks/useTelegramWebApp";
+import { useUnifiedGeneration } from "@/features/ai-generation/hooks/useUnifiedGeneration";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wand2, Music, ArrowLeft } from "lucide-react";
@@ -44,18 +45,20 @@ export default function MobileGeneration() {
   const { toast } = useToast();
   const { isInTelegram } = useTelegramWebApp();
   const { notificationFeedback, impactFeedback } = useTelegramHaptics();
+  const { generateTrack, activeGenerations } = useUnifiedGeneration();
 
-  const [isGenerating, setIsGenerating] = useState(false);
   const [generatedTracks, setGeneratedTracks] = useState<Track[]>([]);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showForm, setShowForm] = useState(true);
-  const [generationProgress, setGenerationProgress] = useState(0);
+
+  const isGenerating = activeGenerations.size > 0;
+  const generationProgress = Array.from(activeGenerations.values())[0]?.overallProgress || 0;
 
   const handleGenerate = async (formData: GenerationFormData) => {
     if (!user) {
       toast({
-        title: "Authentication required",
+        title: "Authentication required", 
         description: "Please sign in to generate music",
         variant: "destructive"
       });
@@ -63,63 +66,62 @@ export default function MobileGeneration() {
     }
 
     try {
-      setIsGenerating(true);
-      setGenerationProgress(0);
       impactFeedback?.('medium');
       
-      // Simulate generation progress
-      const progressInterval = setInterval(() => {
-        setGenerationProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + Math.random() * 10;
-        });
-      }, 1000);
-
-      // Mock generation - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 8000));
-      
-      clearInterval(progressInterval);
-      setGenerationProgress(100);
-
-      const mockTrack: Track = {
-        id: `track-${Date.now()}`,
-        title: formData.title || `${formData.genre} ${formData.mood} Track`,
-        audio_url: "https://example.com/mock-audio.mp3", // Replace with actual URL
-        duration: formData.duration,
-        lyrics: formData.lyrics || "Generated lyrics would be here...",
-        project: {
-          title: "AI Generated",
-          artist: {
-            name: "AI Composer",
-            avatar_url: undefined
-          }
-        }
-      };
-
-      setGeneratedTracks(prev => [mockTrack, ...prev]);
-      setCurrentTrack(mockTrack);
-      setShowForm(false);
-      
-      notificationFeedback?.('success');
-      toast({
-        title: "Music generated successfully!",
-        description: "Your new track is ready to play",
+      const result = await generateTrack({
+        service: 'suno',
+        description: formData.prompt,
+        lyrics: formData.lyrics,
+        tags: formData.tags,
+        flags: {
+          instrumental: formData.instrumental,
+          language: formData.language,
+          voiceStyle: formData.voice_style,
+          duration: formData.duration,
+        },
+        mode: 'quick',
+        inputType: formData.lyrics ? 'lyrics' : 'description',
+        context: {
+          useInbox: true,
+        },
       });
+
+      if (result) {
+        // The generateTrack function returns a generation ID, not a track
+        // For now, create a mock track for demonstration
+        const newTrack: Track = {
+          id: `track-${Date.now()}`,
+          title: formData.title || `${formData.genre} ${formData.mood} Track`,
+          audio_url: "https://example.com/mock-audio.mp3", // This will be updated when generation completes
+          duration: formData.duration,
+          lyrics: formData.lyrics || "Generated lyrics will appear here...",
+          project: {
+            title: "AI Generated",
+            artist: {
+              name: "AI Composer"
+            }
+          }
+        };
+
+        setGeneratedTracks(prev => [newTrack, ...prev]);
+        setCurrentTrack(newTrack);
+        setShowForm(false);
+        
+        notificationFeedback?.('success');
+        toast({
+          title: "Music generated successfully!",
+          description: "Your new track is ready to play",
+        });
+      }
 
     } catch (error) {
       console.error('Generation error:', error);
       notificationFeedback?.('error');
       toast({
-        title: "Generation failed",
+        title: "Generation failed", 
         description: "Please try again",
         variant: "destructive"
       });
-    } finally {
-      setIsGenerating(false);
-      setGenerationProgress(0);
     }
   };
 

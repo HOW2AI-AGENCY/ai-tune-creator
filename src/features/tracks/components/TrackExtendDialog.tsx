@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, Clock, Zap, Upload, Music, Sparkles, Image, FileText, FileAudio, Music2, Video } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useSunoRecordPolling } from '@/features/ai-generation/hooks/useSunoRecordPolling';
+import { useSunoStatusPolling } from '@/features/ai-generation/hooks/useSunoStatusPolling';
 import { StyleBoostDialog } from '@/features/ai-generation/components/StyleBoostDialog';
 import { CoverGenerationDialog } from '@/features/ai-generation/components/CoverGenerationDialog';
 import { LyricsGenerationDialog } from '@/features/ai-generation/components/LyricsGenerationDialog';
@@ -70,8 +70,8 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
   
   const { toast } = useToast();
 
-  // Use the new record polling hook
-  const { data: recordData, isPolling } = useSunoRecordPolling({
+  // Use the status polling hook instead
+  const { data: recordData, isPolling } = useSunoStatusPolling({
     taskId: currentTaskId || undefined,
     enabled: !!currentTaskId,
     onComplete: (data) => {
@@ -81,8 +81,8 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
       });
       
       // Store the completed task ID for cover generation
-      if (data.tracks && data.tracks.length > 0) {
-        setCompletedTaskId(data.taskId);
+      if (data.track) {
+        setCompletedTaskId(data.task_id);
       }
       
       onExtensionStarted?.();
@@ -553,25 +553,25 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                   <span className="font-medium">Extension in Progress</span>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Status: {recordData.status} | Task ID: {recordData.taskId}
-                </p>
-                {recordData.tracks.length > 0 && (
-                  <p className="text-sm text-green-600 mt-1">
-                    {recordData.tracks.length} track(s) generated
-                  </p>
-                )}
+                 <p className="text-sm text-muted-foreground">
+                   Status: {recordData.status} | Task ID: {recordData.task_id}
+                 </p>
+                 {recordData.track && (
+                   <p className="text-sm text-green-600 mt-1">
+                     Track generated successfully
+                   </p>
+                 )}
               </div>
             )}
 
             {/* Success Actions */}
-            {recordData?.isCompleted && recordData.tracks.length > 0 && (
+            {recordData?.status === 'completed' && recordData.track && (
               <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium text-green-800">Extension Complete!</h4>
-                  <Badge variant="default" className="bg-green-600">
-                    {recordData.tracks.length} track(s) generated
-                  </Badge>
+                   <Badge variant="default" className="bg-green-600">
+                     Track generated
+                   </Badge>
                 </div>
                 <div className="flex gap-2">
                   <Button

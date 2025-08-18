@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Upload, Music, Clock, Settings, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useSunoRecordPolling } from "../hooks/useSunoRecordPolling";
+import { useSunoStatusPolling } from "../hooks/useSunoStatusPolling";
 
 interface UploadExtendDialogProps {
   open: boolean;
@@ -74,7 +74,7 @@ export function UploadExtendDialog({
   // Polling state
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
 
-  const { data: pollingData, isPolling } = useSunoRecordPolling({
+  const { data: pollingData, isPolling } = useSunoStatusPolling({
     taskId: currentTaskId || "",
     enabled: !!currentTaskId,
     onComplete: (data) => {
@@ -82,7 +82,7 @@ export function UploadExtendDialog({
       setCurrentTaskId(null);
       toast({
         title: "Расширение завершено!",
-        description: `Создано ${data.sunoData?.length || 1} варианта трека`
+        description: `Создано ${data.track ? 1 : 0} варианта трека`
       });
       onOpenChange(false);
       resetForm();
