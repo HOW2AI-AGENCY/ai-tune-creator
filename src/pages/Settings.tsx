@@ -78,31 +78,26 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-          <TabsTrigger value="profile" className="flex items-center gap-1 text-xs sm:text-sm">
-            <User className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Профиль</span>
-            <span className="sm:hidden">Я</span>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="profile" className="p-2 md:p-3" title="Профиль">
+            <User className="h-4 w-4 md:h-5 md:w-5" />
+            <span className="sr-only">Профиль</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-1 text-xs sm:text-sm">
-            <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Уведомления</span>
-            <span className="sm:hidden">🔔</span>
+          <TabsTrigger value="notifications" className="p-2 md:p-3" title="Уведомления">
+            <Bell className="h-4 w-4 md:h-5 md:w-5" />
+            <span className="sr-only">Уведомления</span>
           </TabsTrigger>
-          <TabsTrigger value="preferences" className="flex items-center gap-1 text-xs sm:text-sm">
-            <Palette className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Предпочтения</span>
-            <span className="sm:hidden">⚙️</span>
+          <TabsTrigger value="preferences" className="p-2 md:p-3" title="Предпочтения">
+            <Palette className="h-4 w-4 md:h-5 md:w-5" />
+            <span className="sr-only">Предпочтения</span>
           </TabsTrigger>
-          <TabsTrigger value="ai" className="flex items-center gap-1 text-xs sm:text-sm">
-            <Bot className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">ИИ</span>
-            <span className="sm:hidden">🤖</span>
+          <TabsTrigger value="ai" className="p-2 md:p-3" title="Настройки ИИ">
+            <Bot className="h-4 w-4 md:h-5 md:w-5" />
+            <span className="sr-only">Настройки ИИ</span>
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-1 text-xs sm:text-sm">
-            <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Безопасность</span>
-            <span className="sm:hidden">🔒</span>
+          <TabsTrigger value="security" className="p-2 md:p-3" title="Безопасность">
+            <Shield className="h-4 w-4 md:h-5 md:w-5" />
+            <span className="sr-only">Безопасность</span>
           </TabsTrigger>
         </TabsList>
 
