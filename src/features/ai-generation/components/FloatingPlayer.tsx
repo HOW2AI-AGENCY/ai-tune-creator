@@ -51,40 +51,42 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Сброс состояния при смене трека
+  // Сброс состояния и загрузка только при смене трека/источника
   useEffect(() => {
-    if (track && audioRef.current && track.audio_url) {
-      setCurrentTime(0);
-      setIsPlaying(false);
+    const audio = audioRef.current;
+    if (!track || !audio || !track.audio_url) return;
+
+    const isSameSrc = audio.src === track.audio_url;
+
+    if (!isSameSrc) {
+      // Загружаем новый источник только если он изменился
       setIsLoading(true);
-      
-      audioRef.current.src = track.audio_url;
-      audioRef.current.load();
-      
-      // Автозапуск воспроизведения (уважает внешний флаг playing)
-      const handleLoadedData = () => {
-        setIsLoading(false);
-        if (playing === false) return;
-        audioRef.current?.play()
-          .then(() => {
-            setIsPlaying(true);
-            onPlayPause?.(true);
-          })
-          .catch((error) => {
-            console.error('Ошибка автозапуска:', error);
-          });
-      };
-      
-      audioRef.current.addEventListener('loadeddata', handleLoadedData);
-      
-      return () => {
-        audioRef.current?.removeEventListener('loadeddata', handleLoadedData);
-      };
-    } else if (track && !track.audio_url) {
-      console.warn('Трек без audio_url:', track);
-      setIsLoading(false);
+      setIsPlaying(false);
+      setCurrentTime(0);
+      audio.src = track.audio_url;
+      audio.load();
     }
-  }, [track?.id, track?.audio_url, onPlayPause, playing]);
+
+    // Автозапуск только после загрузки данных
+    const handleLoadedData = () => {
+      setIsLoading(false);
+      if (playing === false) return; // Уважаем внешний флаг остановки
+      audio
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+          onPlayPause?.(true);
+        })
+        .catch((error) => {
+          console.error('Ошибка автозапуска:', error);
+        });
+    };
+
+    audio.addEventListener('loadeddata', handleLoadedData);
+    return () => {
+      audio.removeEventListener('loadeddata', handleLoadedData);
+    };
+  }, [track?.id, track?.audio_url]);
 
   // Обновление времени воспроизведения
   useEffect(() => {
@@ -103,6 +105,7 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
     const handleEnded = () => {
       setIsPlaying(false);
       setCurrentTime(0);
+      onNext?.();
     };
 
     const handleError = (event: Event) => {
