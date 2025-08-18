@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 
-// Telegram WebApp types
 declare global {
   interface Window {
     Telegram?: {
@@ -10,14 +9,52 @@ declare global {
         close: () => void;
         MainButton: {
           text: string;
+          color?: string;
+          textColor?: string;
+          isVisible: boolean;
+          isActive: boolean;
           show: () => void;
           hide: () => void;
+          enable: () => void;
+          disable: () => void;
           onClick: (callback: () => void) => void;
+          offClick: (callback: () => void) => void;
+          setText: (text: string) => void;
+          setParams: (params: { text?: string; color?: string; text_color?: string; is_active?: boolean; is_visible?: boolean }) => void;
+        };
+        SecondaryButton: {
+          text: string;
+          color?: string;
+          textColor?: string;
+          isVisible: boolean;
+          isActive: boolean;
+          show: () => void;
+          hide: () => void;
+          enable: () => void;
+          disable: () => void;
+          onClick: (callback: () => void) => void;
+          offClick: (callback: () => void) => void;
+          setText: (text: string) => void;
+          setParams: (params: { text?: string; color?: string; text_color?: string; is_active?: boolean; is_visible?: boolean }) => void;
         };
         BackButton: {
+          isVisible: boolean;
           show: () => void;
           hide: () => void;
           onClick: (callback: () => void) => void;
+          offClick: (callback: () => void) => void;
+        };
+        SettingsButton: {
+          isVisible: boolean;
+          show: () => void;
+          hide: () => void;
+          onClick: (callback: () => void) => void;
+          offClick: (callback: () => void) => void;
+        };
+        HapticFeedback: {
+          impactOccurred: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+          notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
+          selectionChanged: () => void;
         };
         platform: string;
         colorScheme: 'light' | 'dark';
@@ -28,21 +65,77 @@ declare global {
           link_color?: string;
           button_color?: string;
           button_text_color?: string;
+          secondary_bg_color?: string;
+          header_bg_color?: string;
+          accent_text_color?: string;
+          section_bg_color?: string;
+          section_header_text_color?: string;
+          subtitle_text_color?: string;
+          destructive_text_color?: string;
         };
+        headerColor: string;
+        backgroundColor: string;
+        isClosingConfirmationEnabled: boolean;
         initData: string;
         initDataUnsafe: {
+          query_id?: string;
           user?: {
             id: number;
+            is_bot?: boolean;
             first_name: string;
             last_name?: string;
             username?: string;
             language_code?: string;
+            is_premium?: boolean;
+            added_to_attachment_menu?: boolean;
+            allows_write_to_pm?: boolean;
+            photo_url?: string;
           };
+          receiver?: any;
+          chat?: any;
+          chat_type?: string;
+          chat_instance?: string;
+          start_param?: string;
+          can_send_after?: number;
+          auth_date?: number;
+          hash?: string;
         };
         version: string;
         isExpanded: boolean;
         viewportHeight: number;
         viewportStableHeight: number;
+        safeAreaInsets: {
+          top: number;
+          bottom: number;
+          left: number;
+          right: number;
+        };
+        contentSafeAreaInsets: {
+          top: number;
+          bottom: number;
+          left: number;
+          right: number;
+        };
+        setHeaderColor: (color: string) => void;
+        setBackgroundColor: (color: string) => void;
+        enableClosingConfirmation: () => void;
+        disableClosingConfirmation: () => void;
+        onEvent: (eventType: string, eventHandler: () => void) => void;
+        offEvent: (eventType: string, eventHandler: () => void) => void;
+        sendData: (data: string) => void;
+        switchInlineQuery: (query: string, choose_chat_types?: string[]) => void;
+        openLink: (url: string, options?: { try_instant_view?: boolean }) => void;
+        openTelegramLink: (url: string) => void;
+        openInvoice: (url: string, callback?: (status: string) => void) => void;
+        showPopup: (params: { title?: string; message: string; buttons?: Array<{ id?: string; type?: string; text?: string }> }, callback?: (button_id: string) => void) => void;
+        showAlert: (message: string, callback?: () => void) => void;
+        showConfirm: (message: string, callback?: (confirmed: boolean) => void) => void;
+        showScanQrPopup: (params: { text?: string }, callback?: (text: string) => boolean) => void;
+        closeScanQrPopup: () => void;
+        readTextFromClipboard: (callback?: (text: string) => void) => void;
+        requestWriteAccess: (callback?: (granted: boolean) => void) => void;
+        requestContact: (callback?: (granted: boolean) => void) => void;
+        isVersionAtLeast: (version: string) => boolean;
       };
     };
   }
@@ -54,14 +147,48 @@ interface TelegramWebApp {
   close: () => void;
   MainButton: {
     text: string;
+    color?: string;
+    textColor?: string;
+    isVisible: boolean;
+    isActive: boolean;
+    show: () => void;
+    hide: () => void;
+    enable: () => void;
+    disable: () => void;
+    onClick: (callback: () => void) => void;
+    setText: (text: string) => void;
+    setParams: (params: any) => void;
+  };
+  SecondaryButton: {
+    text: string;
+    color?: string;
+    textColor?: string;
+    isVisible: boolean;
+    isActive: boolean;
+    show: () => void;
+    hide: () => void;
+    enable: () => void;
+    disable: () => void;
+    onClick: (callback: () => void) => void;
+    setText: (text: string) => void;
+    setParams: (params: any) => void;
+  };
+  BackButton: {
+    isVisible: boolean;
     show: () => void;
     hide: () => void;
     onClick: (callback: () => void) => void;
   };
-  BackButton: {
+  SettingsButton: {
+    isVisible: boolean;
     show: () => void;
     hide: () => void;
     onClick: (callback: () => void) => void;
+  };
+  HapticFeedback: {
+    impactOccurred: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+    notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
+    selectionChanged: () => void;
   };
   platform: string;
   colorScheme: 'light' | 'dark';
@@ -72,6 +199,26 @@ interface TelegramWebApp {
   isExpanded: boolean;
   viewportHeight: number;
   viewportStableHeight: number;
+  safeAreaInsets: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+  contentSafeAreaInsets: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+  setHeaderColor: (color: string) => void;
+  setBackgroundColor: (color: string) => void;
+  onEvent: (eventType: string, eventHandler: () => void) => void;
+  offEvent: (eventType: string, eventHandler: () => void) => void;
+  showPopup: (params: any, callback?: (button_id: string) => void) => void;
+  showAlert: (message: string, callback?: () => void) => void;
+  showConfirm: (message: string, callback?: (confirmed: boolean) => void) => void;
+  isVersionAtLeast: (version: string) => boolean;
 }
 
 export function useTelegramWebApp() {
@@ -149,7 +296,7 @@ export function useTelegramMainButton() {
 
   const showMainButton = (text: string, onClick: () => void) => {
     if (webApp?.MainButton) {
-      webApp.MainButton.text = text;
+      webApp.MainButton.setText(text);
       webApp.MainButton.onClick(onClick);
       webApp.MainButton.show();
     }
@@ -165,6 +312,28 @@ export function useTelegramMainButton() {
     showMainButton,
     hideMainButton,
     isAvailable: !!webApp?.MainButton
+  };
+}
+
+export function useTelegramHaptics() {
+  const { webApp } = useTelegramWebApp();
+
+  const impactFeedback = (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft' = 'medium') => {
+    if (webApp?.HapticFeedback) {
+      webApp.HapticFeedback.impactOccurred(style);
+    }
+  };
+
+  const notificationFeedback = (type: 'error' | 'success' | 'warning') => {
+    if (webApp?.HapticFeedback) {
+      webApp.HapticFeedback.notificationOccurred(type);
+    }
+  };
+
+  return {
+    impactFeedback,
+    notificationFeedback,
+    isAvailable: !!webApp?.HapticFeedback
   };
 }
 
