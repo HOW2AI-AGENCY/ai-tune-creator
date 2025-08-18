@@ -178,7 +178,7 @@ serve(async (req) => {
             .update({
               title: track.title,
               audio_url: track.audio_url,
-              duration: track.duration,
+              duration: Math.floor(parseFloat(track.duration) || 0),
               lyrics: track.prompt || track.lyric || null,
               metadata: {
                 ...generation.metadata,
@@ -271,7 +271,7 @@ serve(async (req) => {
               title: finalTitle,
               track_number: trackNumber,
               audio_url: track.audio_url,
-              duration: track.duration,
+              duration: Math.floor(parseFloat(track.duration) || 0),
               lyrics: track.prompt || track.lyric || '',
               description: track.prompt || `Generated with ${track.model_name}`,
               genre_tags: track.tags ? track.tags.split(', ').filter(Boolean) : [],
