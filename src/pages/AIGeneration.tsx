@@ -248,6 +248,8 @@ export default function AIGeneration() {
     const params: GenerationParams = {
       prompt: input.description || input.lyrics || "",
       service: input.service || 'suno',
+      mode: input.mode || 'quick',
+      inputType: input.inputType || 'description',
       projectId: input.context?.projectId,
       artistId: input.context?.artistId,
       useInbox: input.context?.useInbox || false,
