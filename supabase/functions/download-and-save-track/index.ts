@@ -263,6 +263,26 @@ serve(async (req) => {
       .getPublicUrl(storagePath);
 
     const localAudioUrl = publicUrlData.publicUrl;
+    
+    // Update generation with local storage info BEFORE creating/updating track
+    const { error: genUpdateError } = await supabase
+      .from('ai_generations')
+      .update({
+        result_url: localAudioUrl,
+        metadata: {
+          ...(generation.metadata || {}),
+          local_storage_path: storagePath,
+          provider_url: external_url,
+          file_size: audioUint8Array.length,
+          downloaded_at: new Date().toISOString()
+        }
+      })
+      .eq('id', resolvedGenerationId);
+    
+    if (genUpdateError) {
+      console.error('Failed to update ai_generations with local URL:', genUpdateError);
+      throw new Error(`Failed to update generation with local URL: ${genUpdateError.message}`);
+    }
 
     try {
       // Use transactional function to create/update track atomically
