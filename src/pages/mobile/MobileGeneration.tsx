@@ -270,50 +270,59 @@ export default function MobileGeneration() {
       </div>
 
       {/* Track List */}
-      <div className="p-4 space-y-3">
-        {generatedTracks.map((track) => (
-          <Card
-            key={track.id}
-            className={cn(
-              "p-4 cursor-pointer transition-all",
-              currentTrack?.id === track.id && "border-primary bg-primary/5"
-            )}
-            onClick={() => handleTrackSelect(track)}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                <Music className="h-6 w-6 text-primary" />
-              </div>
-              
-              <div className="flex-1 min-w-0">
-                <h3 className="font-medium truncate">{track.title}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {track.project?.artist?.name} • {Math.floor((track.duration || 0) / 60)}:{((track.duration || 0) % 60).toString().padStart(2, '0')}
-                </p>
-              </div>
-
-              {currentTrack?.id === track.id && (
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-primary rounded-full animate-pulse" />
-                  <span className="text-xs font-medium text-primary">Now Playing</span>
+      <div className="flex-1 overflow-auto scrollbar-hide">
+        {generatedTracks.length > 0 ? (
+          <div className="divide-y divide-border/50">
+            {generatedTracks.map((track) => (
+              <div
+                key={track.id}
+                className={cn(
+                  "flex items-center gap-3 py-3 px-4 tap-highlight",
+                  "active:bg-muted/50 transition-colors",
+                  currentTrack?.id === track.id && "bg-primary/5 border-l-2 border-l-primary"
+                )}
+                onClick={() => handleTrackSelect(track)}
+              >
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0">
+                  <Music className="h-5 w-5 text-primary" />
                 </div>
-              )}
-            </div>
-          </Card>
-        ))}
+                
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-sm truncate">{track.title}</h3>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="truncate">
+                      {track.project?.artist?.name}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {Math.floor((track.duration || 0) / 60)}:{((track.duration || 0) % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                </div>
 
-        {generatedTracks.length === 0 && (
-          <Card className="p-8 text-center">
-            <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="font-medium mb-2">No tracks yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Generate your first AI music track
-            </p>
-            <Button onClick={handleNewGeneration} className="gap-2">
-              <Wand2 className="h-4 w-4" />
-              Start Creating
-            </Button>
-          </Card>
+                {currentTrack?.id === track.id && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                    <span className="text-xs font-medium text-primary">Playing</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center">
+              <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="font-medium mb-2">No tracks yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Generate your first AI music track
+              </p>
+              <Button onClick={handleNewGeneration} className="gap-2">
+                <Wand2 className="h-4 w-4" />
+                Start Creating
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 

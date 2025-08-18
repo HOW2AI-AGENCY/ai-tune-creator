@@ -47,7 +47,8 @@ export function MobileHeader({
   return (
     <header className={cn(
       "sticky top-0 z-40 w-full bg-card/95 backdrop-blur-md border-b border-border",
-      "mobile-safe-area pt-safe-top",
+      "pt-safe-top",
+      "safe-area-inset",
       "animate-fade-in",
       className
     )}>

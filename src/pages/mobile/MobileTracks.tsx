@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { MobilePageWrapper } from "@/components/mobile/MobilePageWrapper";
 import { MobileCard } from "@/components/mobile/MobileCard";
+import { MobileTrackRow } from "@/components/mobile/MobileTrackRow";
 import { MobileFAB } from "@/components/mobile/MobileFAB";
 import { MobileBottomSheet } from "@/components/mobile/MobileBottomSheet";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
@@ -288,86 +289,30 @@ export default function MobileTracks() {
           </div>
         </MobileCard>
       ) : (
-        <div className="space-y-2">
+        <div className="flex-1 overflow-auto scrollbar-hide divide-y divide-border/50">
           {tracks.map((track) => (
-            <MobileCard
+            <MobileTrackRow
               key={track.id}
-              interactive
-              onClick={() => handleTrackClick(track)}
-              className="p-0 overflow-hidden"
-            >
-              <div className="flex items-center p-3">
-                {/* Track Number */}
-                <div className="w-10 h-10 rounded bg-muted flex items-center justify-center mr-3 flex-shrink-0">
-                  <span className="text-sm font-medium">{track.track_number}</span>
-                </div>
-
-                {/* Track Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between mb-1">
-                    <h3 className="font-medium text-sm truncate">{track.title}</h3>
-                    {track.current_version > 1 && (
-                      <Badge variant="secondary" className="text-xs ml-2">
-                        v{track.current_version}
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {track.projects?.artists?.name && (
-                      <span className="truncate">{track.projects.artists.name}</span>
-                    )}
-                    {track.projects?.title && (
-                      <>
-                        <span>•</span>
-                        <span className="truncate">{track.projects.title}</span>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDuration(track.duration)}
-                    </div>
-                    <span>{formatTimeAgo(track.updated_at)}</span>
-                  </div>
-                </div>
-
-                {/* Play Button */}
-                {track.audio_url && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePlayTrack(track);
-                    }}
-                    className="ml-2 flex-shrink-0"
-                  >
-                    <Play className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              {/* Genre Tags */}
-              {track.genre_tags && track.genre_tags.length > 0 && (
-                <div className="px-3 pb-3">
-                  <div className="flex flex-wrap gap-1">
-                    {track.genre_tags.slice(0, 3).map((genre, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {genre}
-                      </Badge>
-                    ))}
-                    {track.genre_tags.length > 3 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{track.genre_tags.length - 3}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              )}
-            </MobileCard>
+              track={{
+                id: track.id,
+                title: track.title,
+                audio_url: track.audio_url,
+                duration: track.duration,
+                lyrics: track.lyrics,
+                project: {
+                  title: track.projects?.title || '',
+                  artist: {
+                    name: track.projects?.artists?.name || 'Unknown Artist'
+                  }
+                }
+              }}
+              onSelect={() => handleTrackClick(track)}
+              onPlay={() => handlePlayTrack(track)}
+              onMore={(track) => {
+                // TODO: Implement track options menu
+                console.log('More options for track:', track.id);
+              }}
+            />
           ))}
         </div>
       )}

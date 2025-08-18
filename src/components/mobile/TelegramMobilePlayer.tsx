@@ -19,7 +19,8 @@ import {
   Share2,
   Download,
   MoreHorizontal,
-  Lyrics
+  FileText,
+  ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -262,7 +263,7 @@ export function TelegramMobilePlayer({
           onClick={() => setIsExpanded(false)}
           className="h-8 w-8 p-0"
         >
-          <Lyrics className="h-4 w-4" />
+          <ChevronDown className="h-4 w-4" />
         </Button>
         
         <div className="text-center">
@@ -456,7 +457,7 @@ export function TelegramMobilePlayer({
               onClick={() => onShowLyrics?.(track)}
               className="h-10 w-10 p-0"
             >
-              <Lyrics className="h-5 w-5" />
+              <FileText className="h-5 w-5" />
             </Button>
           )}
         </div>
