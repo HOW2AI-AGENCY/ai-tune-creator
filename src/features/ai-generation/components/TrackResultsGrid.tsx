@@ -157,6 +157,12 @@ export function TrackResultsGrid({
                     size="sm" 
                     className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 p-0 shadow-lg disabled:opacity-50"
                     disabled={!track.audio_url}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (track.audio_url) {

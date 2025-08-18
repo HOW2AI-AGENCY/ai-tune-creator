@@ -120,6 +120,7 @@ export function TrackDetailsDrawer({
             <Button 
               onClick={() => onPlay(track)}
               className="flex-1"
+              disabled={!track.audio_url}
             >
               <Play className="h-4 w-4 mr-2" />
               Воспроизвести

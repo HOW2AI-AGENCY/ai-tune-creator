@@ -398,6 +398,8 @@ export default function AIGenerationStudio() {
       setCurrentPlayingTrack(track);
       setIsPlaying(true);
     }
+    // Close track details drawer when starting playback
+    setIsTrackDetailsOpen(false);
   };
 
   const handlePlayerPlayPause = (playing: boolean) => {

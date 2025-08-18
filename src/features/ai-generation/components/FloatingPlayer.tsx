@@ -140,6 +140,9 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
         trackUrl: track?.audio_url,
         trackId: track?.id
       });
+      
+      // Log error for debugging
+      console.error('Audio Error Details:', errorMessage);
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -247,7 +250,7 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-xl animate-slide-in-bottom safe-area-bottom">
-      <audio ref={audioRef} preload="metadata" />
+      <audio ref={audioRef} preload="metadata" crossOrigin="anonymous" key={track.id} />
       
       <Card className="m-2 border-0 shadow-none bg-transparent">
         {/* Прогресс бар (сверху) */}
