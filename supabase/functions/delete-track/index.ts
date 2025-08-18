@@ -42,6 +42,7 @@ serve(async (req) => {
         id,
         title,
         project_id,
+        metadata,
         projects!inner(
           id,
           artist_id,
