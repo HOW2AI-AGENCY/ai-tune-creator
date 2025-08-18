@@ -1,15 +1,15 @@
 // Детальная диагностика Edge Function
 const testData = {
-  prompt: "Создай современную поп-песню с ярким вокалом, запоминающимся припевом и танцевальным битом. Используй синтезаторы и современное звучание.",
-  style: "",
+  prompt: 'Создай современную поп-песню с ярким вокалом, запоминающимся припевом и танцевальным битом. Используй синтезаторы и современное звучание.',
+  style: '',
   projectId: undefined,
   artistId: undefined,
-  title: "AI Generated 14.08.2025",
-  mode: "quick",
-  language: "ru",
+  title: 'AI Generated 14.08.2025',
+  mode: 'quick',
+  language: 'ru',
   make_instrumental: false,
-  model: "chirp-v3-5",
-  tags: "поп, энергичное",
+  model: 'chirp-v3-5',
+  tags: 'поп, энергичное',
   wait_audio: true
 };
 
@@ -19,20 +19,20 @@ console.log('Test data:', JSON.stringify(testData, null, 2));
 // Симулируем валидацию из Edge Function
 const { 
   prompt,
-  style = "",
-  title = "",
-  tags = "energetic, creative, viral",
+  style = '',
+  title = '',
+  tags = 'energetic, creative, viral',
   make_instrumental = false,
   wait_audio = true,
-  model = "chirp-v3-5",
+  model = 'chirp-v3-5',
   trackId = null,
   projectId = null,
   artistId = null,
-  mode = "quick",
-  custom_lyrics = "",
-  voice_style = "",
-  language = "ru",
-  tempo = ""
+  mode = 'quick',
+  custom_lyrics = '',
+  voice_style = '',
+  language = 'ru',
+  tempo = ''
 } = testData;
 
 console.log('\n📋 Extracted parameters:');
