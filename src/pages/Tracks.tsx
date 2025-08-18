@@ -268,7 +268,7 @@ export default function Tracks() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Заголовок */}
       <div className="flex items-center justify-between">
         <div>
