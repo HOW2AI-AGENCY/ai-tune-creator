@@ -155,10 +155,13 @@ export function TrackResultsGrid({
                   
                   <Button 
                     size="sm" 
-                    className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 p-0 shadow-lg"
+                    className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90 p-0 shadow-lg disabled:opacity-50"
+                    disabled={!track.audio_url}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onPlayTrack(track);
+                      if (track.audio_url) {
+                        onPlayTrack(track);
+                      }
                     }}
                     aria-label={isCurrentTrackPlaying(track) ? t('pauseTrack') : t('playTrack')}
                   >
