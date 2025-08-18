@@ -11,21 +11,29 @@ export interface QuickPreset {
 }
 
 export interface GenerationParams {
-  prompt: string;
+  // Основной контент (всегда заполнен)
+  prompt: string;  // Описание стиля ИЛИ лирика (зависит от inputType)
+  
+  // Контекст генерации
   service: 'suno' | 'mureka';
+  mode: 'quick' | 'custom';
+  inputType: 'description' | 'lyrics';  // Обязательное поле для понимания содержимого prompt
+  
+  // Проект и артист
   projectId?: string;
   artistId?: string;
-  stylePrompt?: string;
-  genreTags?: string[];
-  customLyrics?: string;
-  mode: 'quick' | 'custom';
+  useInbox?: boolean;
+  
+  // Стилистика и жанры
+  stylePrompt?: string;    // Дополнительное описание стиля (только для description режима)
+  genreTags?: string[];    // Жанровые теги
+  
+  // Аудио параметры
   tempo?: string;
   duration?: number;
   instrumental?: boolean;
   voiceStyle?: string;
   language?: string;
-  inputType?: 'description' | 'lyrics';
-  useInbox?: boolean;
 }
 
 export interface Option {

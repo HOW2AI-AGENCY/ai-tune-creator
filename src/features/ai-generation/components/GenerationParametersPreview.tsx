@@ -60,12 +60,12 @@ export function GenerationParametersPreview({
           </div>
         )}
 
-        {/* Кастомная лирика */}
-        {params.customLyrics && (
+        {/* Лирика или описание */}
+        {params.inputType === 'lyrics' && (
           <div>
-            <h4 className="font-medium text-sm mb-2">Кастомная лирика:</h4>
+            <h4 className="font-medium text-sm mb-2">Лирика:</h4>
             <p className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-md max-h-24 overflow-y-auto">
-              {params.customLyrics}
+              {params.prompt}
             </p>
           </div>
         )}

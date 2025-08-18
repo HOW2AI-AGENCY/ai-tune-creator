@@ -125,21 +125,29 @@ export function TrackGenerationSidebar({
     if (selectedMood && selectedMood !== "none") genreTags.push(selectedMood);
 
     const params: GenerationParams = {
-      prompt: inputType === 'description' ? prompt : stylePrompt,
+      // Основной контент - берем из правильного поля в зависимости от типа
+      prompt: inputType === 'lyrics' ? prompt : (mode === 'custom' && customLyrics ? customLyrics : prompt),
+      inputType,
+      
+      // Сервис и режим
       service: selectedService,
+      mode,
+      
+      // Проект и контекст
       projectId: sendToInbox ? undefined : (selectedProjectId !== "none" ? selectedProjectId : undefined),
       artistId: sendToInbox ? undefined : (selectedArtistId !== "none" ? selectedArtistId : undefined),
+      useInbox: sendToInbox,
+      
+      // Стилистика (только для description режима)
+      stylePrompt: inputType === 'description' ? stylePrompt || undefined : undefined,
       genreTags,
-      mode,
-      customLyrics: inputType === 'lyrics' ? prompt : (mode === 'custom' ? customLyrics : undefined),
+      
+      // Аудио параметры
       tempo: tempo !== "none" ? tempo : undefined,
       duration,
       instrumental,
       voiceStyle: voiceStyle !== "none" ? voiceStyle : undefined,
-      language,
-      stylePrompt: stylePrompt || undefined,
-      inputType,
-      useInbox: sendToInbox
+      language
     };
 
     setPreviewParams(params);

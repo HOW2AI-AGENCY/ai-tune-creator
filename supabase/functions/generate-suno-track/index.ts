@@ -64,15 +64,16 @@ const rateMap = new Map<string, { count: number; reset: number }>();
 
 /** Структура входящего запроса для генерации трека */
 interface GenerationRequest {
-  prompt: string;                    // Основной промпт для генерации
+  prompt: string;                    // Основной контент (лирика ИЛИ описание)
+  inputType: 'description' | 'lyrics'; // Что содержится в prompt
   style?: string;                   // Музыкальный стиль (Pop, Rock, Electronic и т.д.)
+  stylePrompt?: string;             // Дополнительное описание стиля (только для description режима)
   title?: string;                   // Название трека
   tags?: string;                    // Теги через запятую
   make_instrumental?: boolean;      // Создать инструментальную версию
   wait_audio?: boolean;            // Ожидать готовый аудиофайл
   model?: SunoModelType;           // Модель Suno для генерации
   mode?: 'quick' | 'custom';       // Режим генерации
-  custom_lyrics?: string;          // Пользовательский текст песни
   voice_style?: string;            // Стиль вокала
   language?: string;               // Язык генерации
   tempo?: string;                  // Темп композиции
@@ -169,27 +170,29 @@ function normalizeModelName(model: string): NormalizedSunoModel {
 }
 
 /**
- * Проверяет, является ли текст лирикой песни
- * @description Анализирует текст на наличие структурных элементов песни
- * @param text - Анализируемый текст
- * @returns true если текст похож на лирику
+ * Определяет параметры для Suno API на основе входных данных
+ * @description Правильно распределяет лирику и описание стиля
+ * @param request - Данные запроса
+ * @returns Параметры для Suno API
  */
-function looksLikeLyrics(text?: string): boolean {
-  if (!text) return false;
+function prepareSunoParams(request: GenerationRequest) {
+  const isLyricsInput = request.inputType === 'lyrics';
   
-  const lowerText = text.toLowerCase();
-  
-  // Исключаем команды генерации
-  if (lowerText.includes('создай') || lowerText.includes('сгенерируй')) {
-    return false;
+  // Если пользователь ввел лирику
+  if (isLyricsInput) {
+    return {
+      prompt: request.stylePrompt || 'Создай музыку к этой лирике',
+      lyrics: request.prompt,
+      customMode: true
+    };
   }
   
-  // Проверяем структурные элементы песни
-  const hasStructure = /\[?(verse|chorus|bridge|intro|outro|куплет|припев|бридж)\]?/i.test(text);
-  const hasLineBreaks = /\n/.test(text);
-  const isLongText = text.split(/\s+/).length > 12;
-  
-  return hasStructure || hasLineBreaks || isLongText;
+  // Если пользователь ввел описание
+  return {
+    prompt: request.prompt,
+    lyrics: undefined,
+    customMode: request.mode === 'custom'
+  };
 }
 
 /**
@@ -255,39 +258,50 @@ function cleanupRateLimit(): void {
  * @returns Результат валидации
  */
 function validateRequest(request: GenerationRequest): OperationResult<void> {
-  // Проверка режима и соответствующих полей
-  if (request.mode === 'custom' && request.custom_lyrics && request.custom_lyrics.trim().length > 0) {
-    // В кастомном режиме с лирикой prompt может быть пустым
-  } else if (!request.prompt || request.prompt.trim().length === 0) {
+  // Проверка обязательного поля prompt
+  if (!request.prompt || request.prompt.trim().length === 0) {
     return {
       success: false,
       error: {
         code: 'VALIDATION_ERROR',
-        message: 'Prompt обязателен и не может быть пустым',
+        message: 'Основной контент (prompt) обязателен и не может быть пустым',
         retryable: false
       }
     };
   }
   
-  // Проверка длины промпта
-  if (request.prompt && request.prompt.length > 1000) {
+  // Проверка обязательного поля inputType
+  if (!request.inputType || !['description', 'lyrics'].includes(request.inputType)) {
+    return {
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'inputType должен быть "description" или "lyrics"',
+        retryable: false
+      }
+    };
+  }
+  
+  // Проверка длины основного контента
+  const maxLength = request.inputType === 'lyrics' ? 3000 : 1000;
+  if (request.prompt.length > maxLength) {
     return {
       success: false,
       error: {
         code: 'VALIDATION_ERROR', 
-        message: 'Prompt слишком длинный (максимум 1000 символов)',
+        message: `Контент слишком длинный (максимум ${maxLength} символов для ${request.inputType})`,
         retryable: false
       }
     };
   }
   
-  // Проверка длины кастомной лирики
-  if (request.custom_lyrics && request.custom_lyrics.length > 3000) {
+  // Проверка stylePrompt только для description режима
+  if (request.inputType === 'description' && request.stylePrompt && request.stylePrompt.length > 500) {
     return {
       success: false,
       error: {
         code: 'VALIDATION_ERROR',
-        message: 'Кастомная лирика слишком длинная (максимум 3000 символов)',
+        message: 'Описание стиля слишком длинное (максимум 500 символов)',
         retryable: false
       }
     };
@@ -449,6 +463,8 @@ serve(async (req) => {
     // Извлекаем параметры с значениями по умолчанию
     const { 
       prompt,
+      inputType = 'description',
+      stylePrompt = "",
       style = "",
       title = "",
       tags = "energetic, creative, viral",
@@ -459,7 +475,6 @@ serve(async (req) => {
       projectId = null,
       artistId = null,
       mode = "quick" as const,
-      custom_lyrics = "",
       voice_style = "",
       language = "ru",
       tempo = "",
@@ -468,12 +483,13 @@ serve(async (req) => {
     
     console.log('Параметры запроса:', {
       prompt: prompt ? `"${prompt.substring(0, 100)}..."` : '[пустой]',
+      inputType,
+      stylePrompt: stylePrompt || '[не указан]',
       style: style || '[не указан]',
       title: title || '[не указан]',
       model,
       make_instrumental,
       mode,
-      custom_lyrics: custom_lyrics ? `"${custom_lyrics.substring(0, 50)}..."` : '[пустой]',
       voice_style: voice_style || '[не указан]',
       language,
       tempo: tempo || '[не указан]',
@@ -547,31 +563,20 @@ serve(async (req) => {
     console.log('Длина API ключа:', sunoApiKey.length);
     console.log('Callback URL:', callbackUrl);
 
-    // Анализируем и разделяем промпт и лирику согласно логике приложения
-    let requestPrompt = prompt;
-    let requestLyrics = "";
+    // Используем новую логику на основе inputType
+    const sunoParams = prepareSunoParams(requestBody);
+    let requestPrompt = sunoParams.prompt;
+    let requestLyrics = sunoParams.lyrics || "";
     
-    // Определяем тип контента и разделяем стиль/лирику
-    if (custom_lyrics && custom_lyrics.trim().length > 0) {
-      // Режим с пользовательской лирикой: поём текст, prompt описывает стиль
-      requestLyrics = custom_lyrics.trim();
-      requestPrompt = style || prompt || 'Pop, Electronic';
-      console.log('Режим: пользовательская лирика');
-    } else if (make_instrumental) {
-      // Инструментальный режим: без лирики
+    console.log(`Режим: ${inputType === 'lyrics' ? 'лирика' : 'описание стиля'}`);
+    console.log('inputType:', inputType);
+    console.log('make_instrumental:', make_instrumental);
+    
+    // Переопределяем для инструментального режима
+    if (make_instrumental) {
       requestLyrics = "";
-      requestPrompt = prompt || style || 'Pop, Electronic';
-      console.log('Режим: инструментальная композиция');
-    } else if (looksLikeLyrics(prompt)) {
-      // Пользователь ввёл лирику в поле prompt
-      requestLyrics = prompt!;
-      requestPrompt = style || 'Pop, Electronic';
-      console.log('Режим: лирика в поле prompt');
-    } else {
-      // Стандартный режим: prompt описывает стиль, лирику генерирует AI
-      requestLyrics = "";
-      requestPrompt = prompt || style || 'Pop, Electronic';
-      console.log('Режим: стандартная генерация');
+      requestPrompt = inputType === 'lyrics' ? (stylePrompt || 'Инструментальная композиция') : prompt;
+      console.log('Принудительно установлен инструментальный режим');
     }
     
     console.log('Итоговый промпт:', requestPrompt);

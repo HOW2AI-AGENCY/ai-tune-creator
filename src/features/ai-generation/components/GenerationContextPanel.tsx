@@ -252,21 +252,29 @@ export function GenerationContextPanel({
     if (selectedMood && selectedMood !== "none") genreTags.push(selectedMood);
 
     let finalParams: GenerationParams = {
-      prompt: inputType === 'description' ? prompt : stylePrompt,
+      // Основной контент - либо описание, либо лирика
+      prompt: inputType === 'lyrics' ? prompt : (mode === 'custom' && customLyrics ? customLyrics : prompt),
+      inputType,
+      
+      // Сервис и режим
       service: selectedService,
+      mode,
+      
+      // Проект и контекст
       projectId: sendToInbox ? undefined : (selectedProjectId !== "none" ? selectedProjectId : undefined),
       artistId: sendToInbox ? undefined : (selectedArtistId !== "none" ? selectedArtistId : undefined),
+      useInbox: sendToInbox,
+      
+      // Стилистика (только для description режима)
+      stylePrompt: inputType === 'description' ? stylePrompt || undefined : undefined,
       genreTags,
-      mode,
-      customLyrics: inputType === 'lyrics' ? prompt : (mode === 'custom' && customLyrics ? customLyrics : undefined),
+      
+      // Аудио параметры
       tempo: tempo !== "none" ? tempo : undefined,
       duration: duration[0],
       instrumental,
       voiceStyle: voiceStyle !== "none" ? voiceStyle : undefined,
-      language,
-      stylePrompt: stylePrompt || undefined,
-      inputType,
-      useInbox: sendToInbox
+      language
     };
 
     // Apply prompt profile if available
