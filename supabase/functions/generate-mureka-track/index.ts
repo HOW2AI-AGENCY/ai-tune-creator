@@ -394,43 +394,53 @@ function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string
     hasLyrics: !!request.lyrics,
     hasPrompt: !!request.prompt,
     isInstrumental: request.instrumental,
-    style: request.style
+    style: request.style,
+    promptType: typeof request.prompt,
+    lyricsType: typeof request.lyrics
   });
   
-  if (request.custom_lyrics && request.custom_lyrics.trim().length > 0) {
+  // Обработка входящих данных - преобразуем объекты в строки
+  const safePrompt = typeof request.prompt === 'string' ? request.prompt : 
+                     typeof request.prompt === 'object' ? JSON.stringify(request.prompt) : '';
+  const safeLyrics = typeof request.lyrics === 'string' ? request.lyrics : 
+                     typeof request.lyrics === 'object' ? JSON.stringify(request.lyrics) : '';
+  const safeCustomLyrics = typeof request.custom_lyrics === 'string' ? request.custom_lyrics : 
+                           typeof request.custom_lyrics === 'object' ? JSON.stringify(request.custom_lyrics) : '';
+  
+  if (safeCustomLyrics && safeCustomLyrics.trim().length > 0) {
     // Пользователь предоставил явную лирику
-    lyrics = request.custom_lyrics.trim();
+    lyrics = safeCustomLyrics.trim();
     prompt = stylePrompt;
     console.log('[PREPARE] Using custom lyrics');
-  } else if (request.lyrics && request.lyrics.trim().length > 0) {
+  } else if (safeLyrics && safeLyrics.trim().length > 0) {
     // Лирика в поле lyrics - проверяем, что это не промпт для генерации
-    const cleanLyrics = request.lyrics.trim();
+    const cleanLyrics = safeLyrics.trim();
     if (looksLikeLyrics(cleanLyrics)) {
       lyrics = cleanLyrics;
       prompt = stylePrompt;
       console.log('[PREPARE] Using lyrics field as lyrics');
     } else {
-      // Это выглядит как промпт для генерации лирики
-      lyrics = `Generate lyrics: ${cleanLyrics}`;
+      // Это выглядит как промпт для генерации лирики - просто используем как есть
+      lyrics = cleanLyrics;
       prompt = stylePrompt;
-      console.log('[PREPARE] Treating lyrics field as generation prompt');
+      console.log('[PREPARE] Using lyrics field as prompt text');
     }
   } else if (request.instrumental) {
     // Инструментальный трек
     lyrics = '[Instrumental]';
-    prompt = request.prompt || stylePrompt;
+    prompt = safePrompt || stylePrompt;
     console.log('[PREPARE] Creating instrumental track');
-  } else if (request.prompt && looksLikeLyrics(request.prompt)) {
+  } else if (safePrompt && looksLikeLyrics(safePrompt)) {
     // Поле prompt содержит лирику
-    lyrics = request.prompt;
+    lyrics = safePrompt;
     prompt = stylePrompt;
     console.log('[PREPARE] Using prompt field as lyrics');
   } else {
-    // Нет готовой лирики - генерируем на основе промпта
-    const promptText = request.prompt || 'a beautiful song';
-    lyrics = `Create a song about: ${promptText}`;
+    // Нет готовой лирики - используем prompt для генерации
+    const promptText = safePrompt || 'a beautiful song';
+    lyrics = promptText; // Просто передаем текст как есть, не добавляем префикс
     prompt = stylePrompt;
-    console.log('[PREPARE] Generating lyrics from prompt');
+    console.log('[PREPARE] Using prompt text directly for lyrics generation');
   }
   
   console.log('[PREPARE] Final content prepared:', {
