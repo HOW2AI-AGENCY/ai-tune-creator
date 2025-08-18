@@ -301,6 +301,21 @@ export type Database = {
         }
         Relationships: []
       }
+      operation_locks: {
+        Row: {
+          expires_at: string
+          key: string
+        }
+        Insert: {
+          expires_at?: string
+          key: string
+        }
+        Update: {
+          expires_at?: string
+          key?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -744,6 +759,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_lock: {
+        Args: { p_key: string; p_ttl_seconds?: number }
+        Returns: boolean
+      }
       create_activity_log: {
         Args: {
           p_action: string
@@ -766,6 +785,10 @@ export type Database = {
           p_type?: string
           p_user_id: string
         }
+        Returns: string
+      }
+      create_or_update_track_from_generation: {
+        Args: { p_generation_id: string; p_project_id?: string }
         Returns: string
       }
       dedupe_track_title: {
@@ -791,6 +814,10 @@ export type Database = {
           entity_type: string
           operation_type: string
         }
+        Returns: undefined
+      }
+      release_lock: {
+        Args: { p_key: string }
         Returns: undefined
       }
       validate_track_metadata: {
