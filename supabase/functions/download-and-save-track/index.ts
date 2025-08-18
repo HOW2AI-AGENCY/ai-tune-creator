@@ -8,10 +8,12 @@ const corsHeaders = {
 };
 
 interface DownloadTrackRequest {
-  generation_id: string;
+  generation_id?: string;
   external_url: string;
   filename?: string;
   track_id?: string;
+  taskId?: string;
+  task_id?: string;
 }
 
 // Edge Function для загрузки и сохранения треков в Supabase Storage
@@ -44,19 +46,20 @@ serve(async (req) => {
       throw new Error('Invalid JSON in request body');
     }
 
-    const { generation_id, external_url, filename, track_id } = requestBody;
+    const { generation_id, external_url, filename, track_id, taskId, task_id } = requestBody;
 
     console.log('Request parameters:', { 
       generation_id: generation_id || 'missing', 
+      taskId: taskId || task_id || 'missing',
       external_url: external_url || 'missing',
       filename,
       track_id 
     });
 
-    if (!generation_id) {
+    if (!generation_id && !(taskId || task_id)) {
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'generation_id is required',
+        error: 'generation_id or taskId is required',
         timestamp: new Date().toISOString()
       }), {
         status: 400,
@@ -75,29 +78,74 @@ serve(async (req) => {
       });
     }
 
-    console.log('Starting download for generation:', generation_id);
+    const incomingTaskId = taskId || task_id || null;
+
+    console.log('Starting download for generation/task:', generation_id || incomingTaskId);
     console.log('External URL:', external_url);
 
-    // Получаем информацию о генерации
-    const { data: generation, error: genError } = await supabase
-      .from('ai_generations')
-      .select(`
-        id,
-        user_id,
-        service,
-        status,
-        metadata,
-        track_id,
-        tracks(id, title, project_id, projects(id, title, artist_id))
-      `)
-      .eq('id', generation_id)
-      .single();
+    // Получаем информацию о генерации по generation_id или taskId
+    let generation: any | null = null;
+    let genError: any = null;
+
+    if (generation_id) {
+      const result = await supabase
+        .from('ai_generations')
+        .select(`
+          id,
+          user_id,
+          service,
+          status,
+          metadata,
+          track_id,
+          tracks(id, title, project_id, projects(id, title, artist_id))
+        `)
+        .eq('id', generation_id)
+        .single();
+      generation = result.data;
+      genError = result.error;
+    } else if (incomingTaskId) {
+      // Попытка №1: поиск по столбцу task_id
+      let res = await supabase
+        .from('ai_generations')
+        .select(`
+          id,
+          user_id,
+          service,
+          status,
+          metadata,
+          track_id,
+          tracks(id, title, project_id, projects(id, title, artist_id))
+        `)
+        .eq('task_id', incomingTaskId)
+        .maybeSingle();
+      generation = res.data;
+      genError = res.error;
+
+      // Попытка №2: поиск по metadata.taskId (если столбца task_id нет или запись не найдена)
+      if ((!generation || genError) && !generation) {
+        const resMeta = await supabase
+          .from('ai_generations')
+          .select(`
+            id,
+            user_id,
+            service,
+            status,
+            metadata,
+            track_id,
+            tracks(id, title, project_id, projects(id, title, artist_id))
+          `)
+          .contains('metadata', { taskId: incomingTaskId })
+          .maybeSingle();
+        generation = resMeta.data;
+        genError = resMeta.error;
+      }
+    }
 
     if (genError || !generation) {
-      console.error('Generation lookup error:', { generation_id, error: genError });
+      console.error('Generation lookup error:', { generation_id, incomingTaskId, error: genError });
       return new Response(JSON.stringify({ 
         success: false,
-        error: `Generation not found: ${generation_id}`,
+        error: `Generation not found by ${generation_id ? 'generation_id' : 'taskId'}: ${generation_id || incomingTaskId}`,
         timestamp: new Date().toISOString()
       }), {
         status: 404,
@@ -105,11 +153,13 @@ serve(async (req) => {
       });
     }
 
+    const resolvedGenerationId = generation.id;
+
     // Определяем имя файла
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const service = generation.service || 'unknown';
     const baseFileName = filename || 
-      `${service}-track-${generation_id.slice(0, 8)}-${timestamp}`;
+      `${service}-track-${resolvedGenerationId.slice(0, 8)}-${timestamp}`;
     
     // Добавляем расширение если его нет
     const audioFileName = baseFileName.includes('.') ? baseFileName : `${baseFileName}.mp3`;
@@ -172,7 +222,7 @@ serve(async (req) => {
           file_size: audioUint8Array.length
         }
       })
-      .eq('id', generation_id);
+      .eq('id', resolvedGenerationId);
 
     if (updateGenError) {
       console.error('Error updating generation:', updateGenError);
@@ -219,7 +269,7 @@ serve(async (req) => {
           description: `Generated with ${generation.service}`,
           genre_tags: [],
           metadata: {
-            generation_id: generation_id,
+            generation_id: resolvedGenerationId,
             service: generation.service,
             local_storage_path: storagePath,
             original_external_url: external_url,
@@ -241,14 +291,14 @@ serve(async (req) => {
         await supabase
           .from('ai_generations')
           .update({ track_id: finalTrackId })
-          .eq('id', generation_id);
+          .eq('id', resolvedGenerationId);
       }
     }
 
     const response = {
       success: true,
       data: {
-        generation_id,
+        generation_id: resolvedGenerationId,
         track_id: finalTrackId,
         local_audio_url: localAudioUrl,
         storage_path: storagePath,
