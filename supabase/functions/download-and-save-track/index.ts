@@ -92,7 +92,8 @@ serve(async (req) => {
     const lockKey = `download:${generation_id || incomingTaskId}`;
 
     console.log('Starting download for generation/task:', generation_id || incomingTaskId);
-    console.log('External URL:', external_url);
+    console.log('External URL (provider):', external_url);
+    console.log('Provider domain:', new URL(external_url).hostname);
 
     // Try to acquire lock for idempotency
     const { data: lockAcquired } = await supabase.rpc('acquire_operation_lock', {
@@ -254,6 +255,7 @@ serve(async (req) => {
     }
 
     console.log('File uploaded to storage:', uploadData.path);
+    console.log('Provider URL preserved for debugging:', external_url);
 
     // Get public URL
     const { data: publicUrlData } = supabase.storage

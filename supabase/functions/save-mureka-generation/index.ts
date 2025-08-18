@@ -36,7 +36,12 @@ serve(async (req) => {
     console.log('Saving Mureka generation:', {
       taskId: requestData.taskId,
       generationId: requestData.generationId,
-      url: requestData.trackData.url
+      url: requestData.trackData.url,
+      flac_url: requestData.trackData.flac_url,
+      provider_urls: {
+        mp3: requestData.trackData.url,
+        flac: requestData.trackData.flac_url
+      }
     });
 
     const { generationId, taskId, trackData, title, prompt, userId } = requestData;
@@ -67,7 +72,12 @@ serve(async (req) => {
             mureka_task_id: taskId,
             mureka_track_id: trackData.id,
             duration: trackData.duration,
-            mureka_status: 'succeeded'
+            mureka_status: 'succeeded',
+            provider_urls: {
+              mp3: trackData.url,
+              flac: trackData.flac_url
+            },
+            instant_playback_url: trackData.url
           }
         })
         .eq('id', generationId);
@@ -96,7 +106,12 @@ serve(async (req) => {
             mureka_track_id: trackData.id,
             duration: trackData.duration,
             mureka_status: 'succeeded',
-            title: title
+            title: title,
+            provider_urls: {
+              mp3: trackData.url,
+              flac: trackData.flac_url
+            },
+            instant_playback_url: trackData.url
           },
           parameters: {
             model: 'mureka-7',

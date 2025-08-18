@@ -212,7 +212,7 @@ export function useGenerationPersistence() {
       } catch (error) {
         console.error('Background sync error:', error);
       }
-    }, 30000); // Check every 30 seconds
+    }, 5000); // Check every 5 seconds for faster updates
 
     // Cleanup after max time
     setTimeout(() => {

@@ -40,6 +40,7 @@ export function isValidAudioUrl(url: string): boolean {
       'cdn.sunoapi.org',
       'api.sunoapi.org',
       'api.mureka.ai',
+      'cdn.mureka.ai',
       'tempfile.redpandaai.co'
     ];
     
