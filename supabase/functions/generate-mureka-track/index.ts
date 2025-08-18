@@ -852,6 +852,18 @@ serve(async (req) => {
     let trackRecord = null;
     let generationRecord = null;
     
+    // Создаем authenticated supabase client с service role для обхода RLS
+    const authSupabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+    
     // Создаем запись в ai_generations только если у нас есть валидный userId UUID
     try {
       // Проверяем, что userId это валидный UUID, а не 'anonymous'
@@ -859,7 +871,7 @@ serve(async (req) => {
                          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
       
       if (isValidUUID) {
-        const { data: generation, error: genError } = await supabase
+        const { data: generation, error: genError } = await authSupabase
           .from('ai_generations')
           .insert({
             user_id: userId,
@@ -959,63 +971,29 @@ serve(async (req) => {
       } catch (error) {
         console.error('[DB] Критическая ошибка при обновлении трека:', error);
       }
-    } else if (finalProjectId) {
-      // Создаем новый трек
+    } else if (finalProjectId && generationRecord?.id) {
+      // Создаем новый трек через RPC функцию для обхода RLS
       try {
-        const { data: newTrack, error: trackError } = await supabase
-          .from('tracks')
-          .insert({
-            title: requestBody.title || 
-                   finalTrack.choices?.[0]?.title || 
-                   `AI Track ${(requestBody.genre || 'Music').charAt(0).toUpperCase()}${(requestBody.genre || 'music').slice(1)}`,
-            lyrics: processedLyrics,
-            description: `Mureka AI generated ${requestBody.genre || 'music'} track using ${finalTrack.model} model`,
-            audio_url: finalTrack.choices?.[0]?.audio_url,
-            duration: finalTrack.choices?.[0]?.duration || requestBody.duration,
-            genre_tags: [requestBody.genre, requestBody.mood, requestBody.tempo].filter(Boolean),
-            style_prompt: requestBody.style,
-            project_id: finalProjectId,
-            track_number: 1,
-            metadata: {
-              mureka_task_id: finalTrack.id,
-              model: finalTrack.model,
-              mureka_response: finalTrack,
-              generation_id: generationRecord?.id,
-              genre: requestBody.genre,
-              mood: requestBody.mood,
-              tempo: requestBody.tempo,
-              key: requestBody.key,
-              instruments: requestBody.instruments,
-              mode: requestBody.mode,
-              custom_lyrics: requestBody.custom_lyrics,
-              lyrics: requestLyrics,
-              instrumental: requestBody.instrumental,
-              language: requestBody.language,
-              reference_id: requestBody.reference_id,
-              vocal_id: requestBody.vocal_id,
-              melody_id: requestBody.melody_id,
-              stream: requestBody.stream
-            }
-          })
-          .select()
-          .single();
+        const { data: trackId, error: trackError } = await authSupabase
+          .rpc('create_or_update_track_from_generation', {
+            p_generation_id: generationRecord.id,
+            p_project_id: finalProjectId
+          });
         
         if (trackError) {
-          console.error('[DB] Ошибка создания трека:', trackError);
+          console.error('[DB] Ошибка создания трека через RPC:', trackError);
         } else {
-          trackRecord = newTrack;
-          console.log(`[DB] Трек создан: ${newTrack.id}`);
-          
-          // Обновляем generation с track_id
-          if (generationRecord?.id) {
-            await supabase
-              .from('ai_generations')
-              .update({ track_id: newTrack.id })
-              .eq('id', generationRecord.id);
-          }
+          console.log(`[DB] Трек создан через RPC: ${trackId}`);
+          // Получаем созданный трек
+          const { data: track } = await authSupabase
+            .from('tracks')
+            .select('*')
+            .eq('id', trackId)
+            .single();
+          trackRecord = track;
         }
       } catch (error) {
-        console.error('[DB] Критическая ошибка при создании трека:', error);
+        console.error('[DB] Критическая ошибка при создании трека через RPC:', error);
       }
     }
     

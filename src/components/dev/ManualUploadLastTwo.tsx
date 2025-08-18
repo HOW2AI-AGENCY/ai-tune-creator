@@ -24,8 +24,11 @@ function extractAudioUrl(gen: GenerationRow): string | null {
     m?.all_tracks?.[0]?.audioUrl,
     m?.suno_track_data?.audio_url,
     m?.suno_track_data?.audioUrl,
+    // Mureka API responses
+    m?.choices?.[0]?.audio_url,
+    gen.result_url,
     // Sometimes result_url holds provider url
-    gen.result_url && /apiboxfiles|cdn1\.suno\.ai|mfile\.erweima/.test(gen.result_url) ? gen.result_url : null,
+    gen.result_url && /apiboxfiles|cdn1\.suno\.ai|mfile\.erweima|mureka\.ai/.test(gen.result_url) ? gen.result_url : null,
   ];
   return (candidates.find(Boolean) as string) || null;
 }
@@ -39,11 +42,11 @@ export function ManualUploadLastTwo() {
     setLoading(true);
     setLastResult(null);
     try {
-      // Load recent Suno generations
+      // Load recent Suno and Mureka generations
       const { data, error } = await supabase
         .from('ai_generations')
         .select('id, service, status, result_url, external_id, metadata, created_at')
-        .eq('service', 'suno')
+        .in('service', ['suno', 'mureka'])
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -75,7 +78,9 @@ export function ManualUploadLastTwo() {
           continue;
         }
 
-        const filename = (gen.metadata?.title as string) || `suno-${gen.external_id || gen.id}`;
+        const filename = (gen.metadata?.title as string) || 
+                        (gen.metadata?.choices?.[0]?.title as string) ||
+                        `${gen.service}-${gen.external_id || gen.id}`;
 
         const { data: dlData, error: dlError } = await supabase.functions.invoke('download-and-save-track', {
           body: {
@@ -118,7 +123,7 @@ export function ManualUploadLastTwo() {
           <Music2 className="h-5 w-5" />
           Ручная загрузка последних 2 треков
         </CardTitle>
-        <CardDescription>Скачивает и сохраняет в Supabase Storage два последних Suno-трека.</CardDescription>
+        <CardDescription>Скачивает и сохраняет в Supabase Storage два последних трека (Suno/Mureka).</CardDescription>
       </CardHeader>
       <CardContent className="flex items-center gap-3 flex-wrap">
         <Button onClick={handleUpload} disabled={loading} className="flex items-center gap-2">
