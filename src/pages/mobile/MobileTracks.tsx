@@ -52,6 +52,37 @@ export default function MobileTracks() {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
 
+  // Restore cached state quickly to avoid empty list flicker
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem('mobile_tracks_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed.tracks)) {
+          setTracks(parsed.tracks);
+          setLoading(false);
+        }
+        if (typeof parsed.selectedProject === 'string') setSelectedProject(parsed.selectedProject);
+        if (typeof parsed.selectedGenre === 'string') setSelectedGenre(parsed.selectedGenre);
+        if (typeof parsed.searchTerm === 'string') setSearchTerm(parsed.searchTerm);
+        if (Array.isArray(parsed.projects)) setProjects(parsed.projects);
+      }
+    } catch {}
+  }, []);
+
+  // Persist state
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('mobile_tracks_cache', JSON.stringify({
+        tracks,
+        projects,
+        selectedProject,
+        selectedGenre,
+        searchTerm
+      }));
+    } catch {}
+  }, [tracks, projects, selectedProject, selectedGenre, searchTerm]);
+
   const loadTracks = async () => {
     try {
       setLoading(true);
@@ -97,6 +128,19 @@ export default function MobileTracks() {
       }
 
       setTracks(filteredTracks as any);
+
+      // Cache tracks
+      try {
+        const prev = JSON.parse(sessionStorage.getItem('mobile_tracks_cache') || '{}');
+        sessionStorage.setItem('mobile_tracks_cache', JSON.stringify({
+          ...prev,
+          tracks: filteredTracks,
+          selectedProject,
+          selectedGenre,
+          searchTerm
+        }));
+      } catch {}
+
     } catch (error: any) {
       console.error('Error loading tracks:', error);
       toast({
@@ -125,6 +169,15 @@ export default function MobileTracks() {
 
       if (error) throw error;
       setProjects(data || []);
+
+      // Cache projects
+      try {
+        const prev = JSON.parse(sessionStorage.getItem('mobile_tracks_cache') || '{}');
+        sessionStorage.setItem('mobile_tracks_cache', JSON.stringify({
+          ...prev,
+          projects: data || []
+        }));
+      } catch {}
     } catch (error) {
       console.error('Error loading projects:', error);
     }

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -10,6 +11,7 @@ import {
   WifiOff
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTelegramWebApp, useTelegramBackButton } from '@/hooks/useTelegramWebApp';
 
 interface MobileHeaderProps {
   title: string;
@@ -44,6 +46,16 @@ export function MobileHeader({
   className,
   children
 }: MobileHeaderProps) {
+  const { isInTelegram } = useTelegramWebApp();
+  const { showBackButton, hideBackButton } = useTelegramBackButton();
+
+  useEffect(() => {
+    if (isInTelegram && showBack && onBack) {
+      showBackButton(onBack);
+      return () => hideBackButton();
+    }
+  }, [isInTelegram, showBack, onBack, showBackButton, hideBackButton]);
+
   return (
     <header className={cn(
       "sticky top-0 z-40 w-full bg-card/95 backdrop-blur-md border-b border-border",
@@ -52,10 +64,10 @@ export function MobileHeader({
       "animate-fade-in",
       className
     )}>
-      <div className="flex items-center justify-between px-4 mobile-header-height">
+      <div className={cn("flex items-center justify-between mobile-header-height", isInTelegram ? "px-3" : "px-4")}>
         {/* Left Section */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          {showBack && (
+          {showBack && !isInTelegram && (
             <Button
               variant="ghost"
               size="icon"
