@@ -222,66 +222,132 @@ export default function AIGenerationStudio() {
   };
 
   const fetchTracks = async () => {
+    if (!user) return;
+    
     try {
-      console.log("[AIGenerationStudio] Fetching tracks...");
+      console.log('[AIGenerationStudio] Fetching tracks from database...');
       
+      // Получаем треки с более детальным запросом включая проекты через artists
       const { data, error } = await supabase
-        .from("tracks")
+        .from('tracks')
         .select(`
           id,
           title,
+          project_id,
           track_number,
-          duration,
+          audio_url,
           lyrics,
-          description,
+          duration,
           genre_tags,
-          style_prompt,
-          current_version,
+          metadata,
           created_at,
           updated_at,
-          audio_url,
-          metadata,
           projects!inner (
+            id,
             title,
+            artist_id,
             artists!inner (
+              id,
               name,
-              user_id
+              user_id,
+              avatar_url
             )
           )
         `)
-        .eq('projects.artists.user_id', user?.id)
-        .order("updated_at", { ascending: false });
+        .eq('projects.artists.user_id', user.id)
+        .order('updated_at', { ascending: false });
 
-      console.log("[AIGenerationStudio] Tracks query result:", { data, error, count: data?.length || 0 });
-      
       if (error) {
-        console.error("[AIGenerationStudio] Error fetching tracks:", error);
-        throw error;
+        console.error('[AIGenerationStudio] Error fetching tracks:', error);
+        toast({
+          title: "Ошибка загрузки треков",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
       }
+
+      console.log(`[AIGenerationStudio] Raw tracks data:`, data);
+      console.log(`[AIGenerationStudio] Found ${data?.length || 0} tracks for user ${user.id}`);
       
-      // Фильтруем треки с audio_url
-      const tracksWithAudio = (data || []).filter(track => track.audio_url);
-      console.log("[AIGenerationStudio] Tracks with audio:", { 
-        total: data?.length || 0, 
+      // Проверяем на аудио URL
+      const tracksWithAudio = data?.filter(track => track.audio_url) || [];
+      console.log(`[AIGenerationStudio] Tracks with audio:`, {
+        total: data?.length || 0,
         withAudio: tracksWithAudio.length,
-        tracks: tracksWithAudio.map(t => ({ id: t.id, title: t.title, audio_url: !!t.audio_url }))
+        tracks: tracksWithAudio.map(t => ({ 
+          id: t.id, 
+          title: t.title, 
+          audio_url: !!t.audio_url 
+        }))
       });
       
-      setTracks(tracksWithAudio);
+      const formattedTracks: Track[] = (data || []).map(track => ({
+        id: track.id,
+        title: track.title,
+        project_id: track.project_id,
+        track_number: track.track_number,
+        audio_url: track.audio_url,
+        lyrics: track.lyrics,
+        duration: track.duration,
+        genre_tags: track.genre_tags || [],
+        metadata: track.metadata,
+        created_at: track.created_at,
+        updated_at: track.updated_at,
+        project: track.projects ? {
+          title: track.projects.title,
+          artist: track.projects.artists ? {
+            name: track.projects.artists.name
+          } : undefined
+        } : undefined
+      }));
+
+      setTracks(formattedTracks);
+      console.log('[AIGenerationStudio] Tracks loaded and formatted successfully');
+      
+      // Показываем уведомление если треки есть
+      if (formattedTracks.length > 0) {
+        toast({
+          title: "Треки загружены",
+          description: `Найдено ${formattedTracks.length} треков`,
+        });
+      }
     } catch (error) {
-      console.error("Error fetching tracks:", error);
+      console.error('[AIGenerationStudio] Unexpected error fetching tracks:', error);
+      toast({
+        title: "Ошибка загрузки",
+        description: "Произошла неожиданная ошибка при загрузке треков",
+        variant: "destructive"
+      });
     }
   };
 
   const handleSync = async () => {
     try {
+      console.log('[handleSync] Starting sync process...');
+      
+      // Сначала синхронизируем треки
       await syncTracks();
-      await fetchTracks();
-      await fetchTasks();
-      toast({ title: 'Синхронизация завершена', description: 'Список треков обновлен' });
+      console.log('[handleSync] Track sync completed');
+      
+      // Затем перезагружаем данные
+      await Promise.all([
+        fetchTracks(),
+        fetchTasks()
+      ]);
+      console.log('[handleSync] Data refresh completed');
+      
+      toast({ 
+        title: 'Синхронизация завершена', 
+        description: 'Список треков обновлен' 
+      });
     } catch (error) {
-      console.error('Sync error:', error);
-      toast({ title: 'Ошибка синхронизации', description: 'Не удалось обновить список треков', variant: 'destructive' });
+      console.error('[handleSync] Sync error:', error);
+      toast({ 
+        title: 'Ошибка синхронизации', 
+        description: `Не удалось обновить список треков: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`, 
+        variant: 'destructive' 
+      });
     }
   };
 
