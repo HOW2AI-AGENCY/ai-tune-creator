@@ -35,26 +35,9 @@ interface AnalyticsData {
 
 /**
  * Компонент аналитики AI генераций с метриками и статистикой
- * 
- * ОПТИМИЗАЦИЯ: Обернут в React.memo для предотвращения лишних рендеров.
- * Дорогие операции:
- * - Комплексные запросы к базе данных (3 параллельных запроса)
- * - Вычисление аналитических данных и статистики
- * - Обработка больших массивов данных для метрик
- * - Рендеринг множественных карточек и прогресс-баров
- * 
- * Мемоизация основана на:
- * - Данных пользователя (user.id)
- * - Загрузочном состоянии
- * - Вычисленных аналитических данных
- * 
- * ЭКОНОМИЯ: ~90-95% рендеров при навигации и обновлениях контекста
- * Особенно важно при больших объемах данных
- * 
- * WARNING: Содержит сложную логику вычислений - при изменении данных
- * будут происходить полные пересчеты (ожидаемое поведение)
+ * Удалена мемоизация для улучшения реактивности и отладки
  */
-const GenerationAnalyticsComponent = function GenerationAnalytics() {
+export function GenerationAnalytics() {
   const { user } = useAuth();
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -340,13 +323,3 @@ const GenerationAnalyticsComponent = function GenerationAnalytics() {
     </div>
   );
 };
-
-// Устанавливаем displayName для отладки
-GenerationAnalyticsComponent.displayName = 'GenerationAnalytics';
-
-/**
- * Экспортируемый мемоизированный компонент
- * Использует базовое сравнение props, поскольку компонент не принимает пропсы
- * Все изменения отслеживаются через внутренние состояния и эффекты
- */
-export const GenerationAnalytics = React.memo(GenerationAnalyticsComponent);

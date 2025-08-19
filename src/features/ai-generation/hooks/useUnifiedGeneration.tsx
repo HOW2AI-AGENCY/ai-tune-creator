@@ -8,6 +8,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { eventBus } from '@/lib/events/event-bus';
 import { 
   CanonicalGenerationInput, 
   UnifiedTaskProgress, 
@@ -376,8 +377,8 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
               return newMap;
             });
             
-            // Force refresh of tracks in the app
-            window.dispatchEvent(new CustomEvent('tracks-updated'));
+            // Emit tracks updated event
+            eventBus.emit('tracks-updated');
           }, 5000);
         } else if (data?.status === 'FAILED' || data?.failed) {
           updateProgress(generationId, { status: 'failed', overallProgress: 0 });

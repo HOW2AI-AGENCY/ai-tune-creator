@@ -17,20 +17,9 @@ import { useTranslation } from "@/hooks/useTranslation";
 
 /**
  * Компонент боковой панели навигации приложения
- * 
- * ОПТИМИЗАЦИЯ: Обернут в React.memo для предотвращения лишних рендеров.
- * Часто рендерится при изменении маршрута, состояния сайдбара, темы.
- * Мемоизация основана на:
- * - Состоянии сайдбара (collapsed/expanded)
- * - Текущем пути для подсветки активного пункта
- * - Языковых настройках
- * 
- * ЭКОНОМИЯ: ~60-80% рендеров при навигации между страницами
- * 
- * WARNING: Зависит от хуков (useSidebar, useLocation, useTranslation)
- * При изменении их возвращаемых значений компонент будет перерендериваться
+ * Удалена мемоизация для улучшения реактивности
  */
-const AppSidebarComponent = function AppSidebar() {
+export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
@@ -134,13 +123,3 @@ const AppSidebarComponent = function AppSidebar() {
     </Sidebar>
   );
 };
-
-// Устанавливаем displayName для отладки
-AppSidebarComponent.displayName = 'AppSidebar';
-
-/**
- * Экспортируемый мемоизированный компонент
- * Использует React.memo без custom comparison - базовое сравнение props достаточно
- * поскольку компонент не принимает пропсы и зависит только от контекста/хуков
- */
-export const AppSidebar = React.memo(AppSidebarComponent);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense, lazy } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,12 +30,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTrackSync } from "@/hooks/useTrackSync";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
-import { GenerationContextPanel } from "@/features/ai-generation/components/GenerationContextPanel";
-import { TaskQueuePanel } from "@/features/ai-generation/components/TaskQueuePanel";
-import { TrackResultsGrid } from "@/features/ai-generation/components/TrackResultsGrid";
-import { TrackDetailsDrawer } from "@/features/ai-generation/components/TrackDetailsDrawer";
-import { CommandPalette } from "@/features/ai-generation/components/CommandPalette";
-import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { GenerationParams } from "@/features/ai-generation/types";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
@@ -44,6 +38,15 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
+import { useEventListener } from "@/lib/events/event-bus";
+
+// Lazy-loaded components for code splitting
+const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel").then(m => ({ default: m.GenerationContextPanel })));
+const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel").then(m => ({ default: m.TaskQueuePanel })));
+const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid").then(m => ({ default: m.TrackResultsGrid })));
+const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer").then(m => ({ default: m.TrackDetailsDrawer })));
+const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette").then(m => ({ default: m.CommandPalette })));
+const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(m => ({ default: m.FloatingPlayer })));
 
 interface Track {
   id: string;
@@ -103,6 +106,12 @@ export default function AIGenerationStudio() {
   
   // Check sidebar actual state
   const sidebarCollapsed = sidebarState === "collapsed";
+
+  // Listen for tracks-updated events
+  useEventListener('tracks-updated', () => {
+    console.log('📢 Received tracks-updated event, refreshing tracks...');
+    fetchTracks();
+  });
 
   // Core State
   const [searchQuery, setSearchQuery] = useState("");
@@ -562,7 +571,9 @@ export default function AIGenerationStudio() {
         </MobileHeader>
 
         {/* Task Queue */}
-        <TaskQueuePanel tasks={tasks} />
+        <Suspense fallback={<div className="p-4"><TrackSkeleton animated /></div>}>
+          <TaskQueuePanel />
+        </Suspense>
 
         {showRecoveryTools && (
           <div className="p-4">
@@ -623,11 +634,13 @@ export default function AIGenerationStudio() {
               </div>
               
               <div className="p-4">
-                <GenerationContextPanel
-                  projects={projects}
-                  artists={artists}
-                  onGenerate={handleGenerate}
-                />
+                <Suspense fallback={<div className="p-4">Loading...</div>}>
+                  <GenerationContextPanel
+                    projects={projects}
+                    artists={artists}
+                    onGenerate={handleGenerate}
+                  />
+                </Suspense>
               </div>
             </div>
           </SheetContent>
@@ -747,7 +760,9 @@ export default function AIGenerationStudio() {
         </div>
 
         {/* Task Queue */}
-        <TaskQueuePanel tasks={tasks} />
+        <Suspense fallback={<div className="p-4"><TrackSkeleton animated /></div>}>
+          <TaskQueuePanel />
+        </Suspense>
 
         <Separator />
 
