@@ -1,0 +1,55 @@
+/**
+ * @fileoverview Design System Tokens - Phase 2 Implementation  
+ * @version 1.0.0
+ * 
+ * Additional semantic tokens to eliminate design violations
+ */
+
+/* Add missing semantic tokens to index.css */
+:root {
+  /* Add missing overlay and glass tokens */
+  --overlay-backdrop: 0 0% 0% / 0.5;
+  --glass-surface: 0 0% 100% / 0.1;
+  --hover-accent: 261 83% 58% / 0.1;
+  
+  /* Additional semantic tokens for common patterns */
+  --surface-overlay: 0 0% 0% / 0.6;
+  --surface-glass: 0 0% 100% / 0.2;
+  --interactive-hover: 261 83% 58% / 0.2;
+  --text-on-dark: 0 0% 100%;
+  --text-muted-on-dark: 0 0% 100% / 0.8;
+}
+
+.dark {
+  --overlay-backdrop: 0 0% 0% / 0.7;
+  --glass-surface: 0 0% 100% / 0.05;
+  --hover-accent: 261 83% 68% / 0.15;
+  --surface-overlay: 0 0% 0% / 0.8;
+  --surface-glass: 0 0% 100% / 0.1;
+  --interactive-hover: 261 83% 68% / 0.2;
+}
+
+/* Utility classes for common design violations */
+.overlay-backdrop {
+  background: hsl(var(--overlay-backdrop));
+}
+
+.glass-surface {
+  background: hsl(var(--glass-surface));
+}
+
+.hover-accent {
+  background: hsl(var(--hover-accent));
+}
+
+.surface-overlay {
+  background: hsl(var(--surface-overlay));
+}
+
+.text-on-dark {
+  color: hsl(var(--text-on-dark));
+}
+
+.text-muted-on-dark {
+  color: hsl(var(--text-muted-on-dark));
+}

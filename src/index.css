@@ -85,6 +85,16 @@ All colors MUST be HSL.
     /* Telegram safe area */
     --telegram-safe-top: 0px;
     --telegram-safe-bottom: 0px;
+    
+    /* Additional semantic tokens for design system violations */
+    --overlay-backdrop: 0 0% 0% / 0.5;
+    --glass-surface: 0 0% 100% / 0.1;
+    --hover-accent: 261 83% 58% / 0.1;
+    --surface-overlay: 0 0% 0% / 0.6;
+    --surface-glass: 0 0% 100% / 0.2;
+    --interactive-hover: 261 83% 58% / 0.2;
+    --text-on-dark: 0 0% 100%;
+    --text-muted-on-dark: 0 0% 100% / 0.8;
   }
 
   .dark {

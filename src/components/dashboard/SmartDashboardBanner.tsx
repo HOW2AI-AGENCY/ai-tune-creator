@@ -43,7 +43,7 @@ export function SmartDashboardBanner({
               <span className="text-sm">{stats.totalTracks} Tracks</span>
             </div>
             {stats.activeGenerations > 0 && (
-              <Badge variant="secondary" className="bg-white/20 text-primary-foreground">
+              <Badge variant="secondary" className="bg-secondary/20 text-secondary-foreground">
                 {stats.activeGenerations} Generating
               </Badge>
             )}
@@ -55,7 +55,7 @@ export function SmartDashboardBanner({
             <Button 
               variant="secondary" 
               onClick={onCreateArtist}
-              className="bg-white/20 hover:bg-white/30 text-primary-foreground border-white/20"
+              className="bg-secondary/20 hover:bg-secondary/30 text-secondary-foreground border-secondary/20"
             >
               <Plus className="h-4 w-4 mr-2" />
               Artist
@@ -65,7 +65,7 @@ export function SmartDashboardBanner({
             <Button 
               variant="secondary" 
               onClick={onCreateProject}
-              className="bg-white/20 hover:bg-white/30 text-primary-foreground border-white/20"
+              className="bg-secondary/20 hover:bg-secondary/30 text-secondary-foreground border-secondary/20"
             >
               <Plus className="h-4 w-4 mr-2" />
               Project

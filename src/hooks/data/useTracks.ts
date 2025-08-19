@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppData } from '@/providers/AppDataProvider';
 import { useToast } from '@/hooks/use-toast';
+import { eventBus } from '@/lib/events/event-bus';
 import { useCreateProject } from './useProjects';
 import type { AppTrack } from '@/providers/AppDataProvider';
 
@@ -995,6 +996,8 @@ export function useDeleteTrack() {
       queryClient.removeQueries({ queryKey: tracksQueryKeys.detail(trackId) });
       
       dispatch({ type: 'TRACK_DELETE', payload: trackId });
+      eventBus.emit('track-deleted', { trackId });
+      eventBus.emit('tracks-updated');
       
       toast({
         title: "✅ Трек удален",
