@@ -35,13 +35,13 @@ interface GenerationTask {
 }
 
 interface TaskQueuePanelProps {
-  tasks: GenerationTask[];
+  tasks?: GenerationTask[];
 }
 
-export function TaskQueuePanel({ tasks }: TaskQueuePanelProps) {
+export function TaskQueuePanel({ tasks = [] }: TaskQueuePanelProps) {
   const { t } = useTranslation();
-  const activeTasks = tasks.filter(task => task.status === 'pending' || task.status === 'running');
-  const recentTasks = tasks.slice(0, 5); // Show last 5 tasks
+  const activeTasks = (tasks || []).filter(task => task.status === 'pending' || task.status === 'running');
+  const recentTasks = (tasks || []).slice(0, 5); // Show last 5 tasks
   
   // State for collapsing the panel
   const [isCollapsed, setIsCollapsed] = useState(() => {
