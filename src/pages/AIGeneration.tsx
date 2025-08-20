@@ -259,7 +259,8 @@ export default function AIGeneration() {
       useInbox: input.context?.useInbox || false,
       genreTags: input.tags || [],
       instrumental: input.flags?.instrumental || false,
-      language: input.flags?.language || 'en', // English default for Suno AI
+      language: input.flags?.language || 'en', // Auto-detected language
+      model: input.flags?.model, // Pass model to generation
       duration: input.flags?.duration || 120
     };
     
@@ -334,47 +335,42 @@ export default function AIGeneration() {
     });
   };
 
-  const handleDeleteTrack = async (trackId: string) => {
+  const handleDeleteTrack = async (trackId: string, softDelete = true) => {
     if (!user) return;
     
     try {
-      // Сначала проверяем, что трек принадлежит пользователю
-      const { data: trackData, error: fetchError } = await supabase
-        .from('tracks')
-        .select(`
-          id,
-          projects (
-            artist_id,
-            artists (
-              user_id
-            )
-          )
-        `)
-        .eq('id', trackId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Проверяем права доступа
-      if (trackData?.projects?.artists?.user_id !== user.id) {
-        throw new Error('У вас нет прав на удаление этого трека');
+      console.log(`[DELETE] Deleting track ${trackId}, soft=${softDelete}`);
+      
+      // Use the unified edge function for proper deletion with storage cleanup
+      const { data, error } = await supabase.functions.invoke('delete-track', {
+        body: { 
+          trackId, 
+          userId: user.id,
+          softDelete 
+        }
+      });
+      
+      if (error) {
+        console.error('[DELETE] Edge function error:', error);
+        throw error;
       }
 
-      // Удаляем трек
-      const { error } = await supabase
-        .from('tracks')
-        .delete()
-        .eq('id', trackId);
-
-      if (error) throw error;
+      if (!data?.success) {
+        throw new Error(data?.error || 'Unknown error during deletion');
+      }
 
       toast({
-        title: "Трек удален",
-        description: "Трек успешно удален из базы данных"
+        title: softDelete ? "🗑️ Трек перемещен в корзину" : "🗑️ Трек удален навсегда",
+        description: data.message,
+        variant: "default",
       });
 
-      // Обновляем список треков
-      fetchAllTracks();
+      // Refresh the tracks list
+      await Promise.all([
+        fetchGenerations(),
+        fetchAllTracks()
+      ]);
+
     } catch (error: any) {
       console.error('Error deleting track:', error);
       toast({

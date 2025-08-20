@@ -70,12 +70,12 @@ export function UnifiedGenerationSidebar({
   const [selectedGenre, setSelectedGenre] = useState<string>("none");
   const [selectedMood, setSelectedMood] = useState<string>("none");
   
-  // Generation flags
+  // Generation flags  
   const [instrumental, setInstrumental] = useState(false);
-  const [language, setLanguage] = useState("en"); // English default for Suno AI
   const [voiceStyle, setVoiceStyle] = useState("none");
   const [tempo, setTempo] = useState("none");
   const [duration, setDuration] = useState([120]);
+  const [selectedModel, setSelectedModel] = useState<string>("auto");
   
   // Quick presets
   const [selectedPresetId, setSelectedPresetId] = useState<string>("");
@@ -113,17 +113,29 @@ export function UnifiedGenerationSidebar({
     { value: "very-fast", label: "Очень быстрый (160+ BPM)" }
   ];
 
-  const languages = [
-    { value: "en", label: "English (рекомендовано для Suno)" },
-    { value: "ru", label: "Русский" },
-    { value: "es", label: "Español" },
-    { value: "fr", label: "Français" },
-    { value: "de", label: "Deutsch" },
-    { value: "it", label: "Italiano" },
-    { value: "ja", label: "日本語" },
-    { value: "ko", label: "한국어" },
-    { value: "zh", label: "中文" }
-  ];
+  // Model options based on selected service
+  const modelOptions = selectedService === 'suno' 
+    ? [
+        { value: "auto", label: "Авто (рекомендовано)" },
+        { value: "v3.5", label: "Suno v3.5 - Стабильная" },
+        { value: "v4", label: "Suno v4 - Качественный вокал" },
+        { value: "v4.5", label: "Suno v4.5 - Продвинутая" },
+        { value: "v4.5+", label: "Suno v4.5+ - Премиум" }
+      ]
+    : [
+        { value: "auto", label: "Авто (рекомендовано)" },
+        { value: "V7", label: "Mureka V7 - Последняя" },
+        { value: "O1", label: "Mureka O1 - Chain-of-Thought" },
+        { value: "V6", label: "Mureka V6 - Стабильная" }
+      ];
+
+  // Auto-detect language function
+  const detectLanguage = (text: string): string => {
+    // Simple language detection for common patterns
+    const russianPattern = /[а-яё]/i;
+    if (russianPattern.test(text)) return 'ru';
+    return 'en'; // Default to English
+  };
 
   const handleSelectPreset = (preset: QuickPreset) => {
     setSelectedPresetId(preset.id);
@@ -160,6 +172,9 @@ export function UnifiedGenerationSidebar({
       tags.push(selectedMood);
     }
 
+    // Auto-detect language for better results
+    const autoLanguage = detectLanguage(mainContent);
+
     // Create canonical input
     const canonicalInput: CanonicalGenerationInput = {
       description: inputType === 'description' ? description : `Создать музыку для текста: ${lyrics.slice(0, 100)}...`,
@@ -167,10 +182,11 @@ export function UnifiedGenerationSidebar({
       tags,
       flags: {
         instrumental,
-        language,
+        language: autoLanguage, // Auto-detected language
         voiceStyle: voiceStyle !== "none" ? voiceStyle : undefined,
         tempo: tempo !== "none" ? tempo : undefined,
-        duration: duration[0]
+        duration: duration[0],
+        model: selectedModel !== "auto" ? selectedModel : undefined
       },
       mode,
       inputType,
@@ -338,12 +354,12 @@ export function UnifiedGenerationSidebar({
             </TabsContent>
           </Tabs>
 
-          {/* AI Service Selection */}
+          {/* AI Service and Model Selection */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Music2 className="h-4 w-4" />
-                AI Сервис
+                AI Сервис и модель
                 <Tooltip>
                   <TooltipTrigger>
                     <HelpCircle className="h-3 w-3 text-muted-foreground" />
@@ -354,28 +370,50 @@ export function UnifiedGenerationSidebar({
                 </Tooltip>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <Select value={selectedService} onValueChange={(v: 'suno' | 'mureka') => setSelectedService(v)}>
-                <SelectTrigger className="h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="suno">
-                    <div className="flex items-center gap-2">
-                      <Mic className="h-3 w-3" />
-                      <span>Suno AI</span>
-                      <Badge variant="secondary" className="text-xs">Полные песни</Badge>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="mureka">
-                    <div className="flex items-center gap-2">
-                      <Music2 className="h-3 w-3" />
-                      <span>Mureka</span>
-                      <Badge variant="outline" className="text-xs">Креатив</Badge>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Сервис</Label>
+                <Select value={selectedService} onValueChange={(v: 'suno' | 'mureka') => {
+                  setSelectedService(v);
+                  setSelectedModel("auto"); // Reset model when service changes
+                }}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="suno">
+                      <div className="flex items-center gap-2">
+                        <Mic className="h-3 w-3" />
+                        <span>Suno AI</span>
+                        <Badge variant="secondary" className="text-xs">Полные песни</Badge>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="mureka">
+                      <div className="flex items-center gap-2">
+                        <Music2 className="h-3 w-3" />
+                        <span>Mureka</span>
+                        <Badge variant="outline" className="text-xs">Креатив</Badge>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label className="text-xs text-muted-foreground">Модель</Label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modelOptions.map(model => (
+                      <SelectItem key={model.value} value={model.value}>
+                        {model.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardContent>
           </Card>
 
