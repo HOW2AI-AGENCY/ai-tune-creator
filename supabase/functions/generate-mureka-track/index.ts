@@ -1014,36 +1014,34 @@ serve(async (req) => {
     // ====================================
     let allSavedTracks = [];
     
-    if (finalTrack.choices && finalTrack.choices.length > 1) {
+    // Сохраняем все треки из choices через save-mureka-generation
+    if (finalTrack.choices && finalTrack.choices.length > 0) {
       console.log(`[MULTI-TRACK] Найдено ${finalTrack.choices.length} треков, сохраняем все`);
       
-      for (let i = 1; i < finalTrack.choices.length; i++) {
+      for (let i = 0; i < finalTrack.choices.length; i++) {
         const choice = finalTrack.choices[i];
         
         try {
           console.log(`[MULTI-TRACK] Сохраняем трек ${i + 1}/${finalTrack.choices.length}`);
           
-          const additionalTrackResponse = await supabase.functions.invoke('download-and-save-track', {
+          const additionalTrackResponse = await supabase.functions.invoke('save-mureka-generation', {
             body: {
-              external_url: choice.audio_url,
-              generation_id: generationRecord?.id,
-              project_id: finalProjectId,
-              artist_id: finalArtistId,
-              title: `${requestBody.title || finalTrack.choices[0]?.title} (Вариант ${i + 1})`,
-              lyrics: processedLyrics,
-              duration: choice.duration || requestBody.duration,
-              filename: `mureka_${generationRecord?.id}_${i + 1}.mp3`,
-              metadata: {
-                ...requestBody,
-                generation_prompt: requestPrompt,
+              generationId: generationRecord?.id,
+              trackData: {
+                title: i === 0 ? (requestBody.title || choice.title || 'Generated Track') : `${requestBody.title || choice.title || 'Generated Track'} (вариант ${i + 1})`,
+                audio_url: choice.url || choice.audio_url,
+                duration: Math.round((choice.duration || 120000) / 1000), // конвертируем из ms в секунды
+                lyrics: choice.lyrics_sections ? choice.lyrics_sections.map((section: any) => 
+                  section.lines ? section.lines.map((line: any) => line.text).join('\n') : ''
+                ).join('\n') : processedLyrics || '',
+                model: finalTrack.model || 'mureka',
+                service: 'mureka',
+                mureka_choice_id: choice.id,
                 track_variant: i + 1,
-                total_variants: finalTrack.choices.length,
-                mureka_id: choice.id,
-                auto_saved: true
-              }
-            },
-            headers: {
-              Authorization: authHeader || ''
+                total_variants: finalTrack.choices.length
+              },
+              projectId: finalProjectId,
+              artistId: finalArtistId
             }
           });
           
