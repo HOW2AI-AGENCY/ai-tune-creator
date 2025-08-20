@@ -45,7 +45,7 @@ serve(async (req) => {
 
     console.log('Syncing generated tracks for user:', user.id);
 
-    // Find all completed generations with result_url that need track creation/update
+    // Find all completed generations that need track creation/update
     const { data: generations, error: fetchError } = await supabase
       .from('ai_generations')
       .select(`
@@ -63,7 +63,6 @@ serve(async (req) => {
       `)
       .eq('user_id', user.id)
       .eq('status', 'completed')
-      .not('result_url', 'is', null)
       .order('completed_at', { ascending: false })
       .limit(50); // Process recent generations first
 
@@ -95,9 +94,30 @@ serve(async (req) => {
       throw new Error(`Failed to ensure inbox project: ${inboxError.message}`);
     }
 
+    // Helper function to extract audio URL from generation
+    const getAudioUrl = (gen: any) => {
+      // Check direct result_url first
+      if (gen.result_url) return gen.result_url;
+      
+      // Check Mureka response
+      if (gen.metadata?.mureka_response?.choices?.[0]?.url) {
+        return gen.metadata.mureka_response.choices[0].url;
+      }
+      
+      // Check Suno response  
+      if (gen.metadata?.suno_track_data?.audio_url) {
+        return gen.metadata.suno_track_data.audio_url;
+      }
+      
+      return null;
+    };
+
     // Проверяем какие генерации нуждаются в создании треков
     for (const gen of generations || []) {
       console.log(`Checking generation ${gen.id}: ${gen.metadata?.title || gen.prompt?.slice(0, 30)}`);
+      
+      const audioUrl = getAudioUrl(gen);
+      console.log(`Generation ${gen.id} audio URL:`, audioUrl);
       
       // Проверяем есть ли уже трек для этой генерации
       const { data: existingTrack, error: trackError } = await supabase
@@ -108,32 +128,36 @@ serve(async (req) => {
 
       console.log(`Generation ${gen.id} existing track:`, existingTrack, trackError?.message);
 
-      // If no existing track, proceed to create it
-
-      if (!existingTrack) {
-        // Нет трека - нужно создать
+      if (!existingTrack && audioUrl) {
+        // Нет трека, но есть аудио URL - нужно создать
         console.log(`Generation ${gen.id} needs track creation`);
-        toCreateTracks.push(gen);
+        toCreateTracks.push({ ...gen, extracted_audio_url: audioUrl });
         
         // Если URL внешний и не скачан - добавляем в очередь на скачивание
-        const isExternalUrl = gen.result_url && (
-          gen.result_url.includes('sunoapi.org') ||
-          gen.result_url.includes('mureka.ai') ||
-          gen.result_url.includes('suno.com') ||
-          !gen.result_url.includes(Deno.env.get('SUPABASE_URL') || '')
+        const isExternalUrl = audioUrl && (
+          audioUrl.includes('sunoapi.org') ||
+          audioUrl.includes('mureka.ai') ||
+          audioUrl.includes('suno.com') ||
+          audioUrl.includes('cdn.mureka.ai') ||
+          audioUrl.includes('apiboxfiles.erweima.ai') ||
+          !audioUrl.includes(Deno.env.get('SUPABASE_URL') || '')
         );
 
         const needsDownload = isExternalUrl && !gen.metadata?.local_storage_path;
         
         if (needsDownload) {
-          toDownload.push(gen);
+          toDownload.push({ ...gen, extracted_audio_url: audioUrl });
         }
-      } else if (!existingTrack.audio_url && gen.result_url) {
+      } else if (existingTrack && !existingTrack.audio_url && audioUrl) {
         // Трек есть, но без audio_url - нужно обновить
         console.log(`Generation ${gen.id} needs track update (missing audio_url)`);
-        toCreateTracks.push({ ...gen, existing_track_id: existingTrack.id });
-      } else {
+        toCreateTracks.push({ ...gen, existing_track_id: existingTrack.id, extracted_audio_url: audioUrl });
+      } else if (existingTrack && existingTrack.audio_url) {
         console.log(`Generation ${gen.id} already has track with audio_url`);
+      } else if (!audioUrl) {
+        console.log(`Generation ${gen.id} has no audio URL available`);
+      } else {
+        console.log(`Generation ${gen.id} - unexpected state`);
       }
     }
 
@@ -203,7 +227,7 @@ serve(async (req) => {
             {
               body: {
                 generation_id: gen.id,
-                external_url: gen.result_url,
+                external_url: gen.extracted_audio_url || gen.result_url,
                 track_id: gen.track_id
               }
             }
