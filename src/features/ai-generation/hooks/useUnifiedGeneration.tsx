@@ -137,7 +137,11 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
           tags: input.tags.join(', '),
           make_instrumental: input.flags.instrumental,
           wait_audio: false,
-          model: 'chirp-v3-5',
+          model: input.flags.model === 'v4.5+' ? 'chirp-v4-5' 
+            : input.flags.model === 'v4.5' ? 'chirp-v4-5'
+            : input.flags.model === 'v4' ? 'chirp-v4'
+            : input.flags.model === 'v3.5' ? 'chirp-v3-5'
+            : 'chirp-v3-5',
           mode: input.mode,
           voice_style: input.flags.voiceStyle || '',
           language: input.flags.language,
@@ -169,7 +173,7 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
             lyrics: isLyricsInput ? input.lyrics : input.description,
             instrumental: isInstrumental,
             
-            model: 'auto',
+            model: (input.flags.model || 'auto'),
             style: input.tags.join(', '),
             duration: input.flags.duration || 120,
             genre: input.tags[0] || 'electronic',
@@ -278,38 +282,28 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
   const startProgressMonitoring = useCallback((generationId: string, taskId: string, service: 'suno' | 'mureka') => {
     const pollInterval = setInterval(async () => {
       try {
-        // ИСПРАВЛЕНО: Правильный выбор функции мониторинга на основе типа генерации
+        // Ускоренный и более частый поллинг + ранний апдейт состояния
         const currentGeneration = activeGenerations.get(generationId);
         const isInstrumental = currentGeneration?.metadata?.input?.flags?.instrumental;
-        
         let functionName: string;
         if (service === 'suno') {
           functionName = 'get-suno-record-info';
         } else {
-          // Для Mureka выбираем функцию на основе типа генерации
           functionName = isInstrumental ? 'get-mureka-instrumental-status' : 'get-mureka-task-status';
         }
-        
-        console.log(`📊 Monitoring ${service} generation:`, {
-          generationId,
-          taskId,
-          functionName,
-          isInstrumental
-        });
-        
         const { data, error } = await supabase.functions.invoke(functionName, {
           body: { 
             taskId, 
             ...(generationId && generationId !== 'pending' ? { generationId } : {})
           }
         });
-
         if (error) {
           console.error('Status check error:', error);
           return;
         }
-
-        // Update progress based on response
+        // Немедленный переход в generating на первом успешном ответе
+        updateProgress(generationId, { status: 'generating', overallProgress: service === 'suno' ? 60 : 70 });
+        updateStep(generationId, 'generate', { status: 'running', progress: service === 'suno' ? 60 : 70 });
         if (data?.status === 'SUCCESS' || data?.completed || data?.response?.sunoData?.length > 0 || data?.all_tracks?.length > 0) {
           updateProgress(generationId, { 
             status: 'completed', 
@@ -404,7 +398,7 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
       } catch (error) {
         console.error('Polling error:', error);
       }
-    }, 5000); // Poll every 5 seconds
+    }, 2500); // Poll every 2.5 seconds
 
     // Auto-cleanup after 10 minutes
     setTimeout(() => {

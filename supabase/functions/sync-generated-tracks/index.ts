@@ -99,32 +99,26 @@ serve(async (req) => {
 
     // Helper function to extract audio URL from generation
     const getAudioUrl = (gen: any) => {
-      // Check direct result_url first
-      if (gen.result_url) return gen.result_url;
-      
-      // Service-specific extraction
+      // Direct result_url first
+      if (gen.result_url && gen.result_url !== 'missing') return gen.result_url;
+      // Suno sources
       if (gen.service === 'suno') {
-        // Extract from Suno metadata
-        const sunoData = gen.metadata?.suno_track_data || gen.metadata?.sunoData;
-        if (sunoData?.tracks && Array.isArray(sunoData.tracks)) {
-          return sunoData.tracks[0]?.audio_url;
-        }
-        if (sunoData?.all_tracks && Array.isArray(sunoData.all_tracks)) {
-          return sunoData.all_tracks[0]?.audio_url;
-        }
-      } else if (gen.service === 'mureka') {
-        // Extract from Mureka metadata
-        const murekaData = gen.metadata?.mureka || gen.metadata?.mureka_result;
-        if (murekaData?.choices && Array.isArray(murekaData.choices)) {
-          return murekaData.choices[0]?.url;
-        }
-        // Also check data.choices for different response format
-        if (gen.metadata?.data?.choices && Array.isArray(gen.metadata.data.choices)) {
-          return gen.metadata.data.choices[0]?.url;
-        }
+        const tr = gen.metadata?.suno_track_data;
+        if (tr?.audio_url) return tr.audio_url;
+        const respTracks = gen.metadata?.response?.sunoData;
+        if (Array.isArray(respTracks) && respTracks[0]?.audio_url) return respTracks[0].audio_url;
+        const all = gen.metadata?.all_tracks;
+        if (Array.isArray(all) && all[0]?.audio_url) return all[0].audio_url;
       }
-      
-      // No valid URL found
+      // Mureka sources
+      if (gen.service === 'mureka') {
+        const choicesUrl = gen.metadata?.mureka?.choices?.[0]?.url || gen.metadata?.mureka_result?.choices?.[0]?.url;
+        if (choicesUrl) return choicesUrl;
+        const dataChoices = gen.metadata?.data?.choices?.[0]?.url;
+        if (dataChoices) return dataChoices;
+        const providerMp3 = gen.metadata?.provider_urls?.mp3;
+        if (providerMp3) return providerMp3;
+      }
       return null;
     };
     // Process each generation

@@ -259,14 +259,14 @@ serve(async (req) => {
     console.log('File uploaded to storage:', uploadData.path);
     console.log('Provider URL preserved for debugging:', external_url);
 
-    // Get public URL
+    // Get public URL (idempotent; safe if exists)
     const { data: publicUrlData } = supabase.storage
       .from(BUCKET_AUDIO)
       .getPublicUrl(storagePath);
 
     const localAudioUrl = publicUrlData.publicUrl;
-    
-    // Update generation with local storage info BEFORE creating/updating track
+
+    // Update generation with local storage info and mark skip_sync to avoid re-import
     const { error: genUpdateError } = await supabase
       .from('ai_generations')
       .update({
@@ -276,7 +276,8 @@ serve(async (req) => {
           local_storage_path: storagePath,
           provider_url: external_url,
           file_size: audioUint8Array.length,
-          downloaded_at: new Date().toISOString()
+          downloaded_at: new Date().toISOString(),
+          skip_sync: true
         }
       })
       .eq('id', resolvedGenerationId);

@@ -205,6 +205,14 @@ serve(async (req) => {
             downloadTrackInBackground(generation.id, track.audio_url, generation.track_id).catch(error => 
               console.error('Background download failed:', error)
             );
+            // Также сохраняем original_external_url для синка
+            await supabase.from('tracks').update({
+              metadata: {
+                ...(generation.metadata || {}),
+                external_audio_url: track.audio_url,
+                original_external_url: track.audio_url
+              }
+            }).eq('id', generation.track_id);
           }
         } else {
           // Создаем треки для всех вариантов (включая первый, если у него нет track_id)

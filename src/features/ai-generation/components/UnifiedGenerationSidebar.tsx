@@ -119,8 +119,7 @@ export function UnifiedGenerationSidebar({
         { value: "auto", label: "Авто (рекомендовано)" },
         { value: "v3.5", label: "Suno v3.5 - Стабильная" },
         { value: "v4", label: "Suno v4 - Качественный вокал" },
-        { value: "v4.5", label: "Suno v4.5 - Продвинутая" },
-        { value: "v4.5+", label: "Suno v4.5+ - Премиум" }
+        { value: "v4.5", label: "Suno v4.5 - Продвинутая" }
       ]
     : [
         { value: "auto", label: "Авто (рекомендовано)" },
