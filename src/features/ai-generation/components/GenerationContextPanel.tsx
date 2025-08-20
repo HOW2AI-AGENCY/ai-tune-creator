@@ -490,65 +490,55 @@ export function GenerationContextPanel({
                     setSelectedPresetId("");
                   }
                 }}
-                className={`text-sm resize-none ${
-                  inputType === 'lyrics' ? 'min-h-[300px]' : 'min-h-[120px]'
-                }`}
-                maxLength={inputType === 'lyrics' ? 55000 : 500}
+                className="text-sm resize-none min-h-[120px]"
+                rows={5}
               />
-              {(inputType === 'lyrics' || prompt.length > 400) && (
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>
-                    {inputType === 'lyrics' ? 'Лирика' : 'Промпт'} ({prompt.length}/{inputType === 'lyrics' ? '55000' : '500'})
-                  </span>
-                  {prompt.length > (inputType === 'lyrics' ? 50000 : 450) && (
-                    <span className="text-amber-500">Приближается лимит</span>
-                  )}
-                </div>
-              )}
             </CardContent>
           </Card>
 
-          {/* Style Settings */}
+          {/* Quick Settings */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Music2 className="h-4 w-4" />
-                Стиль
+                <Sliders className="h-4 w-4" />
+                Настройки
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div>
-                <Label className="text-xs text-muted-foreground">Жанр</Label>
-                <Select value={selectedGenre} onValueChange={setSelectedGenre}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Выберите жанр" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Любой жанр</SelectItem>
-                    {genres.map(genre => (
-                      <SelectItem key={genre} value={genre.toLowerCase()}>
-                        {genre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Жанр</Label>
+                  <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Автоматически</SelectItem>
+                      {genres.map(genre => (
+                        <SelectItem key={genre} value={genre.toLowerCase()}>
+                          {genre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div>
-                <Label className="text-xs text-muted-foreground">Настроение</Label>
-                <Select value={selectedMood} onValueChange={setSelectedMood}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Выберите настроение" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Любое настроение</SelectItem>
-                    {moods.map(mood => (
-                      <SelectItem key={mood} value={mood.toLowerCase()}>
-                        {mood}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Настроение</Label>
+                  <Select value={selectedMood} onValueChange={setSelectedMood}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Автоматически</SelectItem>
+                      {moods.map(mood => (
+                        <SelectItem key={mood} value={mood.toLowerCase()}>
+                          {mood}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div>
@@ -562,14 +552,14 @@ export function GenerationContextPanel({
                       <div className="flex items-center gap-2">
                         <Mic className="h-3 w-3" />
                         <span>Suno AI</span>
-                        <Badge variant="secondary" className="text-xs">Полные песни</Badge>
+                        <Badge variant="secondary" className="text-xs">v4.5+</Badge>
                       </div>
                     </SelectItem>
                     <SelectItem value="mureka">
                       <div className="flex items-center gap-2">
                         <Music2 className="h-3 w-3" />
                         <span>Mureka</span>
-                        <Badge variant="outline" className="text-xs">Креатив</Badge>
+                        <Badge variant="outline" className="text-xs">Pro</Badge>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -625,27 +615,59 @@ export function GenerationContextPanel({
             </CardContent>
           </Card>
 
-          {/* Advanced Settings */}
+          {/* Content Input */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Sliders className="h-4 w-4" />
-                Продвинутые настройки
+                {inputType === 'description' ? <MessageSquare className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                Контент
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-xs text-muted-foreground">Описание трека</Label>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">
+                    {inputType === 'description' ? 'Описание трека' : 'Лирика трека'}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {inputType === 'description' 
+                      ? 'Опишите желаемый трек, стиль, инструменты'
+                      : 'Введите готовый текст песни с разбивкой на куплеты и припевы'
+                    }
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <Switch 
+                    checked={inputType === 'lyrics'}
+                    onCheckedChange={(checked) => setInputType(checked ? 'lyrics' : 'description')}
+                  />
+                  <FileText className="h-4 w-4" />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Textarea
+                  placeholder={inputType === 'description' 
+                    ? "Опишите желаемый трек: стиль, настроение, инструменты, голос..."
+                    : "Введите лирику трека:\n\n[Verse 1]\nТекст первого куплета...\n\n[Chorus]\nТекст припева..."
+                  }
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  className="text-sm resize-none min-h-[160px]"
+                  rows={8}
+                />
+
+                <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-6 px-2 text-xs"
+                    className="flex-1"
                     onClick={async () => {
                       if (!prompt.trim()) {
                         toast({
-                          title: "Введите описание",
-                          description: "Сначала добавьте базовое описание трека",
+                          title: "Добавьте описание",
+                          description: "Сначала опишите желаемый трек",
                           variant: "destructive"
                         });
                         return;
@@ -655,91 +677,115 @@ export function GenerationContextPanel({
                         const response = await fetch('/api/generate-style-prompt', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ prompt })
+                          body: JSON.stringify({ description: prompt })
                         });
                         
                         if (response.ok) {
                           const data = await response.json();
-                          setPrompt(data.improvedPrompt || data.prompt);
+                          setStylePrompt(data.stylePrompt);
                           toast({
-                            title: "Промпт улучшен",
-                            description: "ИИ улучшил ваше описание"
+                            title: "Стиль сгенерирован",
+                            description: "Промпт стиля автоматически создан"
                           });
                         }
                       } catch (error) {
                         toast({
-                          title: "Ошибка улучшения",
-                          description: "Не удалось улучшить промпт",
+                          title: "Ошибка генерации",
+                          description: "Не удалось создать промпт стиля",
                           variant: "destructive"
                         });
                       }
                     }}
-                    disabled={!prompt.trim()}
                   >
                     <Sparkles className="h-3 w-3 mr-1" />
                     Улучшить
                   </Button>
                 </div>
-                <Textarea
-                  placeholder="Опишите стиль, настроение и характер трека..."
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-[120px] text-sm resize-none"
-                  maxLength={500}
-                />
-                {prompt.length > 400 && (
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Промпт ({prompt.length}/500)</span>
-                    {prompt.length > 450 && (
-                      <span className="text-amber-500">Приближается лимит</span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {!instrumental && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Пользовательская лирика</Label>
-                  <Textarea
-                    placeholder="Введите текст песни (опционально)..."
-                    value={customLyrics}
-                    onChange={(e) => setCustomLyrics(e.target.value)}
-                    className="min-h-[300px] text-sm resize-none"
-                    maxLength={55000}
-                  />
-                  {customLyrics.length > 0 && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Лирика ({customLyrics.length}/55000)</span>
-                      {customLyrics.length > 50000 && (
-                        <span className="text-amber-500">Приближается лимит</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div>
-                <Label className="text-xs text-muted-foreground">Стиль-промпт</Label>
-                <Textarea
-                  placeholder="Дополнительные указания по стилю..."
-                  value={stylePrompt}
-                  onChange={(e) => setStylePrompt(e.target.value)}
-                  className="min-h-[80px] text-sm resize-none"
-                  maxLength={500}
-                />
               </div>
             </CardContent>
           </Card>
 
-          {/* Audio Parameters */}
+          {/* Style Prompt (только для description режима) */}
+          {inputType === 'description' && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Промпт стиля
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  placeholder="Дополнительные детали стиля, жанра, инструментов..."
+                  value={stylePrompt}
+                  onChange={(e) => setStylePrompt(e.target.value)}
+                  className="text-sm resize-none min-h-[80px]"
+                  rows={3}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Advanced Settings */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Volume2 className="h-4 w-4" />
-                Аудио параметры
+                <Settings className="h-4 w-4" />
+                Расширенные настройки
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Жанр</Label>
+                  <Select value={selectedGenre} onValueChange={setSelectedGenre}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Автоматически</SelectItem>
+                      {genres.map(genre => (
+                        <SelectItem key={genre} value={genre.toLowerCase()}>
+                          {genre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">Настроение</Label>
+                  <Select value={selectedMood} onValueChange={setSelectedMood}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Автоматически</SelectItem>
+                      {moods.map(mood => (
+                        <SelectItem key={mood} value={mood.toLowerCase()}>
+                          {mood}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Длительность: {duration[0]} сек
+                </Label>
+                <Slider
+                  value={duration}
+                  onValueChange={setDuration}
+                  max={240}
+                  min={30}
+                  step={10}
+                  className="mt-2"
+                />
+              </div>
+
               <div className="flex items-center space-x-2">
                 <Switch
                   id="instrumental"
@@ -751,50 +797,30 @@ export function GenerationContextPanel({
                 </Label>
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Длительность
-                  </Label>
-                  <Badge variant="outline" className="text-xs">
-                    {duration[0]}с
-                  </Badge>
-                </div>
-                <Slider
-                  value={duration}
-                  onValueChange={setDuration}
-                  max={240}
-                  min={30}
-                  step={10}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <Label className="text-xs text-muted-foreground">Темп</Label>
-                <Select value={tempo} onValueChange={setTempo}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Автоматически" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Автоматически</SelectItem>
-                    {tempoOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               {!instrumental && (
                 <>
                   <div>
-                    <Label className="text-xs text-muted-foreground">Стиль вокала</Label>
+                    <Label className="text-xs text-muted-foreground">Темп</Label>
+                    <Select value={tempo} onValueChange={setTempo}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Автоматически</SelectItem>
+                        {tempoOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Стиль голоса</Label>
                     <Select value={voiceStyle} onValueChange={setVoiceStyle}>
                       <SelectTrigger className="h-8">
-                        <SelectValue placeholder="Автоматически" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Автоматически</SelectItem>
