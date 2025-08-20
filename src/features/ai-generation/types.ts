@@ -36,6 +36,7 @@ export interface GenerationParams {
   instrumental?: boolean;
   voiceStyle?: string;
   language?: string;
+  model?: string; // AI model selection
 }
 
 export interface Option {

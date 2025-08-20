@@ -816,7 +816,13 @@ export type Database = {
         Returns: string
       }
       create_or_update_track_from_generation: {
-        Args: { p_generation_id: string; p_project_id?: string }
+        Args:
+          | {
+              p_artist_id?: string
+              p_generation_id: string
+              p_project_id?: string
+            }
+          | { p_generation_id: string; p_project_id?: string }
         Returns: string
       }
       dedupe_track_title: {

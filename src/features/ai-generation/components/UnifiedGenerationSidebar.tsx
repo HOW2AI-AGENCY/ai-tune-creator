@@ -560,39 +560,21 @@ export function UnifiedGenerationSidebar({
               </div>
 
               {!instrumental && (
-                <>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Стиль вокала</Label>
-                    <Select value={voiceStyle} onValueChange={setVoiceStyle}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {voiceStyles.map(style => (
-                          <SelectItem key={style.value} value={style.value}>
-                            {style.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Язык</Label>
-                    <Select value={language} onValueChange={setLanguage}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {languages.map(lang => (
-                          <SelectItem key={lang.value} value={lang.value}>
-                            {lang.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Стиль вокала</Label>
+                  <Select value={voiceStyle} onValueChange={setVoiceStyle}>
+                    <SelectTrigger className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {voiceStyles.map(style => (
+                        <SelectItem key={style.value} value={style.value}>
+                          {style.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             </CardContent>
           </Card>

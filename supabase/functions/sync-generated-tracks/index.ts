@@ -46,6 +46,7 @@ serve(async (req) => {
     console.log('Syncing generated tracks for user:', user.id);
 
     // Find all completed generations that need track creation/update
+    // Exclude generations that are marked as deleted or archived
     const { data: generations, error: fetchError } = await supabase
       .from('ai_generations')
       .select(`
@@ -63,6 +64,8 @@ serve(async (req) => {
       `)
       .eq('user_id', user.id)
       .eq('status', 'completed')
+      .not('metadata->skip_sync', 'eq', true) // Skip syncing if marked
+      .not('metadata->deleted', 'eq', true)   // Skip deleted generations
       .order('completed_at', { ascending: false })
       .limit(50); // Process recent generations first
 
@@ -99,150 +102,135 @@ serve(async (req) => {
       // Check direct result_url first
       if (gen.result_url) return gen.result_url;
       
-      // Check Mureka response
-      if (gen.metadata?.mureka_response?.choices?.[0]?.url) {
-        return gen.metadata.mureka_response.choices[0].url;
+      // Service-specific extraction
+      if (gen.service === 'suno') {
+        // Extract from Suno metadata
+        const sunoData = gen.metadata?.suno_track_data || gen.metadata?.sunoData;
+        if (sunoData?.tracks && Array.isArray(sunoData.tracks)) {
+          return sunoData.tracks[0]?.audio_url;
+        }
+        if (sunoData?.all_tracks && Array.isArray(sunoData.all_tracks)) {
+          return sunoData.all_tracks[0]?.audio_url;
+        }
+      } else if (gen.service === 'mureka') {
+        // Extract from Mureka metadata
+        const murekaData = gen.metadata?.mureka || gen.metadata?.mureka_result;
+        if (murekaData?.choices && Array.isArray(murekaData.choices)) {
+          return murekaData.choices[0]?.url;
+        }
+        // Also check data.choices for different response format
+        if (gen.metadata?.data?.choices && Array.isArray(gen.metadata.data.choices)) {
+          return gen.metadata.data.choices[0]?.url;
+        }
       }
       
-      // Check Suno response  
-      if (gen.metadata?.suno_track_data?.audio_url) {
-        return gen.metadata.suno_track_data.audio_url;
-      }
-      
+      // No valid URL found
       return null;
     };
-
-    // Проверяем какие генерации нуждаются в создании треков
+    // Process each generation
     for (const gen of generations || []) {
-      console.log(`Checking generation ${gen.id}: ${gen.metadata?.title || gen.prompt?.slice(0, 30)}`);
-      
-      const audioUrl = getAudioUrl(gen);
-      console.log(`Generation ${gen.id} audio URL:`, audioUrl);
-      
-      // Проверяем есть ли уже трек для этой генерации
-      const { data: existingTrack, error: trackError } = await supabase
-        .from('tracks')
-        .select('id, audio_url')
-        .eq('metadata->>generation_id', gen.id)
-        .maybeSingle();
-
-      console.log(`Generation ${gen.id} existing track:`, existingTrack, trackError?.message);
-
-      if (!existingTrack && audioUrl) {
-        // Нет трека, но есть аудио URL - нужно создать
-        console.log(`Generation ${gen.id} needs track creation`);
-        toCreateTracks.push({ ...gen, extracted_audio_url: audioUrl });
-        
-        // Если URL внешний и не скачан - добавляем в очередь на скачивание
-        const isExternalUrl = audioUrl && (
-          audioUrl.includes('sunoapi.org') ||
-          audioUrl.includes('mureka.ai') ||
-          audioUrl.includes('suno.com') ||
-          audioUrl.includes('cdn.mureka.ai') ||
-          audioUrl.includes('apiboxfiles.erweima.ai') ||
-          !audioUrl.includes(Deno.env.get('SUPABASE_URL') || '')
-        );
-
-        const needsDownload = isExternalUrl && !gen.metadata?.local_storage_path;
-        
-        if (needsDownload) {
-          toDownload.push({ ...gen, extracted_audio_url: audioUrl });
-        }
-      } else if (existingTrack && !existingTrack.audio_url && audioUrl) {
-        // Трек есть, но без audio_url - нужно обновить
-        console.log(`Generation ${gen.id} needs track update (missing audio_url)`);
-        toCreateTracks.push({ ...gen, existing_track_id: existingTrack.id, extracted_audio_url: audioUrl });
-      } else if (existingTrack && existingTrack.audio_url) {
-        console.log(`Generation ${gen.id} already has track with audio_url`);
-      } else if (!audioUrl) {
-        console.log(`Generation ${gen.id} has no audio URL available`);
-      } else {
-        console.log(`Generation ${gen.id} - unexpected state`);
-      }
-    }
-
-    console.log(`Found ${toCreateTracks.length} tracks to create/update`);
-    console.log(`Track actions needed:`, toCreateTracks.map(t => ({ 
-      id: t.id, 
-      title: t.metadata?.title || t.prompt?.slice(0, 30),
-      action: t.existing_track_id ? 'update' : 'create',
-      has_result_url: !!t.result_url
-    })));
-    console.log(`Found ${toDownload.length} tracks to download`);
-
-    // Create/update tracks using the new transactional function
-    for (const gen of toCreateTracks) {
       try {
         results.processed++;
         
-        console.log(`Processing generation ${gen.id} with transactional function`);
-        
-        // Ensure metadata has service information before creating track
+        // Ensure service metadata is set
         if (!gen.metadata?.service) {
-          const serviceToUpdate = gen.service || 'unknown';
           await supabase
             .from('ai_generations')
             .update({
               metadata: {
-                ...gen.metadata,
-                service: serviceToUpdate
+                ...(gen.metadata || {}),
+                service: gen.service
               }
             })
             .eq('id', gen.id);
         }
-
-        // Use transactional function for atomic track creation/update
-        const { data: trackId, error: rpcError } = await supabase.rpc(
-          'create_or_update_track_from_generation', 
-          {
-            p_generation_id: gen.id,
-            p_project_id: null // Will use user's inbox automatically
+        
+        // Try to extract audio URL
+        const audioUrl = getAudioUrl(gen);
+        
+        // Determine if we need to create/update track
+        if (!gen.track_id) {
+          // Create new track
+          try {
+            const { data: trackId, error: rpcError } = await supabase.rpc(
+              'create_or_update_track_from_generation',
+              { 
+                p_generation_id: gen.id,
+                p_project_id: null, // Will use inbox
+                p_artist_id: null   // Will use default artist
+              }
+            );
+            
+            if (rpcError) {
+              throw new Error(`RPC error: ${rpcError.message}`);
+            }
+            
+            results.created++;
+            syncResults.push({
+              generationId: gen.id,
+              action: 'created',
+              trackId,
+              service: gen.service
+            });
+            
+            // Schedule download if we have a valid URL
+            if (audioUrl && audioUrl !== "missing") {
+              toDownload.push({
+                generation_id: gen.id,
+                external_url: audioUrl,
+                service: gen.service
+              });
+            }
+          } catch (trackError: any) {
+            console.error(`Error creating track for generation ${gen.id}:`, trackError);
+            results.errors.push({
+              generationId: gen.id,
+              error: trackError.message,
+              action: 'create_track'
+            });
           }
-        );
-
-        if (rpcError) {
-          console.error(`RPC error for generation ${gen.id}:`, rpcError);
-          results.errors.push({
+        } else if (audioUrl && audioUrl !== "missing" && !gen.metadata?.local_storage_path) {
+          // Existing track but needs download
+          toDownload.push({
             generation_id: gen.id,
-            error: rpcError.message
+            external_url: audioUrl,
+            service: gen.service
           });
-          continue;
         }
-
-        if (gen.existing_track_id) {
-          results.updated++;
-          console.log(`Updated track ${trackId} for generation ${gen.id}`);
-        } else {
-          results.created++;
-          console.log(`Created track ${trackId} for generation ${gen.id}`);
-        }
-
+        
       } catch (error: any) {
         console.error(`Error processing generation ${gen.id}:`, error);
         results.errors.push({
-          generation_id: gen.id,
-          error: error.message
+          generationId: gen.id,
+          error: error.message,
+          action: 'process'
         });
       }
     }
 
-    // Download tracks in batches to avoid timeouts (external URLs only)
+    // Download tracks in batches with proper validation
+    console.log(`Found ${toDownload.length} tracks to download`);
+    
     const batchSize = 3;
     for (let i = 0; i < toDownload.length; i += batchSize) {
       const batch = toDownload.slice(i, i + batchSize);
       
-      const batchPromises = batch.map(async (gen) => {
+      const batchPromises = batch.map(async (item) => {
         try {
-          console.log(`Downloading track for generation ${gen.id}`);
+          console.log(`Downloading track for generation ${item.generation_id}`);
           
-          // Call download function with locking
+          // Validate URL before download
+          if (!item.external_url || item.external_url === "missing") {
+            throw new Error(`Invalid external_url: ${item.external_url}`);
+          }
+          
+          // Call download function
           const { data: downloadResult, error: downloadError } = await supabase.functions.invoke(
             'download-and-save-track',
             {
               body: {
-                generation_id: gen.id,
-                external_url: gen.extracted_audio_url || gen.result_url,
-                track_id: gen.track_id
+                generation_id: item.generation_id,
+                external_url: item.external_url
               }
             }
           );
@@ -253,19 +241,20 @@ serve(async (req) => {
 
           results.downloaded++;
           return {
-            generation_id: gen.id,
+            generation_id: item.generation_id,
             success: true,
             action: 'downloaded',
             result: downloadResult
           };
         } catch (error: any) {
-          console.error(`Error downloading track for generation ${gen.id}:`, error);
+          console.error(`Error downloading track for generation ${item.generation_id}:`, error);
           results.errors.push({
-            generation_id: gen.id,
-            error: error.message
+            generationId: item.generation_id,
+            error: error.message,
+            action: 'download'
           });
           return {
-            generation_id: gen.id,
+            generation_id: item.generation_id,
             success: false,
             error: error.message
           };
@@ -273,47 +262,18 @@ serve(async (req) => {
       });
 
       const batchResults = await Promise.all(batchPromises);
-      syncResults.push(...batchResults);
-
+      
       // Small pause between batches
       if (i + batchSize < toDownload.length) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
-    // Вспомогательная функция для получения следующего номера трека
-    async function getNextTrackNumber(supabase: any, projectId: string) {
-      const { data } = await supabase.rpc('get_next_track_number', {
-        p_project_id: projectId
-      });
-      return data || 1;
-    }
-
-    // Statistics
-    const successful = syncResults.filter(r => r.success).length;
+    // Final statistics
+    const successful = results.created + results.updated + results.downloaded;
     const failed = results.errors.length;
 
     console.log(`Sync completed. Created: ${results.created}, Updated: ${results.updated}, Downloaded: ${results.downloaded}, Failed: ${failed}`);
-
-    // Получаем обновленный список треков
-    const { data: updatedTracks, error: tracksError } = await supabase
-      .from('tracks')
-      .select(`
-        id,
-        title,
-        track_number,
-        duration,
-        audio_url,
-        created_at,
-        project_id,
-        projects(title, artist_id, artists(name))
-      `)
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (tracksError) {
-      console.error('Error fetching updated tracks:', tracksError);
-    }
 
     const response = {
       success: true,
@@ -321,15 +281,12 @@ serve(async (req) => {
         sync_results: syncResults,
         summary: {
           total_checked: generations?.length || 0,
-          tracks_to_create: toCreateTracks.length,
           tracks_created: results.created,
           tracks_updated: results.updated,
-          needed_download: toDownload.length,
           successful_downloads: results.downloaded,
           failed_operations: results.errors.length,
           errors: results.errors
-        },
-        tracks: updatedTracks || []
+        }
       }
     };
 

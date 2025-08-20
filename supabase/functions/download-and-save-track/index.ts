@@ -77,10 +77,12 @@ serve(async (req) => {
       });
     }
 
-    if (!external_url) {
+    if (!external_url || external_url === "missing" || external_url.trim() === "") {
+      console.error('[CRITICAL] external_url is invalid:', external_url);
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'external_url is required',
+        error: 'external_url is required and cannot be empty or "missing"',
+        details: `Received external_url: "${external_url}"`,
         timestamp: new Date().toISOString()
       }), {
         status: 400,
@@ -290,7 +292,8 @@ serve(async (req) => {
         'create_or_update_track_from_generation', 
         {
           p_generation_id: resolvedGenerationId,
-          p_project_id: generation.tracks?.project_id || null
+          p_project_id: generation.tracks?.project_id || null,
+          p_artist_id: null // Extract from request if available in future
         }
       );
 

@@ -26,6 +26,7 @@ export interface CanonicalGenerationInput {
     voiceStyle?: string;    // Vocal style preference
     tempo?: string;         // Tempo preference
     duration?: number;      // Duration in seconds
+    model?: string;         // AI model selection
   };
   
   // Mode and context
