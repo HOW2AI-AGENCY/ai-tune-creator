@@ -85,10 +85,10 @@ interface GenerationRequest {
 }
 
 /** Поддерживаемые модели Suno AI */
-type SunoModelType = 'chirp-v3-5' | 'chirp-v3-0' | 'chirp-v4' | 'chirp-v4-5' | 'chirp-v4-5-plus';
+type SunoModelType = 'V3_5' | 'V4' | 'V4_5';
 
-/** Нормализованные названия моделей для API */
-type NormalizedSunoModel = 'V3_5' | 'V3_0' | 'V4' | 'V4_5' | 'V4_5PLUS';
+/** Нормализованные названия моделей для API (используются напрямую) */
+type NormalizedSunoModel = 'V3_5' | 'V4' | 'V4_5';
 
 /** Структура запроса к Suno API согласно официальной документации */
 interface SunoApiRequest {
@@ -154,12 +154,19 @@ type OperationResult<T> = {
  * @returns Нормализованное название модели
  */
 function normalizeModelName(model: string): NormalizedSunoModel {
+  // Модели передаются напрямую в правильном формате V3_5, V4, V4_5
+  if (model === 'V3_5' || model === 'V4' || model === 'V4_5') {
+    return model as NormalizedSunoModel;
+  }
+  
+  // Резервный маппинг для старых форматов
   const modelMap: Record<string, NormalizedSunoModel> = {
     'chirp-v3-5': 'V3_5',
-    'chirp-v3-0': 'V3_0', 
     'chirp-v4': 'V4',
     'chirp-v4-5': 'V4_5',
-    'chirp-v4-5-plus': 'V4_5PLUS'
+    'v3.5': 'V3_5',
+    'v4': 'V4', 
+    'v4.5': 'V4_5'
   };
   
   const normalized = modelMap[model];
@@ -320,7 +327,7 @@ function validateRequest(request: GenerationRequest): OperationResult<void> {
   }
   
     // Проверка поддерживаемых моделей
-    const supportedModels: SunoModelType[] = ['chirp-v3-5', 'chirp-v3-0', 'chirp-v4', 'chirp-v4-5', 'chirp-v4-5-plus'];
+    const supportedModels: SunoModelType[] = ['V3_5', 'V4', 'V4_5'];
     if (request.model && !supportedModels.includes(request.model as SunoModelType)) {
       return {
         success: false,
@@ -482,7 +489,7 @@ serve(async (req) => {
       tags = "energetic, creative, viral",
       make_instrumental = false,
       wait_audio = true,
-      model = "chirp-v3-5" as SunoModelType,
+      model = "V3_5" as SunoModelType,
       trackId = null,
       projectId = null,
       artistId = null,
