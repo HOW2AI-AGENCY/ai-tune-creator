@@ -137,11 +137,7 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
           tags: input.tags.join(', '),
           make_instrumental: input.flags.instrumental,
           wait_audio: false,
-          model: input.flags.model === 'v4.5+' ? 'chirp-v4-5' 
-            : input.flags.model === 'v4.5' ? 'chirp-v4-5'
-            : input.flags.model === 'v4' ? 'chirp-v4'
-            : input.flags.model === 'v3.5' ? 'chirp-v3-5'
-            : 'chirp-v3-5',
+          model: input.flags.model || 'chirp-v3-5', // ИСПРАВЛЕНО: передаем модель или дефолт
           mode: input.mode,
           voice_style: input.flags.voiceStyle || '',
           language: input.flags.language,

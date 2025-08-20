@@ -85,10 +85,10 @@ interface GenerationRequest {
 }
 
 /** Поддерживаемые модели Suno AI */
-type SunoModelType = 'chirp-v3-5' | 'chirp-v3-0' | 'chirp-v4' | 'chirp-v4-5';
+type SunoModelType = 'chirp-v3-5' | 'chirp-v3-0' | 'chirp-v4' | 'chirp-v4-5' | 'chirp-v4-5-plus';
 
 /** Нормализованные названия моделей для API */
-type NormalizedSunoModel = 'V3_5' | 'V3_0' | 'V4' | 'V4_5';
+type NormalizedSunoModel = 'V3_5' | 'V3_0' | 'V4' | 'V4_5' | 'V4_5PLUS';
 
 /** Структура запроса к Suno API согласно официальной документации */
 interface SunoApiRequest {
@@ -158,7 +158,8 @@ function normalizeModelName(model: string): NormalizedSunoModel {
     'chirp-v3-5': 'V3_5',
     'chirp-v3-0': 'V3_0', 
     'chirp-v4': 'V4',
-    'chirp-v4-5': 'V4_5'
+    'chirp-v4-5': 'V4_5',
+    'chirp-v4-5-plus': 'V4_5PLUS'
   };
   
   const normalized = modelMap[model];
@@ -318,18 +319,18 @@ function validateRequest(request: GenerationRequest): OperationResult<void> {
     };
   }
   
-  // Проверка поддерживаемых моделей
-  const supportedModels: SunoModelType[] = ['chirp-v3-5', 'chirp-v3-0', 'chirp-v4', 'chirp-v4-5'];
-  if (request.model && !supportedModels.includes(request.model as SunoModelType)) {
-    return {
-      success: false,
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: `Неподдерживаемая модель. Доступны: ${supportedModels.join(', ')}`,
-        retryable: false
-      }
-    };
-  }
+    // Проверка поддерживаемых моделей
+    const supportedModels: SunoModelType[] = ['chirp-v3-5', 'chirp-v3-0', 'chirp-v4', 'chirp-v4-5', 'chirp-v4-5-plus'];
+    if (request.model && !supportedModels.includes(request.model as SunoModelType)) {
+      return {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: `Неподдерживаемая модель. Доступны: ${supportedModels.join(', ')}`,
+          retryable: false
+        }
+      };
+    }
   
   return { success: true, data: undefined };
 }

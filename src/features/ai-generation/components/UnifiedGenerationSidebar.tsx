@@ -117,9 +117,10 @@ export function UnifiedGenerationSidebar({
   const modelOptions = selectedService === 'suno' 
     ? [
         { value: "auto", label: "Авто (рекомендовано)" },
-        { value: "v3.5", label: "Suno v3.5 - Стабильная" },
-        { value: "v4", label: "Suno v4 - Качественный вокал" },
-        { value: "v4.5", label: "Suno v4.5 - Продвинутая" }
+        { value: "chirp-v3-5", label: "Suno v3.5 - Стабильная" },
+        { value: "chirp-v4", label: "Suno v4 - Качественный вокал (макс 4 мин)" },
+        { value: "chirp-v4-5", label: "Suno v4.5 - Продвинутая (макс 8 мин)" },
+        { value: "chirp-v4-5-plus", label: "Suno v4.5+ - Премиум (макс 8 мин)" }
       ]
     : [
         { value: "auto", label: "Авто (рекомендовано)" },
