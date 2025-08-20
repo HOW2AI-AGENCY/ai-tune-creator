@@ -259,7 +259,7 @@ export default function AIGeneration() {
       useInbox: input.context?.useInbox || false,
       genreTags: input.tags || [],
       instrumental: input.flags?.instrumental || false,
-      language: input.flags?.language || 'ru',
+      language: input.flags?.language || 'en', // English default for Suno AI
       duration: input.flags?.duration || 120
     };
     

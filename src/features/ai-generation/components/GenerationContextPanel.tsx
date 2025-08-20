@@ -62,7 +62,7 @@ export function GenerationContextPanel({
   const [duration, setDuration] = useState([120]);
   const [tempo, setTempo] = useState("none");
   const [voiceStyle, setVoiceStyle] = useState("none");
-  const [language, setLanguage] = useState("ru");
+  const [language, setLanguage] = useState("en"); // English default for Suno AI
 
   const { toast } = useToast();
   const { getActiveProfileForService } = useAIPromptProfiles();
@@ -217,13 +217,13 @@ export function GenerationContextPanel({
   };
 
   const genres = [
-    "Поп", "Рок", "Хип-хоп", "Электронная музыка", 
-    "Джаз", "Блюз", "Классика", "Фолк", "Регги", "Панк"
+    "Pop", "Rock", "Hip-hop", "Electronic", 
+    "Jazz", "Blues", "Classical", "Folk", "Reggae", "Punk"
   ];
 
   const moods = [
-    "Энергичное", "Спокойное", "Романтичное", "Грустное",
-    "Веселое", "Драматичное", "Мечтательное", "Агрессивное"
+    "Energetic", "Calm", "Romantic", "Sad",
+    "Happy", "Dramatic", "Dreamy", "Aggressive"
   ];
 
   const tempoOptions = [

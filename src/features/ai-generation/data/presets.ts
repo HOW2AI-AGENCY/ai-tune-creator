@@ -1,10 +1,10 @@
 import { QuickPreset } from '../types';
 
 export const quickPresets: QuickPreset[] = [
-  // English presets for testing
+  // English presets (default for Suno AI - better results)
   {
     id: 'upbeat-pop',
-    name: 'Upbeat Pop',
+    name: '🎤 Upbeat Pop',
     description: 'Energetic pop song with catchy chorus',
     icon: '🎤',
     genre: 'pop',
@@ -15,7 +15,7 @@ export const quickPresets: QuickPreset[] = [
   },
   {
     id: 'rock-anthem-en',
-    name: 'Rock Anthem',
+    name: '🎸 Rock Anthem',
     description: 'Powerful rock composition with electric guitars',
     icon: '🎸',
     genre: 'rock',

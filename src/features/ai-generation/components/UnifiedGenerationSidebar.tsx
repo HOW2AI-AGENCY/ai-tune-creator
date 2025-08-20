@@ -72,7 +72,7 @@ export function UnifiedGenerationSidebar({
   
   // Generation flags
   const [instrumental, setInstrumental] = useState(false);
-  const [language, setLanguage] = useState("ru");
+  const [language, setLanguage] = useState("en"); // English default for Suno AI
   const [voiceStyle, setVoiceStyle] = useState("none");
   const [tempo, setTempo] = useState("none");
   const [duration, setDuration] = useState([120]);
@@ -114,8 +114,8 @@ export function UnifiedGenerationSidebar({
   ];
 
   const languages = [
+    { value: "en", label: "English (рекомендовано для Suno)" },
     { value: "ru", label: "Русский" },
-    { value: "en", label: "English" },
     { value: "es", label: "Español" },
     { value: "fr", label: "Français" },
     { value: "de", label: "Deutsch" },
