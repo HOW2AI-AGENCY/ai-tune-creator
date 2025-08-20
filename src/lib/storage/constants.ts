@@ -34,15 +34,17 @@ export function isValidAudioUrl(url: string): boolean {
     if (urlObj.protocol !== 'https:') return false;
     
     // Domain whitelist
-    const allowedDomains = [
-      'zwbhlfhwymbmvioaikvs.supabase.co',
-      'supabase.co',
-      'cdn.sunoapi.org',
-      'api.sunoapi.org',
-      'api.mureka.ai',
-      'cdn.mureka.ai',
-      'tempfile.redpandaai.co'
-    ];
+      const allowedDomains = [
+        'zwbhlfhwymbmvioaikvs.supabase.co',
+        'supabase.co',
+        'cdn.sunoapi.org',
+        'api.sunoapi.org',
+        'suno.ai',
+        'api.mureka.ai',
+        'cdn.mureka.ai',
+        'erweima.ai',
+        'tempfile.redpandaai.co'
+      ];
     
     const isAllowedDomain = allowedDomains.some(domain => 
       urlObj.hostname === domain || urlObj.hostname.endsWith('.' + domain)
