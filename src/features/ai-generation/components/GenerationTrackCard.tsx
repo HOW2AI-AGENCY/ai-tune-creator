@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { toast } from 'sonner';
 import { AIGeneration } from '../hooks/useGenerationState';
-import { TrackActionButtons } from '@/components/tracks/TrackActionButtons';
 
 interface GenerationTrackCardProps {
   generation: AIGeneration;
