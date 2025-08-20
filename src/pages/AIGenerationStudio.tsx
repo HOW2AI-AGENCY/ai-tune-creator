@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Suspense, lazy } from "react";
+import React, { useState, useEffect, useMemo, Suspense, lazy, startTransition } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -175,6 +175,18 @@ export default function AIGenerationStudio() {
     
     clearStuckTasks().then(() => {
       fetchData();
+    });
+
+    // Preload lazy components to minimize suspensions
+    Promise.all([
+      import("@/features/ai-generation/components/GenerationContextPanel"),
+      import("@/features/ai-generation/components/TaskQueuePanel"),
+      import("@/features/ai-generation/components/TrackResultsGrid"),
+      import("@/features/ai-generation/components/TrackDetailsDrawer"),
+      import("@/features/ai-generation/components/CommandPalette"),
+      import("@/features/ai-generation/components/FloatingPlayer")
+    ]).catch(() => {
+      // Silently handle preload failures
     });
   }, [user]);
 
@@ -468,27 +480,29 @@ export default function AIGenerationStudio() {
   };
 
   const handleCommandAction = (action: string, data?: any) => {
-    switch (action) {
-      case 'search':
-        setSearchQuery(data?.query || '');
-        break;
-      case 'generate':
-        if (isMobile) {
-          setIsGenerationPanelOpen(true);
-        }
-        break;
-      case 'sync':
-        handleSync();
-        break;
-      case 'play':
-        if (data?.track) {
-          handlePlayTrack(data.track);
-        }
-        break;
-      default:
-        console.log('Unknown command action:', action);
-    }
-    setIsCommandPaletteOpen(false);
+    startTransition(() => {
+      switch (action) {
+        case 'search':
+          setSearchQuery(data?.query || '');
+          break;
+        case 'generate':
+          if (isMobile) {
+            setIsGenerationPanelOpen(true);
+          }
+          break;
+        case 'sync':
+          handleSync();
+          break;
+        case 'play':
+          if (data?.track) {
+            handlePlayTrack(data.track);
+          }
+          break;
+        default:
+          console.log('Unknown command action:', action);
+      }
+      setIsCommandPaletteOpen(false);
+    });
   };
 
   if (!user) {
@@ -516,7 +530,7 @@ export default function AIGenerationStudio() {
           title="AI Studio"
           subtitle={`${filteredTracks.length} ${t('tracks')}`}
           showSearch={true}
-          onSearch={() => setIsCommandPaletteOpen(true)}
+          onSearch={() => startTransition(() => setIsCommandPaletteOpen(true))}
           showNotifications={false}
           isOnline={true}
         >
@@ -614,7 +628,7 @@ export default function AIGenerationStudio() {
         {/* Floating Action Button */}
         <Button
           size="icon"
-          onClick={() => setIsGenerationPanelOpen(true)}
+          onClick={() => startTransition(() => setIsGenerationPanelOpen(true))}
           className="fixed bottom-20 right-4 h-14 w-14 rounded-full bg-gradient-primary shadow-glow animate-float tap-highlight"
           aria-label={t('createTrack')}
         >
@@ -622,7 +636,7 @@ export default function AIGenerationStudio() {
         </Button>
 
         {/* Generation Panel Sheet */}
-        <Sheet open={isGenerationPanelOpen} onOpenChange={setIsGenerationPanelOpen}>
+        <Sheet open={isGenerationPanelOpen} onOpenChange={(open) => startTransition(() => setIsGenerationPanelOpen(open))}>
           <SheetContent 
             side="bottom" 
             className="h-[90vh] rounded-t-xl border-0 p-0 animate-slide-in-bottom"
@@ -650,31 +664,35 @@ export default function AIGenerationStudio() {
         <TrackDetailsDrawer
           track={selectedTrack}
           isOpen={isTrackDetailsOpen}
-          onClose={() => setIsTrackDetailsOpen(false)}
+          onClose={() => startTransition(() => setIsTrackDetailsOpen(false))}
           onPlay={handlePlayTrack}
         />
 
         {/* Command Palette */}
-        <CommandPalette
-          isOpen={isCommandPaletteOpen}
-          onClose={() => setIsCommandPaletteOpen(false)}
-          onAction={handleCommandAction}
-          tracks={tracks}
-          projects={projects}
-          artists={artists}
-        />
+        <Suspense fallback={null}>
+          <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            onClose={() => startTransition(() => setIsCommandPaletteOpen(false))}
+            onAction={handleCommandAction}
+            tracks={tracks}
+            projects={projects}
+            artists={artists}
+          />
+        </Suspense>
 
         {/* Floating Player */}
         {currentPlayingTrack && (
-          <FloatingPlayer
-            track={currentPlayingTrack}
-            isOpen={true}
-            playing={isPlaying}
-            onClose={() => setCurrentPlayingTrack(null)}
-            onPlayPause={handlePlayerPlayPause}
-            onPrev={playPrevTrack}
-            onNext={playNextTrack}
-          />
+          <Suspense fallback={null}>
+            <FloatingPlayer
+              track={currentPlayingTrack}
+              isOpen={true}
+              playing={isPlaying}
+              onClose={() => startTransition(() => setCurrentPlayingTrack(null))}
+              onPlayPause={handlePlayerPlayPause}
+              onPrev={playPrevTrack}
+              onNext={playNextTrack}
+            />
+          </Suspense>
         )}
 
         {/* Bottom Navigation */}
@@ -693,11 +711,13 @@ export default function AIGenerationStudio() {
       )}>
 
         <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
-          <GenerationContextPanel
-            projects={projects}
-            artists={artists}
-            onGenerate={handleGenerate}
-          />
+          <Suspense fallback={<div className="animate-pulse h-96 bg-muted rounded-md" />}>
+            <GenerationContextPanel
+              projects={projects}
+              artists={artists}
+              onGenerate={handleGenerate}
+            />
+          </Suspense>
         </div>
       </div>
 
@@ -719,7 +739,7 @@ export default function AIGenerationStudio() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setIsCommandPaletteOpen(true)}
+                onClick={() => startTransition(() => setIsCommandPaletteOpen(true))}
                 className="flex items-center gap-2 hover-lift"
               >
                 <Command className="h-4 w-4" />
@@ -801,31 +821,35 @@ export default function AIGenerationStudio() {
       <TrackDetailsDrawer
         track={selectedTrack}
         isOpen={isTrackDetailsOpen}
-        onClose={() => setIsTrackDetailsOpen(false)}
+        onClose={() => startTransition(() => setIsTrackDetailsOpen(false))}
         onPlay={handlePlayTrack}
       />
 
       {/* Command Palette */}
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        onAction={handleCommandAction}
-        tracks={tracks}
-        projects={projects}
-        artists={artists}
-      />
+      <Suspense fallback={null}>
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => startTransition(() => setIsCommandPaletteOpen(false))}
+          onAction={handleCommandAction}
+          tracks={tracks}
+          projects={projects}
+          artists={artists}
+        />
+      </Suspense>
 
       {/* Floating Player */}
       {currentPlayingTrack && (
-        <FloatingPlayer
-          track={currentPlayingTrack}
-          isOpen={true}
-          playing={isPlaying}
-          onClose={() => setCurrentPlayingTrack(null)}
-          onPlayPause={handlePlayerPlayPause}
-          onPrev={playPrevTrack}
-          onNext={playNextTrack}
-        />
+        <Suspense fallback={null}>
+          <FloatingPlayer
+            track={currentPlayingTrack}
+            isOpen={true}
+            playing={isPlaying}
+            onClose={() => startTransition(() => setCurrentPlayingTrack(null))}
+            onPlayPause={handlePlayerPlayPause}
+            onPrev={playPrevTrack}
+            onNext={playNextTrack}
+          />
+        </Suspense>
       )}
     </div>
   );
