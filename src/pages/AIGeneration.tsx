@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense, startTransition } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -328,8 +328,10 @@ export default function AIGeneration() {
     if (!track.audio_url) {
       return;
     }
-    setCurrentTrack(track);
-    setPlayerOpen(true);
+    startTransition(() => {
+      setCurrentTrack(track);
+      setPlayerOpen(true);
+    });
   };
 
   const handleDeleteTrack = async (trackId: string) => {
@@ -413,7 +415,9 @@ export default function AIGeneration() {
         <div className="w-full lg:w-80 xl:w-96 border-b lg:border-b-0 lg:border-r bg-card">
           <div className="p-4 space-y-4">
             <AIServiceStatusBanner />
-            <TaskQueuePanel className="lg:max-h-80 overflow-auto" />
+            <Suspense fallback={<div className="p-4"><div className="h-6 bg-muted rounded mb-2"></div><div className="h-16 bg-muted rounded"></div></div>}>
+              <TaskQueuePanel className="lg:max-h-80 overflow-auto" />
+            </Suspense>
           </div>
             {/* Modern unified sidebar with Upload & Extend */}
             <UnifiedGenerationSidebar
@@ -440,7 +444,7 @@ export default function AIGeneration() {
             </div>
           ) : (
             <div className="p-4 sm:p-6">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <Tabs value={activeTab} onValueChange={(v) => startTransition(() => setActiveTab(v))}>
                 <TabsList className="mb-4">
                   <TabsTrigger value="tracks">Все треки</TabsTrigger>
                   <TabsTrigger value="generations">Генерации ИИ</TabsTrigger>
@@ -528,17 +532,19 @@ export default function AIGeneration() {
                 </TabsContent>
                 
                 <TabsContent value="generations">
-                  <GenerationFeed 
-                    onPlay={handlePlayTrack}
-                    onDownload={(url, filename) => {
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = filename;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    }}
-                  />
+                  <Suspense fallback={<div className="p-4"><div className="h-6 bg-muted rounded mb-2"></div><div className="h-24 bg-muted rounded" /></div>}>
+                    <GenerationFeed 
+                      onPlay={handlePlayTrack}
+                      onDownload={(url, filename) => {
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = filename;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    />
+                  </Suspense>
                 </TabsContent>
 
                 <TabsContent value="recovery" className="space-y-6">
@@ -561,21 +567,23 @@ export default function AIGeneration() {
       </div>
       
       {/* Player */}
-      <FloatingPlayer
-        isOpen={playerOpen}
-        onClose={() => setPlayerOpen(false)}
-        track={currentTrack ? {
-          id: currentTrack.id,
-          title: currentTrack.title,
-          audio_url: currentTrack.audio_url || '',
-          project: {
-            title: currentTrack.projects?.title || '',
-            artist: {
-              name: currentTrack.projects?.artists?.name || 'Unknown Artist'
+      <Suspense fallback={null}>
+        <FloatingPlayer
+          isOpen={playerOpen}
+          onClose={() => startTransition(() => setPlayerOpen(false))}
+          track={currentTrack ? {
+            id: currentTrack.id,
+            title: currentTrack.title,
+            audio_url: currentTrack.audio_url || '',
+            project: {
+              title: currentTrack.projects?.title || '',
+              artist: {
+                name: currentTrack.projects?.artists?.name || 'Unknown Artist'
+              }
             }
-          }
-        } : null}
-      />
+          } : null}
+        />
+      </Suspense>
     </div>
   );
 }
