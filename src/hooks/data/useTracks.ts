@@ -283,8 +283,17 @@ export function useTracks(options?: {
     enabled: !!user,
     ...tracksQueryConfig,
     
+    // TODO: ПРОБЛЕМА С ОТОБРАЖЕНИЕМ ТРЕКОВ - проверить refetchOnMount
+    // FIXME: Добавить автообновление при изменениях в треках
+    refetchOnMount: true,  // FIXME: Принудительно обновляем при монтировании
+    
     // OPTIMIZATION: Use global state as initial data
     initialData: () => {
+      // TODO: Убрать initialData если он мешает обновлению
+      // FIXME: Возможно, кеш препятствует отображению новых треков
+      return undefined;  // FIXME: Временно отключаем кеш для тестирования
+      
+      /*
       if (state.tracks.items.length > 0 && !state.tracks.loading) {
         console.log('[useTracks] Using cached data from global state');
         let filteredTracks = state.tracks.items as EnhancedTrack[];
@@ -297,6 +306,7 @@ export function useTracks(options?: {
         return filteredTracks.length > 0 ? filteredTracks : undefined;
       }
       return undefined;
+      */
     },
     
   });

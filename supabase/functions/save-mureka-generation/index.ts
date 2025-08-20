@@ -22,10 +22,13 @@ serve(async (req) => {
 
     console.log('Saving Mureka generation:', { generationId, trackData })
 
+    // TODO: КРИТИЧЕСКАЯ ОШИБКА - колонка title не существует в ai_generations
+    // FIXME: Использовать правильные колонки из схемы БД
+    
     // Get user from generation record
     const { data: generation, error: genError } = await supabase
       .from('ai_generations')
-      .select('user_id, title, prompt')
+      .select('user_id, prompt, metadata')  // FIXME: убрал несуществующую колонку title
       .eq('id', generationId)
       .single()
 
@@ -40,30 +43,47 @@ serve(async (req) => {
       )
     }
 
+    // TODO: ИСПРАВИТЬ - проблема с поиском проекта и artist_id
+    // FIXME: Улучшить логику поиска Inbox проекта
+    
     // Найти проект для сохранения трека
     let targetProjectId = projectId;
     if (!targetProjectId) {
-      // Получить проект Inbox пользователя
-      const { data: inboxProject } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('is_inbox', true)
-        .eq('artist_id', artistId || (await supabase
+      console.log('[PROJECT] Поиск Inbox проекта для пользователя:', generation.user_id);
+      
+      // Сначала найти artist пользователя, если не передан
+      let finalArtistId = artistId;
+      if (!finalArtistId) {
+        const { data: userArtist } = await supabase
           .from('artists')
           .select('id')
           .eq('user_id', generation.user_id)
-          .single()
-        ).data?.id)
-        .single();
+          .limit(1)
+          .single();
+        
+        finalArtistId = userArtist?.id;
+        console.log('[PROJECT] Найден artist пользователя:', finalArtistId);
+      }
       
-      targetProjectId = inboxProject?.id;
+      if (finalArtistId) {
+        // Получить проект Inbox пользователя
+        const { data: inboxProject } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('is_inbox', true)
+          .eq('artist_id', finalArtistId)
+          .single();
+        
+        targetProjectId = inboxProject?.id;
+        console.log('[PROJECT] Найден Inbox проект:', targetProjectId);
+      }
     }
 
     // Create track record with immediate audio URL
     const trackRecord = {
       id: crypto.randomUUID(),
       project_id: targetProjectId,
-      title: trackData.title || generation.title || 'AI Generated Track',
+      title: trackData.title || 'AI Generated Track',  // FIXME: убрал generation.title (не существует)
       audio_url: trackData.audio_url, // Direct audio URL from Mureka
       duration: trackData.duration || 120,
       lyrics: trackData.lyrics || '',
@@ -80,8 +100,16 @@ serve(async (req) => {
       }
     }
 
+    // TODO: Вынести функцию из тела основной функции
+    // FIXME: Использовать существующую функцию get_next_track_number из БД
+    
     // Функция для получения следующего номера трека
     async function getNextTrackNumber(projectId: string) {
+      if (!projectId) {
+        console.log('[TRACK_NUMBER] Нет project_id, используем номер 1');
+        return 1;
+      }
+      
       const { data } = await supabase
         .from('tracks')
         .select('track_number')
@@ -89,7 +117,9 @@ serve(async (req) => {
         .order('track_number', { ascending: false })
         .limit(1);
       
-      return (data?.[0]?.track_number || 0) + 1;
+      const nextNumber = (data?.[0]?.track_number || 0) + 1;
+      console.log('[TRACK_NUMBER] Следующий номер трека:', nextNumber);
+      return nextNumber;
     }
 
     // Save track to database
@@ -119,7 +149,7 @@ serve(async (req) => {
         track_id: savedTrack.id,
         completed_at: new Date().toISOString(),
         metadata: {
-          ...(generation.metadata || {}),
+          ...((generation.metadata as any) || {}),  // TODO: Типизировать metadata правильно
           ...trackData,
           saved_track_id: savedTrack.id,
           track_saved: true

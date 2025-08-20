@@ -382,6 +382,9 @@ function looksLikeLyrics(text?: string): boolean {
 }
 
 /**
+ * TODO: CRITICAL FIX - В Mureka передается промпт вместо лирики!
+ * FIXME: Исправить логику определения типа контента (lyrics vs prompt)
+ * 
  * Подготавливает данные для запроса к Mureka API
  * Разделяет prompt и lyrics, обрабатывает различные режимы
  * 
@@ -391,6 +394,9 @@ function looksLikeLyrics(text?: string): boolean {
 function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string; prompt: string } {
   let lyrics = '';
   let prompt = '';
+  
+  // TODO: Добавить более умную логику определения типа контента
+  // FIXME: Сейчас все интерпретируется как промпт для генерации лирики
   
   // Формируем базовый prompt из параметров стиля
   const stylePrompt = request.style || 
@@ -403,8 +409,12 @@ function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string
     isInstrumental: request.instrumental,
     style: request.style,
     promptType: typeof request.prompt,
-    lyricsType: typeof request.lyrics
+    lyricsType: typeof request.lyrics,
+    inputType: request.inputType  // TODO: Использовать inputType для различения
   });
+  
+  // TODO: КРИТИЧЕСКАЯ ОШИБКА - нужно проверить inputType сначала!
+  // FIXME: inputType должен определять, что делать с контентом
   
   // Обработка входящих данных - преобразуем объекты в строки
   const safePrompt = typeof request.prompt === 'string' ? request.prompt : 
@@ -414,12 +424,25 @@ function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string
   const safeCustomLyrics = typeof request.custom_lyrics === 'string' ? request.custom_lyrics : 
                            typeof request.custom_lyrics === 'object' ? JSON.stringify(request.custom_lyrics) : '';
   
-  if (safeCustomLyrics && safeCustomLyrics.trim().length > 0) {
+  // TODO: ИСПРАВИТЬ - проверить inputType первым делом!
+  if (request.inputType === 'lyrics') {
+    // Пользователь ввел готовую лирику - используем как есть
+    lyrics = safePrompt || safeLyrics || safeCustomLyrics || '[No lyrics provided]';
+    prompt = stylePrompt;
+    console.log('[PREPARE] InputType=lyrics: Using provided text as lyrics');
+  } else if (request.inputType === 'description') {
+    // Пользователь ввел описание - генерируем лирику
+    const descriptionText = safePrompt || safeLyrics || 'a beautiful song';
+    lyrics = `Please generate lyrics for: ${descriptionText}`;
+    prompt = stylePrompt;
+    console.log('[PREPARE] InputType=description: Generating lyrics from description');
+  } else if (safeCustomLyrics && safeCustomLyrics.trim().length > 0) {
     // Пользователь предоставил явную лирику
     lyrics = safeCustomLyrics.trim();
     prompt = stylePrompt;
     console.log('[PREPARE] Using custom lyrics');
   } else if (safeLyrics && safeLyrics.trim().length > 0) {
+    // TODO: СТАРАЯ ЛОГИКА - заменить на inputType
     // Лирика в поле lyrics - проверяем, что это не промпт для генерации
     const cleanLyrics = safeLyrics.trim();
     if (looksLikeLyrics(cleanLyrics)) {
@@ -427,10 +450,10 @@ function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string
       prompt = stylePrompt;
       console.log('[PREPARE] Using lyrics field as lyrics');
     } else {
-      // Это выглядит как промпт для генерации лирики - просто используем как есть
-      lyrics = cleanLyrics;
+      // FIXME: Это точка ошибки - здесь промпт попадает в lyrics!
+      lyrics = `Please generate lyrics for: ${cleanLyrics}`;
       prompt = stylePrompt;
-      console.log('[PREPARE] Using lyrics field as prompt text');
+      console.log('[PREPARE] FIXME: Converting prompt to lyrics generation request');
     }
   } else if (request.instrumental) {
     // Инструментальный трек
@@ -443,18 +466,20 @@ function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string
     prompt = stylePrompt;
     console.log('[PREPARE] Using prompt field as lyrics');
   } else {
+    // FIXME: Дефолтная логика - может быть проблематичной
     // Нет готовой лирики - используем prompt для генерации лирики
     const promptText = safePrompt || 'a beautiful song';
-    // Для Mureka нужно добавить инструкцию для генерации лирики
     lyrics = `Please generate lyrics for: ${promptText}`;
     prompt = stylePrompt;
-    console.log('[PREPARE] Using prompt text for lyrics generation with instruction');
+    console.log('[PREPARE] FALLBACK: Using prompt text for lyrics generation with instruction');
   }
   
   console.log('[PREPARE] Final content prepared:', {
     lyricsLength: lyrics.length,
     promptLength: prompt.length,
-    lyricsPreview: lyrics.substring(0, 100) + '...'
+    lyricsPreview: lyrics.substring(0, 100) + '...',
+    actualInputType: request.inputType,
+    detectedAsLyrics: looksLikeLyrics(lyrics)
   });
   
   return { lyrics, prompt };
