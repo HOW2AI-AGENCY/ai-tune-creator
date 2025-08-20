@@ -532,8 +532,8 @@ export default function AIGeneration() {
                 </TabsContent>
                 
                 <TabsContent value="generations">
-                  <Suspense fallback={<div className="p-4"><div className="h-6 bg-muted rounded mb-2"></div><div className="h-24 bg-muted rounded" /></div>}>
-                    <GenerationFeed 
+                  <Suspense fallback={<div className="p-4"><div className="h-6 bg-muted rounded mb-2"></div><div className="h-24 bg-muted rounded"></div></div>}>
+                    <GenerationFeed
                       onPlay={handlePlayTrack}
                       onDownload={(url, filename) => {
                         const link = document.createElement('a');
