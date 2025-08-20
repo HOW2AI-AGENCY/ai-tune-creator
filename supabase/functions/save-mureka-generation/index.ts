@@ -1,167 +1,132 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.55.0";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-interface MurekaGenerationRequest {
-  generationId?: string;
-  taskId: string;
-  trackData: {
-    url: string;
-    duration: number;
-    lyrics_sections?: any[];
-    id: string;
-  };
-  title: string;
-  prompt: string;
-  userId: string;
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const requestData: MurekaGenerationRequest = await req.json();
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
-    console.log('Saving Mureka generation:', {
-      taskId: requestData.taskId,
-      generationId: requestData.generationId,
-      url: requestData.trackData.url,
-      flac_url: requestData.trackData.flac_url,
-      provider_urls: {
-        mp3: requestData.trackData.url,
-        flac: requestData.trackData.flac_url
-      }
-    });
+    const { generationId, trackData, projectId, artistId } = await req.json()
 
-    const { generationId, taskId, trackData, title, prompt, userId } = requestData;
+    console.log('Saving Mureka generation:', { generationId, trackData })
 
-    // Check if generation record exists
-    let generation;
-    if (generationId) {
-      const { data: existingGeneration } = await supabase
-        .from('ai_generations')
-        .select('*')
-        .eq('id', generationId)
-        .single();
-      
-      generation = existingGeneration;
+    // Get user from generation record
+    const { data: generation, error: genError } = await supabase
+      .from('ai_generations')
+      .select('user_id, title, prompt')
+      .eq('id', generationId)
+      .single()
+
+    if (genError || !generation) {
+      console.error('Error getting generation:', genError)
+      return new Response(
+        JSON.stringify({ success: false, error: 'Generation not found' }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     }
 
-    // Create or update generation record
-    if (generation) {
-      // Update existing generation
-      const { error: updateError } = await supabase
-        .from('ai_generations')
-        .update({
-          status: 'completed',
-          result_url: trackData.url,
-          completed_at: new Date().toISOString(),
-          metadata: {
-            ...generation.metadata,
-            mureka_task_id: taskId,
-            mureka_track_id: trackData.id,
-            duration: trackData.duration,
-            mureka_status: 'succeeded',
-            provider_urls: {
-              mp3: trackData.url,
-              flac: trackData.flac_url
-            },
-            instant_playback_url: trackData.url
-          }
-        })
-        .eq('id', generationId);
-
-      if (updateError) {
-        console.error('Error updating generation:', updateError);
-        throw updateError;
-      }
-
-      console.log('Updated existing generation:', generationId);
-    } else {
-      // Create new generation record
-      const { data: newGeneration, error: insertError } = await supabase
-        .from('ai_generations')
-        .insert([{
-          user_id: userId,
-          service: 'mureka',
-          status: 'completed',
-          external_id: taskId,
-          prompt: prompt,
-          result_url: trackData.url,
-          completed_at: new Date().toISOString(),
-          metadata: {
-            mode: 'quick',
-            mureka_task_id: taskId,
-            mureka_track_id: trackData.id,
-            duration: trackData.duration,
-            mureka_status: 'succeeded',
-            title: title,
-            provider_urls: {
-              mp3: trackData.url,
-              flac: trackData.flac_url
-            },
-            instant_playback_url: trackData.url
-          },
-          parameters: {
-            model: 'mureka-7',
-            service: 'mureka'
-          }
-        }])
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('Error creating generation:', insertError);
-        throw insertError;
-      }
-
-      generation = newGeneration;
-      console.log('Created new generation:', generation.id);
+    // Create track record with immediate audio URL
+    const trackRecord = {
+      id: crypto.randomUUID(),
+      user_id: generation.user_id,
+      title: trackData.title || generation.title || 'AI Generated Track',
+      audio_url: trackData.audio_url, // Direct audio URL from Mureka
+      duration: trackData.duration || 120,
+      lyrics: trackData.lyrics || '',
+      genre: 'ai-generated',
+      project_id: projectId || null,
+      artist_id: artistId || null,
+      generation_id: generationId,
+      metadata: {
+        service: 'mureka',
+        model: trackData.model || 'auto',
+        prompt: generation.prompt,
+        generated_at: new Date().toISOString(),
+        original_data: trackData
+      },
+      status: 'completed',
+      processing_status: 'completed'
     }
 
-    // Trigger track sync
-    try {
-      await supabase.functions.invoke('sync-generated-tracks');
-      console.log('Triggered track sync');
-    } catch (syncError) {
-      console.error('Error triggering sync:', syncError);
-      // Don't fail the whole operation if sync fails
+    // Save track to database
+    const { data: savedTrack, error: trackError } = await supabase
+      .from('tracks')
+      .insert([trackRecord])
+      .select()
+      .single()
+
+    if (trackError) {
+      console.error('Error saving track:', trackError)
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to save track', details: trackError }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        generation: generation,
-        message: 'Mureka generation saved successfully'
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
+    // Update generation status to completed
+    const { error: updateError } = await supabase
+      .from('ai_generations')
+      .update({
+        status: 'completed',
+        result_url: trackData.audio_url,
+        track_id: savedTrack.id,
+        completed_at: new Date().toISOString(),
+        metadata: {
+          ...trackData,
+          saved_track_id: savedTrack.id
+        }
+      })
+      .eq('id', generationId)
 
-  } catch (error) {
-    console.error('Error in save-mureka-generation function:', error);
+    if (updateError) {
+      console.error('Error updating generation:', updateError)
+      // Don't fail the request if track was saved successfully
+    }
+
+    console.log('Mureka track saved successfully:', savedTrack.id)
+
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        success: false 
+        success: true, 
+        track: savedTrack,
+        message: 'Track saved successfully'
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
-    );
+    )
+
+  } catch (error) {
+    console.error('Error in save-mureka-generation:', error)
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: 'Internal server error',
+        details: error.message 
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
   }
-});
+})

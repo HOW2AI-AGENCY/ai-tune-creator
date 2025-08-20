@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useTracks } from "@/hooks/data/useTracks";
 import { TelegramGenerationForm } from "@/components/mobile/TelegramGenerationForm";
 import { TelegramMobilePlayer } from "@/components/mobile/TelegramMobilePlayer";
 import { MobilePageWrapper } from "@/components/mobile/MobilePageWrapper";
@@ -25,7 +26,7 @@ interface GenerationFormData {
   tags: string[];
 }
 
-interface Track {
+interface TrackData {
   id: string;
   title: string;
   audio_url?: string;
@@ -46,11 +47,14 @@ export default function MobileGeneration() {
   const { isInTelegram } = useTelegramWebApp();
   const { notificationFeedback, impactFeedback } = useTelegramHaptics();
   const { generateTrack, activeGenerations } = useUnifiedGeneration();
+  const { tracks: userTracks = [], isLoading: tracksLoading, refetch: refreshTracks } = useTracks();
 
-  const [generatedTracks, setGeneratedTracks] = useState<Track[]>([]);
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
+  const [currentTrack, setCurrentTrack] = useState<TrackData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showForm, setShowForm] = useState(true);
+
+  // Use actual user tracks instead of local state
+  const generatedTracks = userTracks;
 
   const isGenerating = activeGenerations.size > 0;
   const generationProgress = Array.from(activeGenerations.values())[0]?.overallProgress || 0;
@@ -87,31 +91,18 @@ export default function MobileGeneration() {
       });
 
       if (result) {
-        // The generateTrack function returns a generation ID, not a track
-        // For now, create a mock track for demonstration
-        const newTrack: Track = {
-          id: `track-${Date.now()}`,
-          title: formData.title || `${formData.genre} ${formData.mood} Track`,
-          audio_url: "https://example.com/mock-audio.mp3", // This will be updated when generation completes
-          duration: formData.duration,
-          lyrics: formData.lyrics || "Generated lyrics will appear here...",
-          project: {
-            title: "AI Generated",
-            artist: {
-              name: "AI Composer"
-            }
-          }
-        };
-
-        setGeneratedTracks(prev => [newTrack, ...prev]);
-        setCurrentTrack(newTrack);
         setShowForm(false);
         
         notificationFeedback?.('success');
         toast({
-          title: "Music generated successfully!",
-          description: "Your new track is ready to play",
+          title: "Генерация запущена!",
+          description: "Трек создается с помощью ИИ. Он появится в списке после завершения.",
         });
+        
+        // Refresh tracks to show any completed generations
+        setTimeout(() => {
+          refreshTracks();
+        }, 2000);
       }
 
     } catch (error) {
@@ -130,13 +121,13 @@ export default function MobileGeneration() {
     impactFeedback?.('light');
   };
 
-  const handleTrackSelect = (track: Track) => {
+  const handleTrackSelect = (track: TrackData) => {
     setCurrentTrack(track);
     setIsPlaying(false);
     impactFeedback?.('light');
   };
 
-  const handleShare = (track: Track) => {
+  const handleShare = (track: TrackData) => {
     if (navigator.share) {
       navigator.share({
         title: track.title,
@@ -154,7 +145,7 @@ export default function MobileGeneration() {
     impactFeedback?.('medium');
   };
 
-  const handleDownload = (track: Track) => {
+  const handleDownload = (track: TrackData) => {
     if (track.audio_url) {
       window.open(track.audio_url, '_blank');
     }
@@ -273,7 +264,24 @@ export default function MobileGeneration() {
 
       {/* Track List */}
       <div className="flex-1 overflow-auto scrollbar-hide">
-        {generatedTracks.length > 0 ? (
+        {tracksLoading ? (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="relative mb-4">
+                <div className="w-12 h-12 mx-auto rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                  <Music className="h-6 w-6 text-primary animate-pulse" />
+                </div>
+              </div>
+              <h3 className="font-medium mb-2">Загружаем ваши треки...</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Подождите, идет загрузка музыкальной библиотеки
+              </p>
+              <div className="w-16 h-1 bg-secondary rounded-full mx-auto overflow-hidden">
+                <div className="w-full h-full bg-primary rounded-full animate-pulse" />
+              </div>
+            </div>
+          </div>
+        ) : generatedTracks.length > 0 ? (
           <div className="divide-y divide-border/50">
             {generatedTracks.map((track) => (
               <div
@@ -291,15 +299,15 @@ export default function MobileGeneration() {
                 
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium text-sm truncate">{track.title}</h3>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="truncate">
-                      {track.project?.artist?.name}
-                    </span>
-                    <span>•</span>
-                    <span>
-                      {Math.floor((track.duration || 0) / 60)}:{((track.duration || 0) % 60).toString().padStart(2, '0')}
-                    </span>
-                  </div>
+                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                     <span className="truncate">
+                       AI Composer
+                     </span>
+                     <span>•</span>
+                     <span>
+                       {Math.floor((track.duration || 0) / 60)}:{((track.duration || 0) % 60).toString().padStart(2, '0')}
+                     </span>
+                   </div>
                 </div>
 
                 {currentTrack?.id === track.id && (
@@ -314,15 +322,18 @@ export default function MobileGeneration() {
         ) : (
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="text-center">
-              <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="font-medium mb-2">No tracks yet</h3>
+              <div className="relative mb-4">
+                <div className="w-12 h-12 mx-auto rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                  <Music className="h-6 w-6 text-primary animate-pulse" />
+                </div>
+              </div>
+              <h3 className="font-medium mb-2">Загружаем ваши треки...</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Generate your first AI music track
+                Подождите, идет загрузка музыкальной библиотеки
               </p>
-              <Button onClick={handleNewGeneration} className="gap-2">
-                <Wand2 className="h-4 w-4" />
-                Start Creating
-              </Button>
+              <div className="w-16 h-1 bg-secondary rounded-full mx-auto overflow-hidden">
+                <div className="w-full h-full bg-primary rounded-full animate-pulse" />
+              </div>
             </div>
           </div>
         )}

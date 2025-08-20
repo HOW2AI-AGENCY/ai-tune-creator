@@ -301,16 +301,21 @@ export function useTrackGenerationWithProgress() {
           });
         }
 
-        // Если уже есть аудио URL, сразу сохраняем
+        // Если уже есть аудио URL, сразу сохраняем через новую функцию
         if (data.data?.audio_url) {
           try {
-            const saveResponse = await supabase.functions.invoke('save-mureka-track', {
+            const saveResponse = await supabase.functions.invoke('save-mureka-generation', {
               body: {
-                generation_id: data.data.generation?.id,
-                audio_url: data.data.audio_url,
-                title: data.data.title,
-                duration: data.data.duration,
-                metadata: data.metadata
+                generationId: data.data.generation?.id,
+                trackData: {
+                  audio_url: data.data.audio_url,
+                  title: data.data.title,
+                  duration: data.data.duration,
+                  lyrics: data.data.lyrics,
+                  model: params.model
+                },
+                projectId: params.projectId,
+                artistId: params.artistId
               }
             });
 
@@ -324,9 +329,12 @@ export function useTrackGenerationWithProgress() {
             } else {
               console.log('Mureka track saved successfully:', saveResponse.data);
               toast({
-                title: "Трек сохранен в библиотеку",
+                title: "Трек готов!",
                 description: "Трек успешно добавлен в вашу музыкальную коллекцию"
               });
+              
+              // Trigger immediate refresh of tracks list
+              window.dispatchEvent(new CustomEvent('tracks-updated'));
             }
           } catch (saveError) {
             console.error('Save error:', saveError);

@@ -26,11 +26,13 @@ export interface AIGeneration {
 
 export function useGenerationState() {
   const [generations, setGenerations] = useState<AIGeneration[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Changed: Start with false for immediate loading feedback
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadGenerations = useCallback(async () => {
     try {
+      setIsLoading(true); // Set loading only when actually loading
+      
       const { data, error } = await supabase
         .from('ai_generations')
         .select('*')
@@ -43,11 +45,14 @@ export function useGenerationState() {
         return;
       }
 
-      setGenerations((data || []).map(item => ({
+      const formattedGenerations = (data || []).map(item => ({
         ...item,
         service: item.service as 'suno' | 'mureka',
         status: item.status as 'processing' | 'completed' | 'failed' | 'pending'
-      })));
+      }));
+
+      setGenerations(formattedGenerations);
+      console.log(`Loaded ${formattedGenerations.length} generations`);
     } catch (error) {
       console.error('Error loading generations:', error);
       toast.error('Ошибка загрузки генераций');
@@ -120,19 +125,25 @@ export function useGenerationState() {
     }
   }, [loadGenerations]);
 
-  // Auto-poll processing generations every 30 seconds
+  // Auto-poll processing generations every 15 seconds (faster polling)
   useEffect(() => {
     const processingGenerations = generations.filter(g => g.status === 'processing');
     
     if (processingGenerations.length === 0) return;
 
+    console.log(`Starting auto-poll for ${processingGenerations.length} processing generations`);
+
     const interval = setInterval(() => {
       processingGenerations.forEach(gen => {
+        console.log(`Auto-checking status for generation ${gen.id}`);
         checkGenerationStatus(gen.id);
       });
-    }, 30000);
+    }, 15000); // Reduced from 30s to 15s for faster updates
 
-    return () => clearInterval(interval);
+    return () => {
+      console.log('Stopping auto-poll interval');
+      clearInterval(interval);
+    };
   }, [generations, checkGenerationStatus]);
 
   useEffect(() => {
