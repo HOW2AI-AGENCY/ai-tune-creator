@@ -179,9 +179,11 @@ function normalizeModelName(model: string): NormalizedSunoModel {
   function prepareSunoParams(request: GenerationRequest) {
     const isLyricsInput = request.inputType === 'lyrics';
     
+    const providedLyrics = ((request as any).custom_lyrics as string | undefined) ?? request.lyrics ?? '';
+    
     console.log('[SUNO PARAMS] Preparing with:', {
       inputType: request.inputType,
-      hasLyrics: !!request.lyrics,
+      hasLyrics: !!(providedLyrics && providedLyrics.trim().length > 0),
       hasPrompt: !!request.prompt,
       mode: request.mode
     });
@@ -190,7 +192,8 @@ function normalizeModelName(model: string): NormalizedSunoModel {
     if (isLyricsInput) {
       return {
         prompt: request.stylePrompt || request.style || 'Создай музыку к этой лирике',
-        lyrics: request.lyrics || request.prompt, // ИСПРАВЛЕНО: Используем правильное поле
+        // ВАЖНО: не подставляем prompt как лирику, только явные lyrics/custom_lyrics
+        lyrics: providedLyrics && providedLyrics.trim().length > 0 ? providedLyrics : undefined,
         customMode: true
       };
     }
@@ -603,7 +606,7 @@ serve(async (req) => {
       prompt: requestPrompt,                    // Описание стиля/содержания
       customMode: mode === 'custom',           // Включаем кастомный режим при необходимости
       style: style || requestPrompt,           // Музыкальный стиль
-      title: title || `AI Generated ${new Date().toLocaleDateString('ru-RU')}`, // Название трека
+      title: title || (style?.split(',')[0]?.trim() || (requestPrompt || '').split('\n')[0].slice(0, 50) || 'AI Track'), // Умный заголовок
       instrumental: make_instrumental,         // Инструментальная версия
       model: normalizeModelName(model),        // ИСПРАВЛЕНО: правильная конвертация модели
       callBackUrl: callbackUrl                 // URL для асинхронных уведомлений

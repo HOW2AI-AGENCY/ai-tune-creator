@@ -173,11 +173,33 @@ serve(async (req) => {
 
         // Для первого трека обновляем существующий track_id
         if (trackIndex === 0 && generation.track_id) {
+          // Вычисляем умный заголовок для первого трека, если он шаблонный
+          let newTitle = track.title;
+          if (!newTitle || /^AI Generated Track/i.test(newTitle)) {
+            const lyrics = track.prompt || track.lyric || '';
+            if (lyrics) {
+              const lyricsMatch = lyrics.match(/\[(?:Куплет|Verse|Intro|Интро|Припев|Chorus)\s*\d*\]?\s*\n(.+)/i);
+              if (lyricsMatch && lyricsMatch[1]) {
+                newTitle = lyricsMatch[1].trim().slice(0, 50);
+              } else {
+                const lines = lyrics.split('\n').filter(line => 
+                  line.trim() && 
+                  !line.includes('[') && 
+                  !line.toLowerCase().includes('создай') &&
+                  line.length > 10
+                );
+                if (lines.length > 0) {
+                  newTitle = lines[0].trim().slice(0, 50);
+                }
+              }
+            }
+          }
+
           // Обновляем существующий трек
           const { error: updateTrackError } = await supabase
             .from('tracks')
             .update({
-              title: track.title,
+              title: newTitle,
               audio_url: track.audio_url,
               duration: Math.floor(parseFloat(track.duration) || 0),
               lyrics: track.prompt || track.lyric || null,
