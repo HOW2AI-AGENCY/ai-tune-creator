@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useTrackActions } from '@/hooks/useTrackActions';
-import { VocalSeparationDialog } from '@/features/ai-generation/components/VocalSeparationDialog';
+import { StemSeparationDialog } from '@/features/ai-generation/components/StemSeparationDialog';
 import { WAVConversionDialog } from '@/features/ai-generation/components/WAVConversionDialog';
 
 interface Track {
@@ -75,7 +75,7 @@ export function TrackActionButtons({
   } = useTrackActions();
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showVocalSeparation, setShowVocalSeparation] = useState(false);
+  const [showStemSeparation, setShowStemSeparation] = useState(false);
   const [showWAVConversion, setShowWAVConversion] = useState(false);
 
   const liked = isLiked(track.id);
@@ -151,7 +151,7 @@ export function TrackActionButtons({
               </DropdownMenuItem>
             )}
             
-            <DropdownMenuItem onClick={() => setShowVocalSeparation(true)}>
+            <DropdownMenuItem onClick={() => setShowStemSeparation(true)}>
               <Scissors className="h-4 w-4 mr-2" />
               Разделить стемы
             </DropdownMenuItem>
@@ -213,7 +213,7 @@ export function TrackActionButtons({
             
             <DropdownMenuSeparator />
             
-            <DropdownMenuItem onClick={() => setShowVocalSeparation(true)}>
+            <DropdownMenuItem onClick={() => setShowStemSeparation(true)}>
               <Scissors className="h-4 w-4 mr-2" />
               Разделить стемы
             </DropdownMenuItem>
@@ -294,7 +294,7 @@ export function TrackActionButtons({
       <Button
         variant="outline"
         size="sm"
-        onClick={() => setShowVocalSeparation(true)}
+        onClick={() => setShowStemSeparation(true)}
         className="flex items-center gap-2"
       >
         <Scissors className="h-4 w-4" />
@@ -339,9 +339,9 @@ export function TrackActionButtons({
       </AlertDialog>
 
       {/* Stem Separation Dialog */}
-      <VocalSeparationDialog
-        open={showVocalSeparation}
-        onOpenChange={setShowVocalSeparation}
+      <StemSeparationDialog
+        open={showStemSeparation}
+        onOpenChange={setShowStemSeparation}
         track={track}
       />
 
