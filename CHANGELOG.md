@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2025-08-20
+
+### 🔧 Исправления UI и документации
+- GenerationContextPanel: добавлен выбор моделей Suno (auto, V3_5, V4, V4_5, V4_5PLUS) и Mureka (auto, V7, O1, V6). Передача model в useTrackGenerationWithProgress.
+- Мобильный UI: FloatingPlayer больше не перекрывает контент; повышен z-index плеера и добавлен отступ контента при активном плеере.
+- Документация: актуализирован docs/api-reference-full.md по списку моделей и поведению по умолчанию.
+
 ## [2.1.0] - 2025-08-18
 
 ### 🚀 КРИТИЧЕСКИЕ ИСПРАВЛЕНИЯ И НОВЫЕ ВОЗМОЖНОСТИ

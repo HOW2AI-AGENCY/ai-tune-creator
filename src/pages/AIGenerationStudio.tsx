@@ -480,7 +480,7 @@ export default function AIGenerationStudio() {
 
   // Mobile Layout
   if (isMobile) {
-    return <div className="min-h-screen bg-background pb-mobile-nav animate-fade-in">
+    return <div className={cn("min-h-screen bg-background animate-fade-in", "pb-mobile-nav", currentPlayingTrack && "pb-[150px]")}>
         {/* Mobile Header */}
         <MobileHeader title="AI Studio" subtitle={`${filteredTracks.length} ${t('tracks')}`} showSearch={true} onSearch={() => startTransition(() => setIsCommandPaletteOpen(true))} showNotifications={false} isOnline={true}>
           {/* Search Bar */}

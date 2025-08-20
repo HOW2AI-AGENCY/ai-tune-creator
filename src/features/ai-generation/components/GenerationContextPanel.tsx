@@ -45,6 +45,9 @@ export function GenerationContextPanel({
   const [mode, setMode] = useState<'quick' | 'custom'>('quick');
   const [prompt, setPrompt] = useState("");
   const [selectedService, setSelectedService] = useState<'suno' | 'mureka'>('suno');
+  const [selectedModel, setSelectedModel] = useState<string>('auto');
+  const sunoModelOptions = ['auto','V3_5','V4','V4_5','V4_5PLUS'];
+  const murekaModelOptions = ['auto','V7','O1','V6'];
   const [selectedProjectId, setSelectedProjectId] = useState<string>("none");
   const [selectedArtistId, setSelectedArtistId] = useState<string>("none");
   const [sendToInbox, setSendToInbox] = useState(true);
@@ -295,6 +298,7 @@ export function GenerationContextPanel({
       duration: duration[0],
       instrumental,
       voiceStyle: voiceStyle !== "none" ? voiceStyle : undefined,
+      model: selectedModel !== 'auto' ? selectedModel : undefined,
       language
     };
 
@@ -571,6 +575,20 @@ export function GenerationContextPanel({
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Модель</Label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="auto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(selectedService === 'suno' ? sunoModelOptions : murekaModelOptions).map((m) => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -828,6 +846,20 @@ export function GenerationContextPanel({
                         <Badge variant="outline" className="text-xs">Pro</Badge>
                       </div>
                     </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Модель</Label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="auto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(selectedService === 'suno' ? sunoModelOptions : murekaModelOptions).map((m) => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
