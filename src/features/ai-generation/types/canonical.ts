@@ -191,7 +191,7 @@ export function mapToSunoRequest(input: CanonicalGenerationInput) {
     tags: input.tags.join(', '),
     make_instrumental: input.flags.instrumental,
     wait_audio: false,
-    model: 'chirp-v3-5',
+    model: input.flags.model || 'V3_5',
     mode: input.mode,
     custom_lyrics: isLyricsMode ? (input.lyrics || input.description) : '',
     voice_style: input.flags.voiceStyle || '',

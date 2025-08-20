@@ -328,9 +328,11 @@ function validateRequest(request: GenerationRequest): OperationResult<void> {
     };
   }
   
-    // Проверка поддерживаемых моделей
-    const supportedModels: SunoModelType[] = ['V3_5', 'V4', 'V4_5', 'V4_5PLUS'];
-    if (request.model && !supportedModels.includes(request.model as SunoModelType)) {
+  // Проверка и нормализация модели (принимаем старые форматы и V4_5PLUS)
+  if (request.model) {
+    const normalized = normalizeModelName(request.model);
+    const supportedModels: NormalizedSunoModel[] = ['V3_5', 'V4', 'V4_5', 'V4_5PLUS'];
+    if (!supportedModels.includes(normalized)) {
       return {
         success: false,
         error: {
@@ -340,6 +342,7 @@ function validateRequest(request: GenerationRequest): OperationResult<void> {
         }
       };
     }
+  }
   
   return { success: true, data: undefined };
 }

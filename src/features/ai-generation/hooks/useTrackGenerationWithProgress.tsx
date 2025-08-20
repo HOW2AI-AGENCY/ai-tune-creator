@@ -35,6 +35,7 @@ interface GenerationParams {
   voiceStyle?: string;
   language?: string;
   stylePrompt?: string;
+  model?: string; // Added: selected model (V3_5 | V4 | V4_5 | V4_5PLUS | auto)
   inputType: 'description' | 'lyrics'; // CRITICAL: Add this field
 }
 
@@ -105,7 +106,7 @@ export function useTrackGenerationWithProgress() {
             tags: params.genreTags?.join(', ') || 'energetic, creative',
             make_instrumental: params.instrumental || false,
             wait_audio: false,
-            model: 'chirp-v3-5',
+            model: params.model && params.model !== 'auto' ? params.model : 'V3_5',
             trackId: null,
             projectId: params.projectId || null,
             artistId: params.artistId || null,
