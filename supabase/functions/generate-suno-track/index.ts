@@ -85,10 +85,10 @@ interface GenerationRequest {
 }
 
 /** Поддерживаемые модели Suno AI */
-type SunoModelType = 'V3_5' | 'V4' | 'V4_5';
+type SunoModelType = 'V3_5' | 'V4' | 'V4_5' | 'V4_5PLUS';
 
 /** Нормализованные названия моделей для API (используются напрямую) */
-type NormalizedSunoModel = 'V3_5' | 'V4' | 'V4_5';
+type NormalizedSunoModel = 'V3_5' | 'V4' | 'V4_5' | 'V4_5PLUS';
 
 /** Структура запроса к Suno API согласно официальной документации */
 interface SunoApiRequest {
@@ -154,8 +154,8 @@ type OperationResult<T> = {
  * @returns Нормализованное название модели
  */
 function normalizeModelName(model: string): NormalizedSunoModel {
-  // Модели передаются напрямую в правильном формате V3_5, V4, V4_5
-  if (model === 'V3_5' || model === 'V4' || model === 'V4_5') {
+  // Модели передаются напрямую в правильном формате V3_5, V4, V4_5, V4_5PLUS
+  if (model === 'V3_5' || model === 'V4' || model === 'V4_5' || model === 'V4_5PLUS') {
     return model as NormalizedSunoModel;
   }
   
@@ -164,9 +164,11 @@ function normalizeModelName(model: string): NormalizedSunoModel {
     'chirp-v3-5': 'V3_5',
     'chirp-v4': 'V4',
     'chirp-v4-5': 'V4_5',
+    'chirp-bluejay': 'V4_5PLUS',
     'v3.5': 'V3_5',
     'v4': 'V4', 
-    'v4.5': 'V4_5'
+    'v4.5': 'V4_5',
+    'v4.5+': 'V4_5PLUS'
   };
   
   const normalized = modelMap[model];
@@ -327,7 +329,7 @@ function validateRequest(request: GenerationRequest): OperationResult<void> {
   }
   
     // Проверка поддерживаемых моделей
-    const supportedModels: SunoModelType[] = ['V3_5', 'V4', 'V4_5'];
+    const supportedModels: SunoModelType[] = ['V3_5', 'V4', 'V4_5', 'V4_5PLUS'];
     if (request.model && !supportedModels.includes(request.model as SunoModelType)) {
       return {
         success: false,
