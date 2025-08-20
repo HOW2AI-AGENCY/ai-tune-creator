@@ -42,7 +42,7 @@ import { useEventListener } from "@/lib/events/event-bus";
 
 // Lazy-loaded components for code splitting
 const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel").then(m => ({ default: m.GenerationContextPanel })));
-const TaskQueuePanel = lazy(() => import("@/components/ai-generation/TaskQueuePanel").then(m => ({ default: m.default })));
+const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel").then(m => ({ default: m.TaskQueuePanel })));
 const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid").then(m => ({ default: m.TrackResultsGrid })));
 const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer").then(m => ({ default: m.TrackDetailsDrawer })));
 const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette").then(m => ({ default: m.CommandPalette })));
