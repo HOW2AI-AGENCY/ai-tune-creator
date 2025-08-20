@@ -157,6 +157,7 @@ serve(async (req) => {
                 suno_track_data: track,
                 all_tracks: tracks, // Сохраняем все треки в metadata
                 total_tracks: tracks.length,
+                service: 'suno',
                 completed_at: new Date().toISOString(),
                 callback_received: true
               }
@@ -185,6 +186,7 @@ serve(async (req) => {
                 suno_track_id: track.id,
                 suno_model: track.model_name,
                 suno_track_data: track,
+                service: 'suno',
                 track_variant: trackIndex + 1,
                 total_variants: tracks.length,
                 completed_at: new Date().toISOString(),

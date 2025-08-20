@@ -177,6 +177,20 @@ serve(async (req) => {
         
         console.log(`Processing generation ${gen.id} with transactional function`);
         
+        // Ensure metadata has service information before creating track
+        if (!gen.metadata?.service) {
+          const serviceToUpdate = gen.service || 'unknown';
+          await supabase
+            .from('ai_generations')
+            .update({
+              metadata: {
+                ...gen.metadata,
+                service: serviceToUpdate
+              }
+            })
+            .eq('id', gen.id);
+        }
+
         // Use transactional function for atomic track creation/update
         const { data: trackId, error: rpcError } = await supabase.rpc(
           'create_or_update_track_from_generation', 

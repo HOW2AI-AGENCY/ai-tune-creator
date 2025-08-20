@@ -168,19 +168,69 @@ graph TD
 - Обработка ошибок 429 (Too Many Requests)
 - Очередь запросов при превышении лимитов
 
+## 🔧 Service Metadata and Track Display
+
+### Service Identification
+All generated tracks now correctly identify their AI service source:
+- Suno tracks: `metadata.service = 'suno'`  
+- Mureka tracks: `metadata.service = 'mureka'`
+- Generation records include service metadata for proper track categorization
+
+### Callback Payload Structure (Suno)
+```json
+{
+  "code": 200,
+  "msg": "success", 
+  "data": {
+    "callbackType": "complete",
+    "task_id": "6c8c0915e1e8afb3b991d4c84d4ee0aa",
+    "data": [
+      {
+        "id": "bf4b7b9d-6305-416e-9fac-f3f606645ef7",
+        "audio_url": "https://apiboxfiles.erweima.ai/...",
+        "title": "AI Generated Track 17.08.2025",
+        "duration": 76.84,
+        "model_name": "chirp-v3-5",
+        "prompt": "Создай современный хип-хоп трек...",
+        "lyric": "Verse 1: ...",
+        "createTime": 1755432832915
+      }
+    ]
+  }
+}
+```
+
+### Track Saving Lifecycle
+1. **Generation Creation**: Edge function creates `ai_generations` record with `service` metadata
+2. **Callback Processing**: `suno-callback` receives completion and:
+   - Updates generation with `suno_track_data` and preserves `service: 'suno'`
+   - Creates/updates track with service metadata in track metadata
+   - Triggers background download to Supabase Storage
+3. **Sync Function**: `sync-generated-tracks` ensures service metadata exists:
+   - Validates generation has `metadata.service` 
+   - Backfills missing service data if needed
+   - Creates tracks with proper service identification
+
 ## 🧪 Тестирование
 
 ### Unit Tests
+- [x] Service metadata in generation creation
+- [x] Callback service preservation  
+- [x] Track service identification
 - [ ] Валидация параметров upload-extend
 - [ ] Корректность callback обработки
 - [ ] Timestamped lyrics parsing
 
 ### Integration Tests  
+- [x] Suno generation -> callback -> track creation
+- [x] Mureka generation -> track creation
+- [x] Service metadata flow
 - [ ] Полный цикл Upload & Extend
 - [ ] Обработка ошибок API
-- [ ] Callback handling
 
 ### E2E Tests
+- [x] Track display with correct service badges
+- [x] Audio URL extraction from both services
 - [ ] UI для Upload & Extend
 - [ ] Отображение прогресса
 - [ ] Воспроизведение с синхронизированной лирикой

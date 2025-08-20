@@ -64,7 +64,7 @@ export function useGenerationState() {
 
       const functionName = generation.service === 'suno' 
         ? 'get-suno-record-info' 
-        : 'get-mureka-instrumental-status';
+        : 'get-mureka-task-status';
 
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { 

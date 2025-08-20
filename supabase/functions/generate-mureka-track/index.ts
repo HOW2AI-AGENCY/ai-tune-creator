@@ -884,6 +884,7 @@ serve(async (req) => {
             metadata: {
               mureka_task_id: finalTrack.id,
               model: finalTrack.model,
+              service: 'mureka',
               created_at: finalTrack.created_at,
               finished_at: finalTrack.finished_at,
               failed_reason: finalTrack.failed_reason,

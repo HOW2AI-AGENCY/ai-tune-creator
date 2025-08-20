@@ -106,7 +106,12 @@ export function GenerationTrackCard({
   const getAudioUrl = () => {
     if (generation.result_url) return generation.result_url;
     
-    // Check Mureka response
+    // Check Mureka response (correct path for new API)
+    if (generation.metadata?.mureka_response?.choices?.[0]?.audio_url) {
+      return generation.metadata.mureka_response.choices[0].audio_url;
+    }
+    
+    // Check Mureka response alternative path
     if (generation.metadata?.mureka_response?.choices?.[0]?.url) {
       return generation.metadata.mureka_response.choices[0].url;
     }
