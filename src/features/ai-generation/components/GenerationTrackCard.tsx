@@ -103,7 +103,26 @@ export function GenerationTrackCard({
     return `${title}-${service}-${timestamp}.mp3`;
   };
 
-  if (generation.status === 'completed' && generation.result_url) {
+  // Extract audio URL from different sources
+  const getAudioUrl = () => {
+    if (generation.result_url) return generation.result_url;
+    
+    // Check Mureka response
+    if (generation.metadata?.mureka_response?.choices?.[0]?.url) {
+      return generation.metadata.mureka_response.choices[0].url;
+    }
+    
+    // Check Suno response  
+    if (generation.metadata?.suno_track_data?.audio_url) {
+      return generation.metadata.suno_track_data.audio_url;
+    }
+    
+    return null;
+  };
+
+  const audioUrl = getAudioUrl();
+
+  if (generation.status === 'completed' && audioUrl) {
     // Completed state - show as a regular track
     return (
       <Card className="shadow-card">
@@ -140,20 +159,26 @@ export function GenerationTrackCard({
                 </p>
               )}
             </div>
-            <TrackActionButtons
-              track={{
-                id: generation.id,
-                title: generation.title || 'Сгенерированный трек',
-                audio_url: generation.result_url,
-                metadata: { 
-                  service: generation.service,
-                  external_id: generation.task_id
-                },
-                user_id: generation.user_id
-              }}
-              variant="full"
-              onPlay={() => onPlay?.(generation.result_url!)}
-            />
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPlay?.(audioUrl!)}
+                className="flex items-center gap-2"
+              >
+                <Music2 className="h-4 w-4" />
+                Играть
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onDownload?.(audioUrl!, getFilename())}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Скачать
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -24,6 +24,23 @@ export function GenerationFeed({ onPlay, onDownload }: GenerationFeedProps) {
   
   const { ongoingGenerations } = useTrackGenerationWithProgress();
 
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-center py-12">
@@ -103,7 +120,7 @@ export function GenerationFeed({ onPlay, onDownload }: GenerationFeedProps) {
           generation={generation}
           onCheckStatus={checkGenerationStatus}
           onPlay={onPlay}
-          onDownload={onDownload}
+          onDownload={onDownload || handleDownload}
           isRefreshing={isRefreshing}
         />
       ))}
