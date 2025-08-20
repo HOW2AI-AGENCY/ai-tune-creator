@@ -532,19 +532,17 @@ export default function AIGeneration() {
                 </TabsContent>
                 
                 <TabsContent value="generations">
-                  <Suspense fallback={<div className="p-4"><div className="h-6 bg-muted rounded mb-2"></div><div className="h-24 bg-muted rounded"></div></div>}>
-                    <GenerationFeed
-                      onPlay={handlePlayTrack}
-                      onDownload={(url, filename) => {
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = filename;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
-                    />
-                  </Suspense>
+                  <GenerationFeed
+                    onPlay={handlePlayTrack}
+                    onDownload={(url, filename) => {
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = filename;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                  />
                 </TabsContent>
 
                 <TabsContent value="recovery" className="space-y-6">
@@ -567,23 +565,21 @@ export default function AIGeneration() {
       </div>
       
       {/* Player */}
-      <Suspense fallback={null}>
-        <FloatingPlayer
-          isOpen={playerOpen}
-          onClose={() => startTransition(() => setPlayerOpen(false))}
-          track={currentTrack ? {
-            id: currentTrack.id,
-            title: currentTrack.title,
-            audio_url: currentTrack.audio_url || '',
-            project: {
-              title: currentTrack.projects?.title || '',
-              artist: {
-                name: currentTrack.projects?.artists?.name || 'Unknown Artist'
-              }
+      <FloatingPlayer
+        isOpen={playerOpen}
+        onClose={() => startTransition(() => setPlayerOpen(false))}
+        track={currentTrack ? {
+          id: currentTrack.id,
+          title: currentTrack.title,
+          audio_url: currentTrack.audio_url || '',
+          project: {
+            title: currentTrack.projects?.title || '',
+            artist: {
+              name: currentTrack.projects?.artists?.name || 'Unknown Artist'
             }
-          } : null}
-        />
-      </Suspense>
+          }
+        } : null}
+      />
     </div>
   );
 }
