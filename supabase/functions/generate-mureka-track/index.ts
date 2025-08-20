@@ -42,8 +42,14 @@ const API_TIMEOUT = 30000; // 30 секунд для API вызовов
 const DB_TIMEOUT = 10000; // 10 секунд для операций с БД
 const AUTH_TIMEOUT = 5000; // 5 секунд для проверки аутентификации
 
-// Поддерживаемые модели Mureka
-const SUPPORTED_MODELS = ['auto', 'mureka-6', 'mureka-7', 'mureka-o1'] as const;
+// Поддерживаемые модели Mureka (UI -> API mapping)
+const SUPPORTED_MODELS = ['auto', 'V7', 'O1', 'V6'] as const;
+const MODEL_MAPPING: Record<string, string> = {
+  'auto': 'auto',
+  'V7': 'mureka-7',
+  'O1': 'mureka-o1', 
+  'V6': 'mureka-6'
+};
 
 // ==========================================
 // ТИПЫ И ИНТЕРФЕЙСЫ
@@ -783,10 +789,15 @@ serve(async (req) => {
       instrumental: requestBody.instrumental
     });
     
-    // Формируем запрос к Mureka API
+    // Формируем запрос к Mureka API с правильным маппингом модели
+    const selectedModel = requestBody.model || 'auto';
+    const mappedModel = MODEL_MAPPING[selectedModel] || 'auto';
+    
+    console.log(`[MODEL] UI модель: ${selectedModel} -> API модель: ${mappedModel}`);
+    
     const murekaRequest: MurekaAPIRequest = {
       lyrics: requestLyrics,
-      model: requestBody.model || 'auto',
+      model: mappedModel as any,
       stream: requestBody.stream || false
     };
     

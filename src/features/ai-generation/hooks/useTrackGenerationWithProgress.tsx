@@ -148,6 +148,7 @@ export function useTrackGenerationWithProgress() {
             projectId: params.projectId || null,
             artistId: params.artistId || null,
             title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
+            model: params.model && params.model !== 'auto' ? params.model : 'auto', // CRITICAL: Pass model
             inputType: params.inputType // CRITICAL: Pass inputType
           }
         });
