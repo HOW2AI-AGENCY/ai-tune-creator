@@ -23,25 +23,13 @@ import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
 import { useEventListener } from "@/lib/events/event-bus";
 
-// Lazy-loaded components for code splitting
-const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel").then(m => ({
-  default: m.GenerationContextPanel
-})));
-const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel").then(m => ({
-  default: m.TaskQueuePanel
-})));
-const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid").then(m => ({
-  default: m.TrackResultsGrid
-})));
-const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer").then(m => ({
-  default: m.TrackDetailsDrawer
-})));
-const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette").then(m => ({
-  default: m.CommandPalette
-})));
-const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(m => ({
-  default: m.FloatingPlayer
-})));
+// Eagerly-loaded components to avoid Suspense during synchronous input (fix React #426)
+import { GenerationContextPanel } from "@/features/ai-generation/components/GenerationContextPanel";
+import { TaskQueuePanel } from "@/features/ai-generation/components/TaskQueuePanel";
+import { TrackResultsGrid } from "@/features/ai-generation/components/TrackResultsGrid";
+import { TrackDetailsDrawer } from "@/features/ai-generation/components/TrackDetailsDrawer";
+import { CommandPalette } from "@/features/ai-generation/components/CommandPalette";
+import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 interface Track {
   id: string;
   title: string;
