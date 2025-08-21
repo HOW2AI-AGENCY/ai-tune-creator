@@ -43,12 +43,13 @@ const DB_TIMEOUT = 10000; // 10 секунд для операций с БД
 const AUTH_TIMEOUT = 5000; // 5 секунд для проверки аутентификации
 
 // Поддерживаемые модели Mureka (UI -> API mapping)
+// Обновлено 21.08.2025: V7 по умолчанию, старые модели перенаправляются на V7
 const SUPPORTED_MODELS = ['auto', 'V7', 'O1', 'V6'] as const;
 const MODEL_MAPPING: Record<string, string> = {
-  'auto': 'auto',
+  'auto': 'V7', // Изменено: auto теперь по умолчанию V7
   'V7': 'mureka-7',
-  'O1': 'mureka-o1', 
-  'V6': 'mureka-6'
+  'O1': 'mureka-7', // Изменено: устаревшие модели перенаправляются на V7
+  'V6': 'mureka-7'  // Изменено: устаревшие модели перенаправляются на V7
 };
 
 // ==========================================
@@ -844,7 +845,7 @@ serve(async (req) => {
     
     // Формируем запрос к Mureka API с правильным маппингом модели
     const selectedModel = requestBody.model || 'auto';
-    const mappedModel = MODEL_MAPPING[selectedModel] || 'auto';
+    const mappedModel = MODEL_MAPPING[selectedModel] || 'mureka-7'; // Дефолт V7
     
     console.log(`[MODEL] UI модель: ${selectedModel} -> API модель: ${mappedModel}`);
     
