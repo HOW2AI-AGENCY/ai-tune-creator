@@ -23,13 +23,13 @@ import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
 import { useEventListener } from "@/lib/events/event-bus";
 
-// Eagerly-loaded components to avoid Suspense during synchronous input (fix React #426)
-import { GenerationContextPanel } from "@/features/ai-generation/components/GenerationContextPanel";
-import { TaskQueuePanel } from "@/features/ai-generation/components/TaskQueuePanel";
-import { TrackResultsGrid } from "@/features/ai-generation/components/TrackResultsGrid";
-import { TrackDetailsDrawer } from "@/features/ai-generation/components/TrackDetailsDrawer";
-import { CommandPalette } from "@/features/ai-generation/components/CommandPalette";
-import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
+// Lazy-loaded components for better code splitting
+const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel"));
+const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel"));
+const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid"));
+const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer"));
+const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette"));
+const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer"));
 interface Track {
   id: string;
   title: string;
@@ -165,10 +165,7 @@ export default function AIGenerationStudio() {
       fetchData();
     });
 
-    // Preload lazy components to minimize suspensions
-    Promise.all([import("@/features/ai-generation/components/GenerationContextPanel"), import("@/features/ai-generation/components/TaskQueuePanel"), import("@/features/ai-generation/components/TrackResultsGrid"), import("@/features/ai-generation/components/TrackDetailsDrawer"), import("@/features/ai-generation/components/CommandPalette"), import("@/features/ai-generation/components/FloatingPlayer")]).catch(() => {
-      // Silently handle preload failures
-    });
+    // Components are now lazy-loaded automatically when needed
   }, [user]);
   const fetchData = async () => {
     try {
