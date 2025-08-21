@@ -22,9 +22,9 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
 import { TrackCleanupTools } from "@/components/dev/TrackCleanupTools";
-import { CleanGenerationInterface } from "@/components/ai-generation/CleanGenerationInterface";
-import { useCleanGeneration } from "@/hooks/useCleanGeneration";
+import { GenerationInterface } from "@/components/ai-generation/GenerationInterface";
 import { useEventListener } from "@/lib/events/event-bus";
+import { useCleanGeneration } from "@/hooks/useCleanGeneration";
 
 // Eagerly-loaded components to avoid Suspense during synchronous input (fix React #426)
 import { GenerationContextPanel } from "@/features/ai-generation/components/GenerationContextPanel";
@@ -85,18 +85,8 @@ export default function AIGenerationStudio() {
     state: sidebarState
   } = useSidebar();
 
-  // Clean generation system
-  const {
-    tracks: cleanTracks,
-    activeGenerations,
-    loading: generationLoading,
-    generateTrack: handleGenerateTrack,
-    deleteTrack,
-    playTrack,
-    currentTrack,
-    isPlaying,
-    refresh: refreshTracks
-  } = useCleanGeneration();
+  // Get refresh function for event listener
+  const { refresh: refreshTracks } = useCleanGeneration();
 
   // Check sidebar actual state
   const sidebarCollapsed = sidebarState === "collapsed";
@@ -361,7 +351,7 @@ export default function AIGenerationStudio() {
   }, [tracks, searchQuery]);
   const handleGenerate = async (params: GenerationParams) => {
     try {
-      await handleGenerateTrack(params.prompt, params.service);
+      // Using old generation system for now
       toast({
         title: t('generationStarted'),
         description: `${params.service === 'suno' ? 'Suno AI' : 'Mureka'} создает ваш трек`
@@ -510,8 +500,8 @@ export default function AIGenerationStudio() {
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
           {/* Generation Progress Skeletons */}
-          {activeGenerations.length > 0 && <div className="p-4 space-y-3">
-              {activeGenerations.map(generation => <TrackSkeleton key={generation.taskId} progress={generation.progress} title={generation.taskId} subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'} status={generation.status as any} animated={true} />)}
+          {tasks.filter(t => t.status === 'running').length > 0 && <div className="p-4 space-y-3">
+              {tasks.filter(t => t.status === 'running').map(task => <TrackSkeleton key={task.id} progress={task.progress || 50} title={task.prompt.slice(0, 50)} subtitle={task.service === 'suno' ? 'Suno AI' : 'Mureka'} status={task.status as any} animated={true} />)}
             </div>}
           
           <TrackResultsGrid tracks={filteredTracks} onTrackClick={handleTrackClick} onPlayTrack={handlePlayTrack} currentPlayingTrack={currentPlayingTrack} isPlaying={oldIsPlaying} isSyncing={isSyncing} onTrackDeleted={fetchTracks} />
@@ -607,17 +597,9 @@ export default function AIGenerationStudio() {
 
         <Separator />
 
-        {/* Clean Generation Interface */}
+        {/* Generation Interface */}
         <div className="flex-1 overflow-y-auto scrollbar-slim p-6">
-          <CleanGenerationInterface
-            tracks={cleanTracks}
-            activeGenerations={activeGenerations}
-            onGenerateTrack={handleGenerateTrack}
-            onDeleteTrack={deleteTrack}
-            currentTrack={currentTrack}
-            onPlayTrack={playTrack}
-            isPlaying={isPlaying}
-          />
+          <GenerationInterface />
         </div>
 
         {/* Track Cleanup Tools - Moved to bottom */}

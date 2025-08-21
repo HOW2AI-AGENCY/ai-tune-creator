@@ -11,6 +11,8 @@ interface Track {
   duration?: number;
   created_at: string;
   metadata?: any;
+  lyrics?: string;
+  genre_tags?: string[];
 }
 
 interface GenerationProgress {
@@ -54,6 +56,8 @@ export function useCleanGeneration() {
           title,
           audio_url,
           duration,
+          lyrics,
+          genre_tags,
           created_at,
           metadata,
           projects!inner (
@@ -74,6 +78,8 @@ export function useCleanGeneration() {
         title: track.title,
         audio_url: track.audio_url,
         duration: track.duration,
+        lyrics: track.lyrics,
+        genre_tags: track.genre_tags || [],
         created_at: track.created_at,
         metadata: track.metadata
       }));
@@ -115,8 +121,13 @@ export function useCleanGeneration() {
         {
           body: {
             prompt,
-            instrumental: false,
-            model: service === 'suno' ? 'v3.5' : 'v7'
+            inputType: 'description',
+            style: 'AI Generated',
+            make_instrumental: false,
+            model: service === 'suno' ? 'V3_5' : 'v7',
+            mode: 'quick',
+            wait_audio: false,
+            useInbox: true
           }
         }
       );
@@ -132,7 +143,13 @@ export function useCleanGeneration() {
       );
 
       // Start polling for results
-      pollGenerationStatus(taskId, data.task_id || data.generation_id, service);
+      if (data?.success && data?.data?.generation_id) {
+        pollGenerationStatus(taskId, data.data.generation_id, service);
+      } else if (data?.data?.task_id) {
+        pollGenerationStatus(taskId, data.data.task_id, service);
+      } else {
+        throw new Error('No generation/task ID returned from API');
+      }
       
       toast({
         title: "Генерация запущена",
@@ -170,14 +187,15 @@ export function useCleanGeneration() {
       try {
         const { data, error } = await supabase.functions.invoke(
           service === 'suno' ? 'get-suno-record-info' : 'get-mureka-task-status',
-          { body: { generation_id: generationId } }
+          { body: { generation_id: generationId, task_id: generationId } }
         );
 
         if (error) throw error;
 
-        const status = data.status || 'pending';
+        const status = data?.data?.status || data?.status || 'pending';
         const progress = status === 'completed' ? 100 : 
-                        status === 'running' ? 75 : 50;
+                        status === 'running' || status === 'generating' ? 75 : 
+                        status === 'processing' ? 50 : 25;
 
         setActiveGenerations(prev => 
           prev.map(gen => gen.taskId === taskId 
@@ -189,11 +207,31 @@ export function useCleanGeneration() {
         if (status === 'completed') {
           // Remove from active and refresh tracks
           setActiveGenerations(prev => prev.filter(gen => gen.taskId !== taskId));
+          
+          // Trigger metadata enhancement
+          try {
+            await supabase.functions.invoke('enhance-track-metadata', {
+              body: { generation_id: generationId }
+            });
+          } catch (metaError) {
+            console.warn('[useCleanGeneration] Metadata enhancement failed:', metaError);
+          }
+          
+          // Ensure storage
+          try {
+            await supabase.functions.invoke('ensure-track-storage', {
+              body: { generation_id: generationId }
+            });
+          } catch (storageError) {
+            console.warn('[useCleanGeneration] Storage check failed:', storageError);
+          }
+          
+          // Refresh tracks
           loadTracks();
           
           toast({
             title: "Трек готов!",
-            description: "Генерация завершена успешно"
+            description: "Генерация завершена, файл сохранен"
           });
           return;
         }
