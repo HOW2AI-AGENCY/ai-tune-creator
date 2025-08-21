@@ -20,18 +20,17 @@ const corsHeaders = {
 };
 
 // Конфигурация для Mureka API
-const MUREKA_API_BASE = 'https://api.useapi.net/v1/mureka';
+const MUREKA_API_BASE = 'https://api.mureka.ai/v1';
 const POLLING_INTERVAL = 3000; // 3 секунды
 const MAX_POLLING_ATTEMPTS = 100; // 5 минут максимум
 const API_TIMEOUT = 30000; // 30 секунд
 
 // Поддерживаемые модели Mureka 2025
 const MUREKA_MODELS = {
-  'auto': 'V7',    // V7 по умолчанию с августа 2025
-  'V7': 'V7',      // Новая модель 
-  'O1': 'V7',      // Перенаправлено на V7
-  'V6': 'V7',      // Перенаправлено на V7
-  'V5.5': 'V7'     // Перенаправлено на V7
+  'auto': 'auto',
+  'V7': 'mureka-7',
+  'O1': 'mureka-o1',
+  'V6': 'mureka-6'
 } as const;
 
 // ==========================================
@@ -168,11 +167,9 @@ function prepareMurekaRequest(request: MurekaGenerateRequest): any {
   
   const murekaPayload = {
     lyrics: finalLyrics,
-    title: finalTitle,
-    style: stylePrompt,
     model: MUREKA_MODELS[model || 'auto'],
-    instrumental: instrumental || false,
-    ...(inputType === 'description' && prompt && { prompt: prompt.trim() })
+    prompt: stylePrompt,
+    stream: false
   };
   
   console.log('[MUREKA] Final API payload:', murekaPayload);
@@ -183,7 +180,7 @@ function prepareMurekaRequest(request: MurekaGenerateRequest): any {
  * Создает запрос к Mureka API
  */
 async function callMurekaAPI(payload: any, apiKey: string): Promise<MurekaAPIResponse> {
-  const url = `${MUREKA_API_BASE}/music/create-advanced`;
+  const url = `${MUREKA_API_BASE}/song/generate`;
   
   console.log('[API] Calling Mureka:', { url, hasPayload: !!payload });
   
@@ -215,7 +212,7 @@ async function pollMurekaStatus(taskId: string, apiKey: string): Promise<MurekaA
   
   for (let attempt = 0; attempt < MAX_POLLING_ATTEMPTS; attempt++) {
     try {
-      const response = await fetchWithTimeout(`${MUREKA_API_BASE}/music/${taskId}`, {
+      const response = await fetchWithTimeout(`${MUREKA_API_BASE}/song/query/${taskId}`, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
