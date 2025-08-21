@@ -4,14 +4,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Download, RefreshCw, Zap, Settings } from 'lucide-react';
+import { Trash2, Download, RefreshCw, Zap, Settings, RotateCcw } from 'lucide-react';
 
 export function TrackCleanupTools() {
   const [loading, setLoading] = useState({
     cleanup: false,
     download: false,
     comprehensive: false,
-    optimize: false
+    optimize: false,
+    syncFix: false
   });
   const { user } = useAuth();
   const { toast } = useToast();
@@ -107,6 +108,35 @@ export function TrackCleanupTools() {
     }
   };
 
+  const handleFixSyncIssue = async () => {
+    if (!user) return;
+    
+    setLoading(prev => ({ ...prev, syncFix: true }));
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('fix-sync-deletion-issue', {
+        body: { user_id: user.id }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Исправление синхронизации завершено",
+        description: `Обновлено ${data.stats.deleted_tracks_updated} треков, помечено ${data.stats.linked_generations_marked} генераций`
+      });
+      
+    } catch (error: any) {
+      console.error('Sync fix error:', error);
+      toast({
+        title: "Ошибка исправления синхронизации",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, syncFix: false }));
+    }
+  };
+
   const handleOptimizeStructure = async () => {
     if (!user) return;
     
@@ -189,6 +219,18 @@ export function TrackCleanupTools() {
               {loading.optimize ? 'Оптимизация...' : 'Оптимизировать структуру'}
             </Button>
           </div>
+          
+          <div className="mt-4">
+            <Button
+              onClick={handleFixSyncIssue}
+              disabled={loading.syncFix}
+              variant="outline"
+              className="w-full"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              {loading.syncFix ? 'Исправление...' : 'Исправить проблему синхронизации'}
+            </Button>
+          </div>
         </div>
         
         <div className="text-sm text-muted-foreground space-y-2">
@@ -203,6 +245,9 @@ export function TrackCleanupTools() {
           </p>
           <p>
             <strong>Оптимизировать структуру:</strong> Связывает генерации с треками, убирает дубликаты, очищает метаданные
+          </p>
+          <p>
+            <strong>Исправить проблему синхронизации:</strong> Блокирует восстановление удаленных треков через синхронизацию
           </p>
         </div>
       </CardContent>

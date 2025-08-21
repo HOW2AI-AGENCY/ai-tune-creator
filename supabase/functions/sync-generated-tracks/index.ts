@@ -47,6 +47,7 @@ serve(async (req) => {
 
     // Find all completed generations that need track creation/update
     // Exclude generations that are marked as deleted or archived
+    console.log('[SYNC] Fetching completed generations...')
     const { data: generations, error: fetchError } = await supabase
       .from('ai_generations')
       .select(`
@@ -75,7 +76,12 @@ serve(async (req) => {
       throw new Error(`Failed to fetch generations: ${fetchError.message}`);
     }
 
-    console.log(`Found ${generations?.length || 0} completed generations to process`);
+    console.log(`[SYNC] Found ${generations?.length || 0} completed generations to process`)
+    
+    // Log generation metadata for debugging
+    for (const gen of generations?.slice(0, 3) || []) {
+      console.log(`[SYNC] Generation ${gen.id}: track_id=${gen.track_id}, skip_sync=${gen.metadata?.skip_sync}, track_deleted=${gen.metadata?.track_deleted}`)
+    }
 
     const results = {
       processed: 0,
@@ -193,14 +199,38 @@ serve(async (req) => {
           }
         } else {
           // Проверяем, не был ли существующий трек удален пользователем
+          console.log(`[SYNC] Checking existing track ${gen.track_id} for generation ${gen.id}`)
           const { data: existingTrack } = await supabase
             .from('tracks')
-            .select('metadata')
+            .select('id, metadata')
             .eq('id', gen.track_id)
             .single();
             
+          if (!existingTrack) {
+            console.log(`[SYNC] Track ${gen.track_id} no longer exists, unlinking from generation ${gen.id}`)
+            // Трек больше не существует, отвязать от генерации
+            await supabase
+              .from('ai_generations')
+              .update({ track_id: null })
+              .eq('id', gen.id);
+            continue;
+          }
+            
           if (existingTrack?.metadata?.prevent_sync_restore || existingTrack?.metadata?.deleted) {
-            console.log(`Skipping sync for generation ${gen.id} - associated track marked as deleted`);
+            console.log(`[SYNC] Skipping sync for generation ${gen.id} - associated track marked as deleted (prevent_sync_restore: ${existingTrack.metadata?.prevent_sync_restore}, deleted: ${existingTrack.metadata?.deleted})`)
+            // Помечаем генерацию как не подлежащую синхронизации
+            await supabase
+              .from('ai_generations')
+              .update({
+                metadata: {
+                  ...(gen.metadata || {}),
+                  skip_sync: true,
+                  track_deleted: true,
+                  deleted_by_user: true,
+                  deleted_at: new Date().toISOString()
+                }
+              })
+              .eq('id', gen.id);
             continue;
           }
           
