@@ -74,7 +74,7 @@ serve(async (req) => {
     let result;
 
     if (softDelete) {
-      // Soft delete: помечаем трек как удаленный в metadata
+      // Soft delete: помечаем трек как удаленный в metadata и блокируем синхронизацию
       const currentMetadata = track.metadata || {};
       const { error: updateError } = await supabase
         .from('tracks')
@@ -83,11 +83,32 @@ serve(async (req) => {
             ...currentMetadata,
             deleted: true,
             deleted_at: new Date().toISOString(),
-            deleted_by: userId
+            deleted_by: userId,
+            prevent_sync_restore: true  // Блокирует восстановление через синхронизацию
           },
           updated_at: new Date().toISOString()
         })
         .eq('id', trackId);
+
+      // Также помечаем связанную генерацию как не подлежащую синхронизации
+      if (currentMetadata?.generation_id) {
+        console.log(`[DELETE] Marking generation ${currentMetadata.generation_id} as skip_sync`);
+        const { error: genUpdateError } = await supabase
+          .from('ai_generations')
+          .update({
+            metadata: {
+              skip_sync: true,
+              track_deleted: true,
+              deleted_by_user: true,
+              deleted_at: new Date().toISOString()
+            }
+          })
+          .eq('id', currentMetadata.generation_id);
+          
+        if (genUpdateError) {
+          console.error('[DELETE] Error updating generation metadata:', genUpdateError);
+        }
+      }
 
       if (updateError) {
         console.error('[DELETE] Error soft deleting track:', updateError);

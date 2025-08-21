@@ -97,8 +97,23 @@ Deno.serve(async (req) => {
 
     console.log(`[CLEANUP] Found ${problematicGenerations.length} problematic generations`)
 
-    // 5. Удалить проблемные треки
+    // 5. Удалить проблемные треки с правильной блокировкой синхронизации
     for (const track of problematicTracks) {
+      // Пометить связанную генерацию как не подлежащую синхронизации
+      if (track.metadata?.generation_id) {
+        await supabase
+          .from('ai_generations')
+          .update({
+            metadata: {
+              skip_sync: true,
+              track_deleted: true,
+              deleted_by_cleanup: true,
+              deleted_at: new Date().toISOString()
+            }
+          })
+          .eq('id', track.metadata.generation_id)
+      }
+      
       // Сначала удалить связанные записи
       await supabase.from('track_assets').delete().eq('track_id', track.id)
       await supabase.from('track_versions').delete().eq('track_id', track.id)

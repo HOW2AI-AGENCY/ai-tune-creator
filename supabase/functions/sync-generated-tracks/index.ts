@@ -66,6 +66,8 @@ serve(async (req) => {
       .eq('status', 'completed')
       .not('metadata->skip_sync', 'eq', true) // Skip syncing if marked
       .not('metadata->deleted', 'eq', true)   // Skip deleted generations
+      .not('metadata->track_deleted', 'eq', true) // Skip if track was deleted by user
+      .not('metadata->deleted_by_user', 'eq', true) // Skip if explicitly deleted by user
       .order('completed_at', { ascending: false })
       .limit(50); // Process recent generations first
 
@@ -144,6 +146,12 @@ serve(async (req) => {
         
         // Determine if we need to create/update track
         if (!gen.track_id) {
+          // Проверяем, не была ли связанная генерация помечена как удаленная пользователем
+          if (gen.metadata?.track_deleted || gen.metadata?.deleted_by_user) {
+            console.log(`Skipping track creation for generation ${gen.id} - marked as deleted by user`);
+            continue;
+          }
+          
           // Create new track
           try {
             const { data: trackId, error: rpcError } = await supabase.rpc(
@@ -183,13 +191,27 @@ serve(async (req) => {
               action: 'create_track'
             });
           }
-        } else if (audioUrl && audioUrl !== "missing" && !gen.metadata?.local_storage_path) {
+        } else {
+          // Проверяем, не был ли существующий трек удален пользователем
+          const { data: existingTrack } = await supabase
+            .from('tracks')
+            .select('metadata')
+            .eq('id', gen.track_id)
+            .single();
+            
+          if (existingTrack?.metadata?.prevent_sync_restore || existingTrack?.metadata?.deleted) {
+            console.log(`Skipping sync for generation ${gen.id} - associated track marked as deleted`);
+            continue;
+          }
+          
           // Existing track but needs download
-          toDownload.push({
-            generation_id: gen.id,
-            external_url: audioUrl,
-            service: gen.service
-          });
+          if (audioUrl && audioUrl !== "missing" && !gen.metadata?.local_storage_path) {
+            toDownload.push({
+              generation_id: gen.id,
+              external_url: audioUrl,
+              service: gen.service
+            });
+          }
         }
         
       } catch (error: any) {
