@@ -15,7 +15,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // ==========================================
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://zwbhlfhwymbmvioaikvs.supabase.co',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -100,21 +100,27 @@ function mapMurekaStatus(murekaStatus: string): 'processing' | 'completed' | 'fa
 }
 
 /**
- * Извлечение User ID из JWT токена
+ * Secure authentication verification using Supabase auth
+ * SECURITY FIX: Replaces unsafe JWT parsing with proper verification
  */
-function extractUserId(authHeader: string | null): string {
-  if (!authHeader) return 'anonymous';
+async function verifyAuthentication(authHeader: string | null, supabase: any): Promise<string> {
+  if (!authHeader) {
+    throw new Error('Authentication required');
+  }
   
   try {
-    const token = authHeader.replace('Bearer ', '');
-    const parts = token.split('.');
-    if (parts.length !== 3) return 'anonymous';
+    const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
     
-    const payload = JSON.parse(atob(parts[1]));
-    return payload.sub || 'anonymous';
+    if (error || !user) {
+      console.error('[AUTH] Authentication failed:', error?.message);
+      throw new Error('Invalid authentication token');
+    }
+    
+    console.log('[AUTH] User verified:', user.id);
+    return user.id;
   } catch (error) {
-    console.error('[AUTH] Error parsing JWT:', error);
-    return 'anonymous';
+    console.error('[AUTH] Authentication error:', error);
+    throw new Error('Authentication failed');
   }
 }
 
@@ -355,14 +361,16 @@ serve(async (req) => {
     // 1. АУТЕНТИФИКАЦИЯ И ВАЛИДАЦИЯ
     // ====================================
     const authHeader = req.headers.get('Authorization');
-    const userId = extractUserId(authHeader);
-    
-    console.log(`[REQUEST] New Mureka generation request from user: ${userId}`);
     
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+    
+    // SECURITY FIX: Proper authentication verification
+    const userId = await verifyAuthentication(authHeader, supabase);
+    
+    console.log(`[REQUEST] New Mureka generation request from verified user: ${userId}`);
     
     let requestBody: MurekaGenerateRequest;
     try {
@@ -385,7 +393,7 @@ serve(async (req) => {
     // 3. ОБРАБОТКА INBOX ЛОГИКИ
     // ====================================
     let finalProjectId = requestBody.projectId;
-    if (requestBody.useInbox && userId !== 'anonymous') {
+    if (requestBody.useInbox) {
       const { data: inboxId } = await supabase.rpc('ensure_user_inbox', { 
         p_user_id: userId 
       });
@@ -398,7 +406,7 @@ serve(async (req) => {
     const { data: generation, error: genError } = await supabase
       .from('ai_generations')
       .insert({
-        user_id: userId !== 'anonymous' ? userId : null,
+        user_id: userId,
         service: 'mureka',
         prompt: requestBody.prompt || requestBody.lyrics?.substring(0, 500) || '',
         status: 'processing',

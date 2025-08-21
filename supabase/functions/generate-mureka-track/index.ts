@@ -18,7 +18,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // CORS заголовки для обеспечения кросс-доменных запросов
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://zwbhlfhwymbmvioaikvs.supabase.co',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -202,29 +202,31 @@ function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number
 }
 
 /**
- * Извлечение User ID из JWT токена
- * Безопасно декодирует токен и извлекает subject
+ * Secure authentication verification using Supabase auth
+ * SECURITY FIX: Replaces unsafe JWT parsing with proper verification
  * 
- * @param authHeader - Заголовок Authorization
- * @returns User ID или 'anonymous' если токен невалидный
+ * @param authHeader - Authorization header
+ * @param supabase - Supabase client instance
+ * @returns Verified user ID or throws error
  */
-function extractUserId(authHeader: string | null): string {
-  if (!authHeader) return 'anonymous';
+async function verifyAuthentication(authHeader: string | null, supabase: any): Promise<string> {
+  if (!authHeader) {
+    throw new Error('Authentication required');
+  }
   
   try {
-    const token = authHeader.replace('Bearer ', '');
-    const parts = token.split('.');
+    const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
     
-    if (parts.length !== 3) {
-      console.warn('[AUTH] Невалидный формат JWT токена');
-      return 'anonymous';
+    if (error || !user) {
+      console.error('[AUTH] Authentication failed:', error?.message);
+      throw new Error('Invalid authentication token');
     }
     
-    const payload = JSON.parse(atob(parts[1]));
-    return payload.sub || 'anonymous';
+    console.log('[AUTH] User verified:', user.id);
+    return user.id;
   } catch (error) {
-    console.error('[AUTH] Ошибка парсинга JWT токена:', error);
-    return 'anonymous';
+    console.error('[AUTH] Authentication error:', error);
+    throw new Error('Authentication failed');
   }
 }
 
@@ -773,12 +775,24 @@ serve(async (req) => {
   
   try {
     // ====================================
-    // 2. ИЗВЛЕЧЕНИЕ USER ID И RATE LIMITING
+    // 2. АУТЕНТИФИКАЦИЯ И ВАЛИДАЦИЯ
     // ====================================
     const authHeader = req.headers.get('Authorization');
-    const userId = extractUserId(authHeader);
     
-    console.log(`[REQUEST] Новый запрос от пользователя: ${userId}`);
+    // Initialize Supabase first for authentication
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase конфигурация не найдена');
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // SECURITY FIX: Proper authentication verification
+    const userId = await verifyAuthentication(authHeader, supabase);
+    
+    console.log(`[REQUEST] Новый запрос от верифицированного пользователя: ${userId}`);
     
     // Проверка rate limit
     const rateLimitCheck = checkRateLimit(userId);
@@ -834,16 +848,9 @@ serve(async (req) => {
     }
     
     // ====================================
-    // 4. ИНИЦИАЛИЗАЦИЯ SUPABASE КЛИЕНТА
+    // 4. SUPABASE КЛИЕНТ УЖЕ ИНИЦИАЛИЗИРОВАН
     // ====================================
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase конфигурация не найдена');
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Supabase client already initialized above for authentication
     
     // ====================================
     // 5. ОБРАБОТКА INBOX ЛОГИКИ

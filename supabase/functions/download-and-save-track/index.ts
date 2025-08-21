@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://zwbhlfhwymbmvioaikvs.supabase.co',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -33,20 +33,36 @@ serve(async (req) => {
   }
 
   try {
-    // Get Authorization header
+    // SECURITY FIX: Verify authentication and authorization
     const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Authentication required',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        global: {
-          headers: authHeader ? {
-            Authorization: authHeader
-          } : {}
-        }
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+    
+    // Verify the user owns the request
+    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+    if (authError || !user) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Invalid authentication token',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     let requestBody: DownloadTrackRequest;
     try {
@@ -77,7 +93,7 @@ serve(async (req) => {
       });
     }
 
-    // TODO: FIXME - Better URL validation
+    // SECURITY FIX: URL validation and allowlist check
     if (!external_url || external_url === "missing" || external_url === "undefined" || external_url.trim() === "") {
       console.error('[CRITICAL] external_url is invalid:', { 
         external_url, 
@@ -97,6 +113,23 @@ serve(async (req) => {
         timestamp: new Date().toISOString()
       }), {
         status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // SECURITY FIX: Check if URL is in allowlist (SSRF protection)
+    const { data: urlAllowed, error: urlCheckError } = await supabase.rpc('is_url_allowed', {
+      url_to_check: external_url
+    });
+    
+    if (urlCheckError || !urlAllowed) {
+      console.error('[SECURITY] URL not in allowlist:', external_url);
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'URL not allowed for security reasons',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -193,6 +226,20 @@ serve(async (req) => {
         timestamp: new Date().toISOString()
       }), {
         status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // SECURITY FIX: Verify user owns this generation
+    if (generation.user_id !== user.id) {
+      console.error('[SECURITY] User does not own generation:', { userId: user.id, generationUserId: generation.user_id });
+      await supabase.rpc('release_operation_lock', { p_key: lockKey });
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Access denied: You do not own this generation',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

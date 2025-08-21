@@ -6,9 +6,9 @@ export const BUCKET_ARTIST_ASSETS = 'artist-assets';
 export const BUCKET_PROMO = 'promo-materials';
 export const BUCKET_USER_UPLOADS = 'user-uploads';
 
-// Storage configuration
+// Storage configuration  
 export const AUDIO_CONTENT_TYPE = 'audio/mpeg';
-export const AUDIO_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+export const AUDIO_CACHE_CONTROL = 'private, max-age=31536000, immutable'; // Changed to private for security
 
 // Build safe storage path with timestamp and random suffix
 export function buildStoragePath(
