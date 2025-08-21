@@ -62,11 +62,24 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
 
     // Validate audio URL before setting
     if (!isValidAudioUrl(track.audio_url)) {
-      console.error('Invalid audio URL:', track.audio_url);
+      console.error('Invalid audio URL:', {
+        url: track.audio_url,
+        trackId: track.id,
+        trackTitle: track.title,
+        isExternalUrl: !track.audio_url.includes('supabase.co')
+      });
       setIsLoading(false);
       setIsPlaying(false);
       return;
     }
+
+    console.log('Setting up audio for track:', {
+      trackId: track.id,
+      title: track.title,
+      audioUrl: track.audio_url,
+      isSupabaseUrl: track.audio_url.includes('supabase.co'),
+      isExternalUrl: !track.audio_url.includes('supabase.co')
+    });
 
     const isSameSrc = audio.src === track.audio_url;
 
@@ -136,7 +149,12 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
             break;
           case MediaError.MEDIA_ERR_NETWORK:
             errorMessage = 'Ошибка сети при загрузке аудио';
-            console.error('Network error loading audio:', track?.audio_url);
+            console.error('Network error loading audio:', {
+              url: track?.audio_url,
+              isSupabaseUrl: track?.audio_url?.includes('supabase.co'),
+              isExternalProvider: track?.audio_url?.includes('sunoapi.org') || track?.audio_url?.includes('mureka.ai'),
+              trackId: track?.id
+            });
             break;
           case MediaError.MEDIA_ERR_DECODE:
             errorMessage = 'Ошибка декодирования аудио файла';

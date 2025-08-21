@@ -162,11 +162,13 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
         return {
           endpoint: functionName,
           data: {
-            // ИСПРАВЛЕНО: Правильное разделение prompt и lyrics
+            // ИСПРАВЛЕНО: Правильная логика для Mureka API
             prompt: isLyricsInput ? 
               (input.tags.join(', ') || 'Generate music for these lyrics') : 
               input.description,
-            lyrics: isLyricsInput ? input.lyrics : input.description,
+            lyrics: isLyricsInput ? input.lyrics : '[Auto-generated lyrics]',
+            custom_lyrics: isLyricsInput ? input.lyrics : undefined,
+            inputType: input.inputType, // Передаем тип для правильной обработки
             instrumental: isInstrumental,
             
             model: (input.flags.model || 'auto'),
