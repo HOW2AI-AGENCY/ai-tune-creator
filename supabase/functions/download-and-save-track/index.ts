@@ -229,6 +229,38 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // SECURITY FIX: Verify the caller owns this generation/track
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('[SECURITY] Authentication failed for download request:', authError);
+      await supabase.rpc('release_operation_lock', { p_key: lockKey });
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Authentication required',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (generation.user_id !== user.id) {
+      console.error('[SECURITY] User does not own this generation:', { 
+        generation_user_id: generation.user_id, 
+        authenticated_user_id: user.id 
+      });
+      await supabase.rpc('release_operation_lock', { p_key: lockKey });
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Access denied - you do not own this generation',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     // SECURITY FIX: Verify user owns this generation
     if (generation.user_id !== user.id) {
