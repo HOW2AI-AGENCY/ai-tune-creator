@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerationAnalytics } from "@/components/analytics/GenerationAnalytics";
 import { TestGenerationButton } from "@/components/test/TestGenerationButton";
+import { TrackCleanupTools } from "@/components/dev/TrackCleanupTools";
 import { 
   Music2, 
   Users, 
@@ -310,6 +311,9 @@ export default function Dashboard() {
         
         <TabsContent value="analytics">
           <GenerationAnalytics />
+          <div className="mt-6">
+            <TrackCleanupTools />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
