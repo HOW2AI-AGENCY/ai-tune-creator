@@ -18,10 +18,12 @@ import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
+// Removed old generation hook
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
 import { TrackCleanupTools } from "@/components/dev/TrackCleanupTools";
+import { CleanGenerationInterface } from "@/components/ai-generation/CleanGenerationInterface";
+import { useCleanGeneration } from "@/hooks/useCleanGeneration";
 import { useEventListener } from "@/lib/events/event-bus";
 
 // Eagerly-loaded components to avoid Suspense during synchronous input (fix React #426)
@@ -83,14 +85,18 @@ export default function AIGenerationStudio() {
     state: sidebarState
   } = useSidebar();
 
-  // Generation with progress tracking
+  // Clean generation system
   const {
-    generateTrack,
-    isGenerating,
-    generationProgress,
-    ongoingGenerations,
-    cancelGeneration
-  } = useTrackGenerationWithProgress();
+    tracks: cleanTracks,
+    activeGenerations,
+    loading: generationLoading,
+    generateTrack: handleGenerateTrack,
+    deleteTrack,
+    playTrack,
+    currentTrack,
+    isPlaying,
+    refresh: refreshTracks
+  } = useCleanGeneration();
 
   // Check sidebar actual state
   const sidebarCollapsed = sidebarState === "collapsed";
@@ -98,7 +104,7 @@ export default function AIGenerationStudio() {
   // Listen for tracks-updated events
   useEventListener('tracks-updated', () => {
     console.log('📢 Received tracks-updated event, refreshing tracks...');
-    fetchTracks();
+    refreshTracks();
   });
 
   // Core State
@@ -113,7 +119,7 @@ export default function AIGenerationStudio() {
   const [isTrackDetailsOpen, setIsTrackDetailsOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [currentPlayingTrack, setCurrentPlayingTrack] = useState<Track | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [oldIsPlaying, setOldIsPlaying] = useState(false);
   const [showRecoveryTools, setShowRecoveryTools] = useState(false);
 
   // Mobile State
@@ -355,7 +361,7 @@ export default function AIGenerationStudio() {
   }, [tracks, searchQuery]);
   const handleGenerate = async (params: GenerationParams) => {
     try {
-      await generateTrack(params);
+      await handleGenerateTrack(params.prompt, params.service);
       toast({
         title: t('generationStarted'),
         description: `${params.service === 'suno' ? 'Suno AI' : 'Mureka'} создает ваш трек`
@@ -393,16 +399,16 @@ export default function AIGenerationStudio() {
       return;
     }
     if (currentPlayingTrack?.id === track.id) {
-      setIsPlaying(!isPlaying);
+      setOldIsPlaying(!oldIsPlaying);
     } else {
       setCurrentPlayingTrack(track);
-      setIsPlaying(true);
+      setOldIsPlaying(true);
     }
     // Close track details drawer when starting playback
     setIsTrackDetailsOpen(false);
   };
   const handlePlayerPlayPause = (playing: boolean) => {
-    setIsPlaying(playing);
+    setOldIsPlaying(playing);
   };
   const handleTrackClick = (track: Track) => {
     console.log('🔍 handleTrackClick called with:', {
@@ -418,7 +424,7 @@ export default function AIGenerationStudio() {
     if (idx === -1) return;
     const next = filteredTracks[(idx + 1) % filteredTracks.length];
     setCurrentPlayingTrack(next);
-    setIsPlaying(true);
+    setOldIsPlaying(true);
   };
   const playPrevTrack = () => {
     if (!currentPlayingTrack || filteredTracks.length === 0) return;
@@ -426,7 +432,7 @@ export default function AIGenerationStudio() {
     if (idx === -1) return;
     const prev = filteredTracks[(idx - 1 + filteredTracks.length) % filteredTracks.length];
     setCurrentPlayingTrack(prev);
-    setIsPlaying(true);
+    setOldIsPlaying(true);
   };
   const handleCommandAction = (action: string, data?: any) => {
     startTransition(() => {
@@ -504,11 +510,11 @@ export default function AIGenerationStudio() {
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
           {/* Generation Progress Skeletons */}
-          {ongoingGenerations.length > 0 && <div className="p-4 space-y-3">
-              {ongoingGenerations.map(generation => <TrackSkeleton key={generation.taskId} progress={generation.progress} title={generation.taskId} subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'} status={generation.status as any} steps={generation.steps} animated={true} />)}
+          {activeGenerations.length > 0 && <div className="p-4 space-y-3">
+              {activeGenerations.map(generation => <TrackSkeleton key={generation.taskId} progress={generation.progress} title={generation.taskId} subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'} status={generation.status as any} animated={true} />)}
             </div>}
           
-          <TrackResultsGrid tracks={filteredTracks} onTrackClick={handleTrackClick} onPlayTrack={handlePlayTrack} currentPlayingTrack={currentPlayingTrack} isPlaying={isPlaying} isSyncing={isSyncing} onTrackDeleted={fetchTracks} />
+          <TrackResultsGrid tracks={filteredTracks} onTrackClick={handleTrackClick} onPlayTrack={handlePlayTrack} currentPlayingTrack={currentPlayingTrack} isPlaying={oldIsPlaying} isSyncing={isSyncing} onTrackDeleted={fetchTracks} />
         </div>
 
         {/* Floating Action Button */}
@@ -544,7 +550,7 @@ export default function AIGenerationStudio() {
 
         {/* Floating Player */}
         {currentPlayingTrack && <Suspense fallback={null}>
-            <FloatingPlayer track={currentPlayingTrack} isOpen={true} playing={isPlaying} onClose={() => startTransition(() => setCurrentPlayingTrack(null))} onPlayPause={handlePlayerPlayPause} onPrev={playPrevTrack} onNext={playNextTrack} />
+            <FloatingPlayer track={currentPlayingTrack} isOpen={true} playing={oldIsPlaying} onClose={() => startTransition(() => setCurrentPlayingTrack(null))} onPlayPause={handlePlayerPlayPause} onPrev={playPrevTrack} onNext={playNextTrack} />
           </Suspense>}
 
         {/* Bottom Navigation */}
@@ -601,19 +607,22 @@ export default function AIGenerationStudio() {
 
         <Separator />
 
-        {/* Track Cleanup Tools */}
-        <div className="p-4 border-b border-border bg-gradient-surface">
-          <TrackCleanupTools />
+        {/* Clean Generation Interface */}
+        <div className="flex-1 overflow-y-auto scrollbar-slim p-6">
+          <CleanGenerationInterface
+            tracks={cleanTracks}
+            activeGenerations={activeGenerations}
+            onGenerateTrack={handleGenerateTrack}
+            onDeleteTrack={deleteTrack}
+            currentTrack={currentTrack}
+            onPlayTrack={playTrack}
+            isPlaying={isPlaying}
+          />
         </div>
 
-        {/* Results Grid */}
-        <div className="flex-1 overflow-y-auto scrollbar-slim">
-          {/* Generation Progress Skeletons */}
-          {ongoingGenerations.length > 0 && <div className="p-4 space-y-3 bg-muted/20 border-b border-border">
-              {ongoingGenerations.map(generation => <TrackSkeleton key={generation.taskId} progress={generation.progress} title={generation.title} subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'} status={generation.status as any} steps={generation.steps} animated={true} />)}
-            </div>}
-          
-          <TrackResultsGrid tracks={filteredTracks} onTrackClick={handleTrackClick} onPlayTrack={handlePlayTrack} currentPlayingTrack={currentPlayingTrack} isPlaying={isPlaying} isSyncing={isSyncing} onTrackDeleted={fetchTracks} />
+        {/* Track Cleanup Tools - Moved to bottom */}
+        <div className="p-4 border-t border-border bg-muted/20">
+          <TrackCleanupTools />
         </div>
       </div>
 
@@ -627,7 +636,7 @@ export default function AIGenerationStudio() {
 
       {/* Floating Player */}
       {currentPlayingTrack && <Suspense fallback={null}>
-          <FloatingPlayer track={currentPlayingTrack} isOpen={true} playing={isPlaying} onClose={() => startTransition(() => setCurrentPlayingTrack(null))} onPlayPause={handlePlayerPlayPause} onPrev={playPrevTrack} onNext={playNextTrack} />
+          <FloatingPlayer track={currentPlayingTrack} isOpen={true} playing={oldIsPlaying} onClose={() => startTransition(() => setCurrentPlayingTrack(null))} onPlayPause={handlePlayerPlayPause} onPrev={playPrevTrack} onNext={playNextTrack} />
         </Suspense>}
     </div>;
 }

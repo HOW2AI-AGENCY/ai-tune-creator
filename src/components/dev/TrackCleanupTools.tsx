@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Download, RefreshCw, Zap, Settings, RotateCcw } from 'lucide-react';
+import { eventBus } from '@/lib/events/event-bus';
 
 export function TrackCleanupTools() {
   const [loading, setLoading] = useState({
@@ -32,8 +33,8 @@ export function TrackCleanupTools() {
         description: `Удалено ${data.details.deleted} нерабочих треков из ${data.details.found_broken} найденных`
       });
       
-      // Обновить страницу для отображения изменений
-      window.location.reload();
+      // Emit event instead of page reload
+      eventBus.emit('tracks-updated');
       
     } catch (error: any) {
       console.error('Cleanup error:', error);
@@ -93,8 +94,8 @@ export function TrackCleanupTools() {
         description: `Удалено ${data.stats.tracks_removed} треков, ${data.stats.generations_removed} генераций`
       });
       
-      // Обновить страницу для отображения изменений
-      window.location.reload();
+      // Emit event instead of page reload
+      eventBus.emit('tracks-updated');
       
     } catch (error: any) {
       console.error('Comprehensive cleanup error:', error);
