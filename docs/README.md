@@ -1,8 +1,10 @@
-# 📚 AI Music Platform Documentation
+# 📚 AI Tune Creator - Документация
 
-Welcome to the comprehensive documentation for the AI Music Platform. This documentation provides detailed guides, API references, and best practices for using and extending the platform.
+Добро пожаловать в комплексную документацию AI Tune Creator - современной платформы для создания музыки с помощью искусственного интеллекта.
 
-## 📋 Table of Contents
+**Статус проекта**: 🟢 АКТИВНАЯ РАЗРАБОТКА | **Версия**: 0.1.33 | **Последний аудит**: 21.08.2025
+
+## 📋 Содержание
 
 ### 🚀 Getting Started
 - **[Quick Start Guide](./getting-started.md)** - Get up and running in 5 minutes
