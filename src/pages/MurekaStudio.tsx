@@ -6,7 +6,6 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +67,17 @@ export default function MurekaStudio() {
   
   // ====================================
   // ЭФФЕКТЫ
+  // ====================================
+  
+  // Установка заголовка страницы
+  useEffect(() => {
+    document.title = 'Mureka AI Studio - Независимая генерация музыки';
+    return () => {
+      document.title = 'AI Tune Creator'; // Возвращаем обычный заголовок
+    };
+  }, []);
+  
+  // ====================================
   // ====================================
   
   /**
@@ -289,10 +299,7 @@ export default function MurekaStudio() {
   
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <Helmet>
-        <title>Mureka AI Studio - Независимая генерация музыки</title>
-        <meta name="description" content="Создавайте уникальную музыку с помощью Mureka AI" />
-      </Helmet>
+      {/* Page title via useEffect */}
       
       {/* Заголовок */}
       <div className="mb-8">
