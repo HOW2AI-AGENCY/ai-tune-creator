@@ -110,6 +110,7 @@ const TrackLibraryComponent = function TrackLibrary({
             result_url
           )
         `)
+        .not('metadata->deleted', 'eq', true)
         .order('created_at', { ascending: false })
         .limit(100);
 

@@ -216,7 +216,8 @@ export function useTracks(options?: {
             )
           )
         `)
-        .eq('projects.artists.user_id', user.id);
+        .eq('projects.artists.user_id', user.id)
+        .not('metadata->deleted', 'eq', true);
       
       // Apply filtering based on options
       let finalQuery: any = baseQuery;

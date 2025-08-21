@@ -157,7 +157,8 @@ serve(async (req) => {
           ...((generation.metadata as any) || {}),  // TODO: Типизировать metadata правильно
           ...trackData,
           saved_track_id: savedTrack.id,
-          track_saved: true
+          track_saved: true,
+          skip_sync: true
         }
       })
       .eq('id', generationId)
