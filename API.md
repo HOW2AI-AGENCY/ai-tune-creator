@@ -6,7 +6,9 @@ AI Music Platform предоставляет RESTful API для управлен
 
 **Base URL**: `https://your-project.supabase.co/rest/v1`
 
-**Версия API**: v1.0.0
+**Версия API**: v1.0.0  
+**Последнее обновление**: 21 августа 2025  
+**Статус интеграций**: ✅ Стабильно (после аудита и исправлений)
 
 ## 🔐 Аутентификация
 
@@ -514,16 +516,36 @@ Authorization: Bearer YOUR_JWT_TOKEN
 
 ## 📂 Файловое хранилище
 
+> **⚠️ Обновлено 21.08.2025:** Исправлены проблемы с bucket naming и добавлены константы
+
+### Доступные Buckets
+
+```typescript
+// Storage Constants (используйте эти константы!)
+BUCKET_AUDIO = 'albert-tracks'         // Аудио треки
+BUCKET_PROJECT_COVERS = 'project-covers' // Обложки проектов  
+BUCKET_AVATARS = 'avatars'             // Аватары пользователей
+BUCKET_ARTIST_ASSETS = 'artist-assets' // Материалы артистов
+BUCKET_PROMO = 'promo-materials'       // Промо-материалы
+BUCKET_USER_UPLOADS = 'user-uploads'   // Пользовательские загрузки
+```
+
 ### POST /storage/v1/object/{bucket}
 
 Загрузить файл в Supabase Storage
 
 ```http
-POST /storage/v1/object/avatars/user-uuid/avatar.jpg
+POST /storage/v1/object/albert-tracks/user-uuid/suno/task-123/audio.mp3
 Authorization: Bearer YOUR_JWT_TOKEN
-Content-Type: image/jpeg
+Content-Type: audio/mpeg
+Cache-Control: public, max-age=31536000, immutable
 
-[binary file data]
+[binary audio data]
+```
+
+**Правильная структура путей:**
+```
+/{userId}/{service}/{taskId}/{timestamp}-{random}-{filename}
 ```
 
 ### GET /storage/v1/object/public/{bucket}/{path}
@@ -531,7 +553,25 @@ Content-Type: image/jpeg
 Получить публичный файл
 
 ```http
-GET /storage/v1/object/public/avatars/user-uuid/avatar.jpg
+GET /storage/v1/object/public/albert-tracks/user-uuid/suno/task-123/1629123456-abc123-track.mp3
+```
+
+### 🛠️ Использование в коде
+
+```typescript
+import { BUCKET_AUDIO, buildStoragePath } from '@/lib/storage/constants';
+
+// ✅ ПРАВИЛЬНО - используйте константы и helper функции
+const filePath = buildStoragePath(userId, 'suno', taskId, fileName);
+const { data, error } = await supabase.storage
+  .from(BUCKET_AUDIO)
+  .upload(filePath, file, {
+    cacheControl: 'public, max-age=31536000, immutable',
+    upsert: false
+  });
+
+// ❌ НЕПРАВИЛЬНО - не используйте хардкодированные названия
+// .from('albert-tracks') // НЕ ДЕЛАЙТЕ ТАК!
 ```
 
 ## ⚠️ Обработка ошибок

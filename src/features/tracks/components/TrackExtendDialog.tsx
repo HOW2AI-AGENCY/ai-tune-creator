@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, Clock, Zap, Upload, Music, Sparkles, Image, FileText, FileAudio, Music2, Video } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { BUCKET_AUDIO, buildStoragePath } from "@/lib/storage/constants";
 import { useSunoStatusPolling } from '@/features/ai-generation/hooks/useSunoStatusPolling';
 import { StyleBoostDialog } from '@/features/ai-generation/components/StyleBoostDialog';
 import { CoverGenerationDialog } from '@/features/ai-generation/components/CoverGenerationDialog';
@@ -116,18 +117,27 @@ export function TrackExtendDialog({ open, onOpenChange, track, onExtensionStarte
 
   const handleFileUpload = async (file: File) => {
     try {
-      // Upload to Supabase storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
+      // Get current user for path building
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Upload to Supabase storage using proper path building
+      const fileExt = file.name.split('.').pop() || 'mp3';
+      const fileName = `track-extend-${Date.now()}.${fileExt}`;
+      const filePath = buildStoragePath(user.id, 'suno', 'track-extend', fileName);
+      
       const { data, error } = await supabase.storage
-        .from('albert-tracks')
-        .upload(`uploads/${fileName}`, file);
+        .from(BUCKET_AUDIO)
+        .upload(filePath, file, {
+          cacheControl: 'public, max-age=31536000, immutable',
+          upsert: false
+        });
 
       if (error) throw error;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('albert-tracks')
-        .getPublicUrl(data.path);
+        .from(BUCKET_AUDIO)
+        .getPublicUrl(filePath);
 
       setUploadUrl(publicUrl);
       setUploadedFile(file);

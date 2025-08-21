@@ -15,6 +15,7 @@ import { Upload, Music, Clock, Settings, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useSunoStatusPolling } from "../hooks/useSunoStatusPolling";
+import { BUCKET_AUDIO, buildStoragePath } from "@/lib/storage/constants";
 
 interface UploadExtendDialogProps {
   open: boolean;
@@ -125,16 +126,20 @@ export function UploadExtendDialog({
     setUploadProgress(0);
 
     try {
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `upload-extend-${Date.now()}.${fileExt}`;
-      const filePath = `uploads/${fileName}`;
+      // Get current user for path building
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-      // Upload to Supabase Storage
+      // Generate safe filename using storage utilities
+      const fileExt = file.name.split('.').pop() || 'mp3';
+      const fileName = `upload-extend-${Date.now()}.${fileExt}`;
+      const filePath = buildStoragePath(user.id, 'suno', 'upload-extend', fileName);
+
+      // Upload to Supabase Storage using constant
       const { data, error } = await supabase.storage
-        .from('albert-tracks')
+        .from(BUCKET_AUDIO)
         .upload(filePath, file, {
-          cacheControl: '3600',
+          cacheControl: 'public, max-age=31536000, immutable',
           upsert: false
         });
 
@@ -142,7 +147,7 @@ export function UploadExtendDialog({
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('albert-tracks')
+        .from(BUCKET_AUDIO)
         .getPublicUrl(filePath);
 
       setUploadedFileUrl(publicUrl);
