@@ -133,24 +133,35 @@ export function useTrackGenerationWithProgress() {
         });
         
       } else if (params.service === 'mureka') {
-        const response = await supabase.functions.invoke('generate-mureka-track', {
-          body: {
-            prompt: params.prompt, // Always use prompt field
-            lyrics: params.customLyrics || '',
-            custom_lyrics: params.customLyrics || '',
-            style: params.stylePrompt || params.genreTags?.join(', ') || '',
-            duration: params.duration || 120,
-            genre: params.genreTags?.[0] || 'electronic',
-            mood: params.genreTags?.[1] || 'energetic',
-            tempo: params.tempo || 'medium',
-            instrumental: params.instrumental || false,
-            language: params.language || 'ru',
-            projectId: params.projectId || null,
-            artistId: params.artistId || null,
-            title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
-            model: params.model && params.model !== 'auto' ? params.model : 'auto', // CRITICAL: Pass model
-            inputType: params.inputType // CRITICAL: Pass inputType
+        // Используем новый независимый Mureka endpoint
+        const murekaPayload = {
+          inputType: params.inputType,
+          projectId: params.projectId || null,
+          artistId: params.artistId || null,
+          model: params.model && params.model !== 'auto' ? params.model : 'auto',
+          instrumental: params.instrumental || false,
+          useInbox: !params.projectId // если нет проекта, отправляем в inbox
+        };
+        
+        // Добавляем контент в зависимости от типа ввода
+        if (params.inputType === 'lyrics') {
+          murekaPayload.lyrics = params.prompt; // Для лирики используем prompt
+          murekaPayload.title = `Mureka Track ${new Date().toLocaleDateString('ru-RU')}`;
+        } else {
+          murekaPayload.prompt = params.prompt; // Для описания используем prompt
+          murekaPayload.title = `Mureka Track ${new Date().toLocaleDateString('ru-RU')}`;
+        }
+        
+        // Добавляем жанр и настроение
+        if (params.genreTags && params.genreTags.length > 0) {
+          murekaPayload.genre = params.genreTags[0];
+          if (params.genreTags.length > 1) {
+            murekaPayload.mood = params.genreTags[1];
           }
+        }
+        
+        const response = await supabase.functions.invoke('mureka-generate', {
+          body: murekaPayload
         });
         
         data = response.data;
@@ -244,113 +255,39 @@ export function useTrackGenerationWithProgress() {
         if (params.service === 'suno') {
           startPolling(data.data.task_id);
         } else if (params.service === 'mureka') {
-          // Для Mureka используем периодическую проверку через get-mureka-task-status
-          const intervalId = setInterval(async () => {
-            try {
-              const statusResponse = await fetch(
-                `https://zwbhlfhwymbmvioaikvs.supabase.co/functions/v1/get-mureka-task-status?taskId=${data.data.task_id}`,
-                {
-                  method: 'GET',
-                  headers: {
-                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-                    'Content-Type': 'application/json'
-                  }
-                }
-              );
-              
-              if (statusResponse.ok) {
-                const statusData = await statusResponse.json();
-                
-                if (statusData?.success && statusData.data?.isCompleted) {
-                  clearInterval(intervalId);
-                  toast({
-                    title: "Трек готов!",
-                    description: "Mureka AI завершил генерацию трека"
-                  });
-                  // Обновим список треков в UI
-                  window.dispatchEvent(new CustomEvent('tracks-updated'));
-
-                }
-              }
-            } catch (error) {
-              console.error('Mureka polling error:', error);
-            }
-          }, 10000); // Проверяем каждые 10 секунд
+          // Для нового независимого Mureka endpoint polling не нужен - он делает всё синхронно
+          // Просто показываем уведомление что трек готов
+          toast({
+            title: "Трек готов!",
+            description: "Mureka AI успешно сгенерировал трек"
+          });
           
-          // Очистка интервала через 5 минут
-          setTimeout(() => clearInterval(intervalId), 300000);
+          // Обновляем список треков в UI
+          window.dispatchEvent(new CustomEvent('tracks-updated'));
         }
       } else if (params.service === 'mureka') {
-        // Для Mureka - сохраняем в persistence для фоновой обработки
-        if (data.data?.generation?.id) {
-          startGeneration({
-            taskId: data.data.generation.id,
-            service: params.service as 'suno' | 'mureka',
-            generationId: data.data.generation.id,
-            status: 'processing',
-            progress: 80,
-            title: params.prompt || 'AI Generated Track',
-            subtitle: 'Используем Mureka',
-            params,
-            steps: [
-              { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
-              { id: 'generate', label: 'Отправка в AI сервис', status: 'done' },
-              { id: 'process', label: 'Обработка трека', status: 'running' },
-              { id: 'save', label: 'Сохранение результата', status: 'pending' }
-            ]
-          });
-        }
-
-        // Если уже есть аудио URL, сразу сохраняем через новую функцию
-        if (data.data?.audio_url) {
-          try {
-            const saveResponse = await supabase.functions.invoke('save-mureka-generation', {
-              body: {
-                generationId: data.data.generation?.id,
-                trackData: {
-                  audio_url: data.data.audio_url,
-                  title: data.data.title,
-                  duration: data.data.duration,
-                  lyrics: data.data.lyrics,
-                  model: params.model
-                },
-                projectId: params.projectId,
-                artistId: params.artistId
-              }
-            });
-
-            if (saveResponse.error) {
-              console.error('Error saving Mureka track:', saveResponse.error);
-              toast({
-                title: "Трек сгенерирован, но не сохранен",
-                description: "Трек создан, но возникла ошибка при сохранении в библиотеку",
-                variant: "destructive"
-              });
-            } else {
-              console.log('Mureka track saved successfully:', saveResponse.data);
-              toast({
-                title: "Трек готов!",
-                description: "Трек успешно добавлен в вашу музыкальную коллекцию"
-              });
-              
-              // Trigger immediate refresh of tracks list
-              window.dispatchEvent(new CustomEvent('tracks-updated'));
-            }
-          } catch (saveError) {
-            console.error('Save error:', saveError);
-          }
-        }
-
+        // Новый независимый Mureka endpoint делает всё автоматически
+        // включая сохранение в базу данных и загрузку в Storage
+        console.log('Mureka generation completed successfully:', data);
+        
         updateProgress({
           progress: 100,
           title: "Трек готов!",
-          subtitle: "Генерация и сохранение завершены",
+          subtitle: "Mureka AI завершил генерацию и сохранение",
           steps: [
             { id: 'prepare', label: 'Подготовка запроса', status: 'done' },
             { id: 'generate', label: 'Отправка в AI сервис', status: 'done' },
             { id: 'process', label: 'Обработка трека', status: 'done' },
             { id: 'save', label: 'Сохранение результата', status: 'done' }
           ]
+        });
+        
+        // Обновляем список треков в UI
+        window.dispatchEvent(new CustomEvent('tracks-updated'));
+        
+        toast({
+          title: "Трек готов!",
+          description: `Сгенерировано ${data.data?.tracks?.length || 1} треков с помощью Mureka AI`
         });
       } else {
         // Завершение для других случаев
