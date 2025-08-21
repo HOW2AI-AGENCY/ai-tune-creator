@@ -24,12 +24,12 @@ import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
 import { useEventListener } from "@/lib/events/event-bus";
 
 // Lazy-loaded components for better code splitting
-const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel"));
-const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel"));
-const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid"));
-const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer"));
-const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette"));
-const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer"));
+const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel").then(module => ({ default: module.GenerationContextPanel })));
+const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel").then(module => ({ default: module.TaskQueuePanel })));
+const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid").then(module => ({ default: module.TrackResultsGrid })));
+const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer").then(module => ({ default: module.TrackDetailsDrawer })));
+const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette").then(module => ({ default: module.CommandPalette })));
+const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(module => ({ default: module.FloatingPlayer })));
 interface Track {
   id: string;
   title: string;
