@@ -134,7 +134,7 @@ export function MurekaTrackCard({
     
     try {
       const date = new Date(dateString);
-      return new Intl.RelativeTimeFormatter('ru', { numeric: 'auto' })
+      return new Intl.RelativeTimeFormat('ru', { numeric: 'auto' })
         .format(
           Math.ceil((date.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
           'day'

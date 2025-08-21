@@ -110,7 +110,13 @@ export default function MurekaStudio() {
         }
         
         console.log('[MUREKA STUDIO] Loaded tracks:', tracks?.length || 0);
-        setRecentTracks(tracks || []);
+        setRecentTracks((tracks || []).map(track => ({
+          ...track,
+          metadata: {
+            ...(track.metadata as Record<string, any> || {}),
+            service: 'mureka'
+          }
+        })) as MurekaTrack[]);
         
       } catch (error) {
         console.error('[MUREKA STUDIO] Exception loading tracks:', error);
@@ -342,14 +348,20 @@ export default function MurekaStudio() {
               ) : recentTracks.length > 0 ? (
                 <div className="space-y-4 max-h-[600px] overflow-y-auto">
                   {recentTracks.map((track) => (
-                    <MurekaTrackCard
-                      key={track.id}
-                      track={track}
-                      isPlaying={currentTrack?.id === track.id}
-                      onPlay={handleTrackPlay}
-                      onPause={handleTrackPause}
-                      showLyrics={true}
-                    />
+                     <MurekaTrackCard
+                       key={track.id}
+                       track={{
+                         ...track,
+                         metadata: {
+                           ...track.metadata,
+                           service: 'mureka'
+                         }
+                       }}
+                       isPlaying={currentTrack?.id === track.id}
+                       onPlay={handleTrackPlay}
+                       onPause={handleTrackPause}
+                       showLyrics={true}
+                     />
                   ))}
                 </div>
               ) : (
@@ -369,17 +381,17 @@ export default function MurekaStudio() {
       
       {/* Плеер */}
       {isPlayerVisible && currentTrack && (
-        <FloatingPlayer 
-          track={{
-            id: currentTrack.id,
-            title: currentTrack.title,
-            audio_url: currentTrack.audio_url,
-            lyrics: currentTrack.lyrics,
-            duration: currentTrack.duration,
-            metadata: currentTrack.metadata
-          }}
-          onClose={() => setIsPlayerVisible(false)}
-        />
+         <FloatingPlayer 
+           isOpen={isPlayerVisible}
+           track={{
+             id: currentTrack.id,
+             title: currentTrack.title,
+             audio_url: currentTrack.audio_url,
+             duration: currentTrack.duration,
+             metadata: currentTrack.metadata
+           } as any}
+           onClose={() => setIsPlayerVisible(false)}
+         />
       )}
     </div>
   );
