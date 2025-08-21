@@ -15,7 +15,7 @@ import Projects from "./pages/Projects";
 import Artists from "./pages/Artists";
 import AIGeneration from "./pages/AIGeneration";
 import AIGenerationStudio from "./pages/AIGenerationStudio";
-import MurekaStudio from "./pages/MurekaStudio";
+
 import Tracks from "./pages/Tracks";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
@@ -63,7 +63,7 @@ function AppContent() {
               <Route path="/artists" element={<Artists />} />
               <Route path="/generate" element={<AIGenerationStudio />} />
               <Route path="/generate-old" element={<AIGeneration />} />
-              <Route path="/mureka" element={<MurekaStudio />} />
+
               <Route path="/settings" element={<Settings />} />
               <Route path="/demo/track-details" element={<TrackDetailsDemo />} />
               <Route path="*" element={<NotFound />} />
