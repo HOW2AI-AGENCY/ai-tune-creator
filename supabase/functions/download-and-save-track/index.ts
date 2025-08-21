@@ -77,12 +77,23 @@ serve(async (req) => {
       });
     }
 
-    if (!external_url || external_url === "missing" || external_url.trim() === "") {
-      console.error('[CRITICAL] external_url is invalid:', external_url);
+    // TODO: FIXME - Better URL validation
+    if (!external_url || external_url === "missing" || external_url === "undefined" || external_url.trim() === "") {
+      console.error('[CRITICAL] external_url is invalid:', { 
+        external_url, 
+        type: typeof external_url,
+        generation_id: generation_id || 'missing',
+        taskId: taskId || task_id || 'missing'
+      });
+      
+      // Release lock before returning error
+      const lockKey = `download:${generation_id || (taskId || task_id)}`;
+      await supabase.rpc('release_operation_lock', { p_key: lockKey });
+      
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'external_url is required and cannot be empty or "missing"',
-        details: `Received external_url: "${external_url}"`,
+        error: 'external_url is required and cannot be empty, "missing", or "undefined"',
+        details: `Received external_url: "${external_url}" (type: ${typeof external_url})`,
         timestamp: new Date().toISOString()
       }), {
         status: 400,
@@ -222,15 +233,30 @@ serve(async (req) => {
     // Storage path: user_id/service/taskId/unique-filename
     const storagePath = `${generation.user_id}/${service}/${taskIdForPath}/${uniqueFileName}`;
 
+    // TODO: FIXME - Add retry logic and better error handling
     console.log('Downloading audio file from:', external_url);
+    console.log('File size estimation will be available after download...');
 
-    // Загружаем файл с внешнего URL
-    const audioResponse = await fetch(external_url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Supabase-Edge-Function/1.0'
-      }
-    });
+    let audioResponse;
+    try {
+      // Загружаем файл с внешнего URL с таймаутом
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      audioResponse = await fetch(external_url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Supabase-Edge-Function/1.0',
+          'Accept': 'audio/mpeg, audio/wav, audio/m4a, audio/*'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+    } catch (fetchError) {
+      console.error('[DOWNLOAD] Fetch failed:', fetchError);
+      throw new Error(`Network error downloading audio: ${fetchError.message}`);
+    }
 
     if (!audioResponse.ok) {
       throw new Error(`Failed to download audio: ${audioResponse.status} ${audioResponse.statusText}`);

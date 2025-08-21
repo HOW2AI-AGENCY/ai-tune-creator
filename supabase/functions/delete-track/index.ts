@@ -148,23 +148,42 @@ serve(async (req) => {
         console.error('[DELETE] Error deleting promo materials:', promoError);
       }
 
-      console.log('[DELETE] Deleting track from storage...');
-      if (track.audio_url && track.audio_url.includes('supabase.co/storage')) {
-        const urlParts = track.audio_url.split('/storage/v1/object/public/');
-        if (urlParts[1]) {
-          const [bucket, ...pathParts] = urlParts[1].split('/');
-          const filePath = pathParts.join('/');
+      // TODO: FIXME - Improve storage deletion logic
+      console.log('[DELETE] Attempting to delete track from storage...');
+      
+      if (track.audio_url) {
+        try {
+          console.log('[DELETE] Track audio URL:', track.audio_url);
           
-          const { error: storageError } = await supabase.storage
-            .from(bucket)
-            .remove([filePath]);
-          
-          if (storageError) {
-            console.error('[DELETE] Error deleting from storage:', storageError);
+          // Check if this is a Supabase storage URL
+          if (track.audio_url.includes('supabase.co/storage/v1/object/public/')) {
+            const urlParts = track.audio_url.split('/storage/v1/object/public/');
+            if (urlParts[1]) {
+              const [bucket, ...pathParts] = urlParts[1].split('/');
+              const filePath = pathParts.join('/');
+              
+              console.log('[DELETE] Storage deletion - bucket:', bucket, 'path:', filePath);
+              
+              const { error: storageError } = await supabase.storage
+                .from(bucket)
+                .remove([filePath]);
+              
+              if (storageError) {
+                console.error('[DELETE] Storage deletion failed:', storageError);
+                // TODO: FIXME - Don't fail the whole deletion if storage fails
+              } else {
+                console.log('[DELETE] File successfully deleted from storage:', filePath);
+              }
+            }
           } else {
-            console.log('[DELETE] File deleted from storage:', filePath);
+            console.log('[DELETE] Audio URL is not from Supabase storage, skipping storage deletion');
           }
+        } catch (storageDeleteError) {
+          console.error('[DELETE] Exception during storage deletion:', storageDeleteError);
+          // TODO: FIXME - Continue with track deletion even if storage fails
         }
+      } else {
+        console.log('[DELETE] No audio URL to delete from storage');
       }
 
       // Удаляем сам трек

@@ -157,17 +157,49 @@ serve(async (req) => {
       })
       .eq('id', generationId)
 
-    // Начинаем загрузку в хранилище в фоне (не блокируем ответ)
-    supabase.functions.invoke('download-and-save-track', {
-      body: {
-        generation_id: generationId,
-        external_url: trackData.audio_url,
-        filename: `mureka_${generationId}.mp3`,
-        track_id: savedTrack.id
+    // TODO: FIXME - Improve background download with better error handling
+    if (trackData.audio_url && trackData.audio_url !== 'undefined' && trackData.audio_url.startsWith('http')) {
+      console.log('[SAVE-MUREKA] Starting background download...');
+      console.log('[SAVE-MUREKA] URL for download:', trackData.audio_url);
+      
+      // Используем EdgeRuntime.waitUntil для фонового процесса
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+        EdgeRuntime.waitUntil(
+          supabase.functions.invoke('download-and-save-track', {
+            body: {
+              generation_id: generationId,
+              external_url: trackData.audio_url,
+              filename: `mureka_${generationId.slice(0, 8)}.mp3`,
+              track_id: savedTrack.id
+            }
+          }).then(result => {
+            if (result.error) {
+              console.error('[SAVE-MUREKA] Background download failed:', result.error);
+            } else {
+              console.log('[SAVE-MUREKA] Background download successful:', result.data);
+            }
+          }).catch(error => {
+            console.error('[SAVE-MUREKA] Background download exception:', error.message);
+          })
+        );
+      } else {
+        // Fallback без waitUntil
+        supabase.functions.invoke('download-and-save-track', {
+          body: {
+            generation_id: generationId,
+            external_url: trackData.audio_url,
+            filename: `mureka_${generationId.slice(0, 8)}.mp3`,
+            track_id: savedTrack.id
+          }
+        }).catch(error => {
+          console.error('[SAVE-MUREKA] Background download failed (fallback):', error);
+        });
       }
-    }).catch(error => {
-      console.error('Background download failed:', error);
-    });
+      
+      console.log('[SAVE-MUREKA] Background download initiated');
+    } else {
+      console.warn('[SAVE-MUREKA] Invalid audio URL for download:', trackData.audio_url);
+    }
 
     if (updateError) {
       console.error('Error updating generation:', updateError)
