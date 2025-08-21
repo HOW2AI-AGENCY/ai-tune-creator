@@ -313,16 +313,17 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
           updateStep(generationId, 'save', { status: 'done', progress: 100 });
           
           // Trigger background download for completed tracks
-          if (service === 'mureka' && data.mureka?.choices?.[0]?.url) {
-            console.log('🎵 Triggering background download for Mureka track:', data.mureka.choices[0].url);
+          if (service === 'mureka' && (data.mureka?.choices?.[0]?.url || data.mureka?.choices?.[0]?.audio_url || data.audio_url)) {
+            const murekaAudioUrl = data.mureka?.choices?.[0]?.url || data.mureka?.choices?.[0]?.audio_url || data.audio_url;
+            console.log('🎵 Triggering background download for Mureka track:', murekaAudioUrl);
             
             // Background download and save (don't await to avoid blocking UI)
             supabase.functions.invoke('download-and-save-track', {
               body: {
                 generation_id: generationId,
-                external_url: data.mureka.choices[0].url,
+                external_url: murekaAudioUrl,
                 taskId: taskId,
-                filename: data.mureka.title || `mureka-${taskId}`
+                filename: data.mureka?.title || data.title || `mureka-${taskId}`
               }
             }).catch(error => {
               console.error('Background download failed:', error);

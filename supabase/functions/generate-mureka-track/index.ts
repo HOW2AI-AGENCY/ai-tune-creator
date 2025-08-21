@@ -477,8 +477,33 @@ function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string
  * Генерирует правильное название трека
  */
 function generateTrackTitle(request: TrackGenerationRequest, choice: any, index: number): string {
-  const baseTitle = request.title || choice.title || choice.display_name || 
-    `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`;
+  // Пробуем различные поля из choice и request
+  let baseTitle = request.title || 
+                  choice.title || 
+                  choice.display_name || 
+                  choice.name ||
+                  choice.track_title;
+  
+  // Если название не найдено, генерируем из prompt/lyrics
+  if (!baseTitle) {
+    if (request.prompt && request.prompt.length > 0 && !request.prompt.includes('[Auto-generated]')) {
+      // Используем первые слова prompt как название
+      baseTitle = request.prompt
+        .split(' ')
+        .slice(0, 4)
+        .join(' ')
+        .replace(/[^a-zA-Zа-яА-Я0-9\s]/g, '')
+        .trim();
+    } else if (request.style || request.genre || request.mood) {
+      // Генерируем название из стиля/жанра/настроения
+      const styleParts = [request.genre, request.mood, request.style].filter(Boolean);
+      baseTitle = styleParts.length > 0 
+        ? `${styleParts.join(' ')} Track`
+        : `AI Generated Track`;
+    } else {
+      baseTitle = `Mureka Track ${new Date().toLocaleDateString('ru-RU')}`;
+    }
+  }
   
   return index === 0 ? baseTitle : `${baseTitle} (вариант ${index + 1})`;
 }
@@ -487,16 +512,41 @@ function generateTrackTitle(request: TrackGenerationRequest, choice: any, index:
  * Извлекает лирику из choice объекта
  */
 function extractChoiceLyrics(choice: any, fallbackLyrics: string): string {
-  if (choice.lyrics_sections) {
-    return choice.lyrics_sections.map((section: any) => 
-      section.lines ? section.lines.map((line: any) => line.text).join('\n') : ''
-    ).join('\n');
+  console.log('[LYRICS] Extracting lyrics from choice:', {
+    hasLyricsSections: !!choice.lyrics_sections,
+    hasLyrics: !!choice.lyrics,
+    hasLyricsField: !!choice.lyrics_field,
+    fallbackLength: fallbackLyrics?.length || 0
+  });
+  
+  // Пробуем различные поля с лирикой
+  if (choice.lyrics_sections && Array.isArray(choice.lyrics_sections)) {
+    const extractedLyrics = choice.lyrics_sections.map((section: any) => {
+      if (section.lines && Array.isArray(section.lines)) {
+        return section.lines.map((line: any) => 
+          typeof line === 'string' ? line : (line.text || line.content || '')
+        ).join('\n');
+      }
+      return section.text || section.content || '';
+    }).join('\n\n');
+    
+    if (extractedLyrics.trim()) {
+      console.log('[LYRICS] Extracted from lyrics_sections, length:', extractedLyrics.length);
+      return extractedLyrics;
+    }
   }
   
-  if (choice.lyrics) {
+  if (choice.lyrics && typeof choice.lyrics === 'string') {
+    console.log('[LYRICS] Using choice.lyrics, length:', choice.lyrics.length);
     return choice.lyrics;
   }
   
+  if (choice.lyrics_field && typeof choice.lyrics_field === 'string') {
+    console.log('[LYRICS] Using choice.lyrics_field, length:', choice.lyrics_field.length);
+    return choice.lyrics_field;
+  }
+  
+  console.log('[LYRICS] Using fallback lyrics, length:', fallbackLyrics?.length || 0);
   return fallbackLyrics || '';
 }
 
@@ -895,15 +945,35 @@ serve(async (req) => {
     // ====================================
     let finalTrack = murekaResponse;
     
+    console.log('[DEBUG] Initial Mureka response:', {
+      id: murekaResponse.id,
+      status: murekaResponse.status,
+      hasChoices: !!murekaResponse.choices?.length,
+      choicesCount: murekaResponse.choices?.length || 0,
+      firstChoiceUrl: murekaResponse.choices?.[0]?.url || murekaResponse.choices?.[0]?.audio_url,
+      firstChoiceTitle: murekaResponse.choices?.[0]?.title
+    });
+    
     if (['preparing', 'queued', 'running', 'streaming'].includes(murekaResponse.status)) {
       console.log('[POLLING] Трек в процессе генерации, начинаем polling');
       
       try {
         finalTrack = await pollMurekaStatus(murekaResponse.id, murekaApiKey);
+        console.log('[DEBUG] Final track after polling:', {
+          id: finalTrack.id,
+          status: finalTrack.status,
+          hasChoices: !!finalTrack.choices?.length,
+          choicesCount: finalTrack.choices?.length || 0,
+          firstChoiceUrl: finalTrack.choices?.[0]?.url || finalTrack.choices?.[0]?.audio_url,
+          firstChoiceTitle: finalTrack.choices?.[0]?.title
+        });
       } catch (error: any) {
         console.error('[POLLING] Ошибка при polling:', error);
+        console.log('[DEBUG] Using initial response due to polling error');
         // Продолжаем с текущим статусом
       }
+    } else {
+      console.log('[DEBUG] Track already completed, no polling needed');
     }
     
     // ====================================
@@ -1118,17 +1188,36 @@ serve(async (req) => {
     
     console.log(`[SUCCESS] Запрос обработан за ${processingTime}ms`);
     
+    // Получаем правильные URL для фронтенда
+    const primaryAudioUrl = finalTrack.choices?.[0]?.url || finalTrack.choices?.[0]?.audio_url;
+    const primaryTitle = finalTrack.choices?.[0]?.title || generateTrackTitle(requestBody, finalTrack.choices?.[0] || {}, 0);
+    
+    console.log('[RESPONSE] Preparing final response:', {
+      hasChoices: !!finalTrack.choices?.length,
+      primaryAudioUrl,
+      primaryTitle,
+      status: finalTrack.status,
+      taskId: finalTrack.id
+    });
+    
     return new Response(JSON.stringify({
       success: true,
       message: allSavedTracks.length > 0 
         ? `Успешно сгенерированы и сохранены ${allSavedTracks.length + 1} треков` 
         : 'Трек успешно сгенерирован и сохранен',
       data: {
-        mureka: finalTrack,
+        mureka: {
+          ...finalTrack,
+          choices: finalTrack.choices?.map(choice => ({
+            ...choice,
+            url: choice.url || choice.audio_url, // Обеспечиваем наличие url поля
+            audio_url: choice.audio_url || choice.url // И обратное соответствие
+          }))
+        },
         track: trackRecord,
         generation: generationRecord,
-        audio_url: finalTrack.choices?.[0]?.audio_url,
-        title: finalTrack.choices?.[0]?.title || requestBody.title,
+        audio_url: primaryAudioUrl,
+        title: primaryTitle,
         duration: finalTrack.choices?.[0]?.duration || requestBody.duration,
         lyrics: processedLyrics,
         status: finalTrack.status,
