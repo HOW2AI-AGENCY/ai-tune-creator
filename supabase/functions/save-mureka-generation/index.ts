@@ -83,19 +83,24 @@ serve(async (req) => {
     const trackRecord = {
       id: crypto.randomUUID(),
       project_id: targetProjectId,
-      title: trackData.title || 'AI Generated Track',  // FIXME: убрал generation.title (не существует)
+      title: trackData.title || 'AI Generated Track',
       audio_url: trackData.audio_url, // Direct audio URL from Mureka
       duration: trackData.duration || 120,
       lyrics: trackData.lyrics || '',
-      genre_tags: ['ai-generated', 'mureka'],
+      genre_tags: trackData.genre_tags || ['ai-generated', 'mureka'],
       track_number: await getNextTrackNumber(targetProjectId),
+      style_prompt: trackData.style_prompt || generation.prompt,
       metadata: {
         service: 'mureka',
         model: trackData.model || 'auto',
         prompt: generation.prompt,
+        style_prompt: trackData.style_prompt,
         generated_at: new Date().toISOString(),
         generation_id: generationId,
         external_audio_url: trackData.audio_url,
+        mureka_choice_id: trackData.mureka_choice_id,
+        track_variant: trackData.track_variant || 1,
+        total_variants: trackData.total_variants || 1,
         original_data: trackData
       }
     }

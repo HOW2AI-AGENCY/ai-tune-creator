@@ -413,8 +413,7 @@ function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string
     inputType: request.inputType  // TODO: Использовать inputType для различения
   });
   
-  // TODO: КРИТИЧЕСКАЯ ОШИБКА - нужно проверить inputType сначала!
-  // FIXME: inputType должен определять, что делать с контентом
+  // ИСПРАВЛЕНО: Правильная логика обработки контента для Mureka
   
   // Обработка входящих данных - преобразуем объекты в строки
   const safePrompt = typeof request.prompt === 'string' ? request.prompt : 
@@ -424,54 +423,42 @@ function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string
   const safeCustomLyrics = typeof request.custom_lyrics === 'string' ? request.custom_lyrics : 
                            typeof request.custom_lyrics === 'object' ? JSON.stringify(request.custom_lyrics) : '';
   
-  // TODO: ИСПРАВИТЬ - проверить inputType первым делом!
+  // ИСПРАВЛЕНО: Первоочередная проверка inputType
   if (request.inputType === 'lyrics') {
-    // Пользователь ввел готовую лирику - используем как есть
+    // Пользователь ввел готовые lyrics - используем как есть
     lyrics = safePrompt || safeLyrics || safeCustomLyrics || '[No lyrics provided]';
-    prompt = stylePrompt;
+    prompt = stylePrompt; // Стиль идет в prompt для Mureka
     console.log('[PREPARE] InputType=lyrics: Using provided text as lyrics');
   } else if (request.inputType === 'description') {
-    // Пользователь ввел описание - генерируем лирику
-    const descriptionText = safePrompt || safeLyrics || 'a beautiful song';
-    lyrics = `Please generate lyrics for: ${descriptionText}`;
-    prompt = stylePrompt;
-    console.log('[PREPARE] InputType=description: Generating lyrics from description');
-  } else if (safeCustomLyrics && safeCustomLyrics.trim().length > 0) {
-    // Пользователь предоставил явную лирику
-    lyrics = safeCustomLyrics.trim();
-    prompt = stylePrompt;
-    console.log('[PREPARE] Using custom lyrics');
-  } else if (safeLyrics && safeLyrics.trim().length > 0) {
-    // TODO: СТАРАЯ ЛОГИКА - заменить на inputType
-    // Лирика в поле lyrics - проверяем, что это не промпт для генерации
-    const cleanLyrics = safeLyrics.trim();
-    if (looksLikeLyrics(cleanLyrics)) {
-      lyrics = cleanLyrics;
-      prompt = stylePrompt;
-      console.log('[PREPARE] Using lyrics field as lyrics');
-    } else {
-      // FIXME: Это точка ошибки - здесь промпт попадает в lyrics!
-      lyrics = `Please generate lyrics for: ${cleanLyrics}`;
-      prompt = stylePrompt;
-      console.log('[PREPARE] FIXME: Converting prompt to lyrics generation request');
-    }
+    // Пользователь ввел описание - НЕ ГЕНЕРИРУЕМ LYRICS, а передаем описание в prompt
+    lyrics = '[Auto-generated lyrics]'; // Пустая лирика для автогенерации
+    prompt = safePrompt || safeLyrics || stylePrompt; // Описание идет в prompt
+    console.log('[PREPARE] InputType=description: Using description as prompt for AI');
   } else if (request.instrumental) {
     // Инструментальный трек
     lyrics = '[Instrumental]';
     prompt = safePrompt || stylePrompt;
     console.log('[PREPARE] Creating instrumental track');
+  } else if (safeCustomLyrics && safeCustomLyrics.trim().length > 0) {
+    // Пользователь предоставил явную лирику в custom_lyrics
+    lyrics = safeCustomLyrics.trim();
+    prompt = stylePrompt;
+    console.log('[PREPARE] Using custom lyrics');
+  } else if (safeLyrics && safeLyrics.trim().length > 0 && looksLikeLyrics(safeLyrics)) {
+    // Поле lyrics содержит лирику (структурированный текст)
+    lyrics = safeLyrics.trim();
+    prompt = stylePrompt;
+    console.log('[PREPARE] Using lyrics field as lyrics');
   } else if (safePrompt && looksLikeLyrics(safePrompt)) {
     // Поле prompt содержит лирику
     lyrics = safePrompt;
     prompt = stylePrompt;
     console.log('[PREPARE] Using prompt field as lyrics');
   } else {
-    // FIXME: Дефолтная логика - может быть проблематичной
-    // Нет готовой лирики - используем prompt для генерации лирики
-    const promptText = safePrompt || 'a beautiful song';
-    lyrics = `Please generate lyrics for: ${promptText}`;
-    prompt = stylePrompt;
-    console.log('[PREPARE] FALLBACK: Using prompt text for lyrics generation with instruction');
+    // Дефолт: используем описание в prompt, позволяем AI сгенерировать lyrics
+    lyrics = '[Auto-generated lyrics]';
+    prompt = safePrompt || safeLyrics || stylePrompt;
+    console.log('[PREPARE] Using description as prompt, letting AI generate lyrics');
   }
   
   console.log('[PREPARE] Final content prepared:', {
@@ -483,6 +470,47 @@ function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string
   });
   
   return { lyrics, prompt };
+}
+
+/**
+ * Генерирует правильное название трека
+ */
+function generateTrackTitle(request: TrackGenerationRequest, choice: any, index: number): string {
+  const baseTitle = request.title || choice.title || choice.display_name || 
+    `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`;
+  
+  return index === 0 ? baseTitle : `${baseTitle} (вариант ${index + 1})`;
+}
+
+/**
+ * Извлекает лирику из choice объекта
+ */
+function extractChoiceLyrics(choice: any, fallbackLyrics: string): string {
+  if (choice.lyrics_sections) {
+    return choice.lyrics_sections.map((section: any) => 
+      section.lines ? section.lines.map((line: any) => line.text).join('\n') : ''
+    ).join('\n');
+  }
+  
+  if (choice.lyrics) {
+    return choice.lyrics;
+  }
+  
+  return fallbackLyrics || '';
+}
+
+/**
+ * Генерирует теги жанра на основе запроса
+ */
+function generateGenreTags(request: TrackGenerationRequest): string[] {
+  const tags = ['ai-generated', 'mureka'];
+  
+  if (request.genre) tags.push(request.genre.toLowerCase());
+  if (request.mood) tags.push(request.mood.toLowerCase());
+  if (request.tempo) tags.push(request.tempo.toLowerCase());
+  if (request.instrumental) tags.push('instrumental');
+  
+  return tags;
 }
 
 /**
@@ -1053,17 +1081,17 @@ serve(async (req) => {
             body: {
               generationId: generationRecord?.id,
               trackData: {
-                title: i === 0 ? (requestBody.title || choice.title || 'Generated Track') : `${requestBody.title || choice.title || 'Generated Track'} (вариант ${i + 1})`,
+                title: generateTrackTitle(requestBody, choice, i),
                 audio_url: choice.url || choice.audio_url,
-                duration: Math.round((choice.duration || 120000) / 1000), // конвертируем из ms в секунды
-                lyrics: choice.lyrics_sections ? choice.lyrics_sections.map((section: any) => 
-                  section.lines ? section.lines.map((line: any) => line.text).join('\n') : ''
-                ).join('\n') : processedLyrics || '',
-                model: finalTrack.model || 'mureka',
+                duration: Math.round((choice.duration || 120000) / 1000),
+                lyrics: extractChoiceLyrics(choice, processedLyrics),
+                model: finalTrack.model || mappedModel,
                 service: 'mureka',
                 mureka_choice_id: choice.id,
                 track_variant: i + 1,
-                total_variants: finalTrack.choices.length
+                total_variants: finalTrack.choices.length,
+                genre_tags: generateGenreTags(requestBody),
+                style_prompt: requestPrompt
               },
               projectId: finalProjectId,
               artistId: finalArtistId
