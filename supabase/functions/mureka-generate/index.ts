@@ -82,6 +82,24 @@ interface ProcessedTrack {
 // ==========================================
 
 /**
+ * Маппинг статусов Mureka в наш формат
+ */
+function mapMurekaStatus(murekaStatus: string): 'processing' | 'completed' | 'failed' {
+  const statusMap: Record<string, 'processing' | 'completed' | 'failed'> = {
+    'preparing': 'processing',
+    'queued': 'processing',
+    'running': 'processing',
+    'streaming': 'processing',
+    'succeeded': 'completed',
+    'failed': 'failed',
+    'timeouted': 'failed',
+    'cancelled': 'failed'
+  };
+  
+  return statusMap[murekaStatus] || 'processing';
+}
+
+/**
  * Извлечение User ID из JWT токена
  */
 function extractUserId(authHeader: string | null): string {
@@ -220,12 +238,27 @@ async function pollMurekaStatus(taskId: string, apiKey: string): Promise<MurekaA
       });
       
       if (response.ok) {
-        const data: MurekaAPIResponse = await response.json();
+        const data: any = await response.json();
         console.log(`[POLLING] Attempt ${attempt + 1}: status = ${data.status}`);
         
-        if (data.status === 'completed' || data.status === 'failed') {
-          console.log('[POLLING] Generation finished:', data.status);
-          return data;
+        // Map Mureka status to our format
+        const mappedStatus = mapMurekaStatus(data.status);
+        const mappedData: MurekaAPIResponse = {
+          task_id: data.id,
+          status: mappedStatus,
+          songs: data.choices ? data.choices.map((choice: any) => ({
+            id: choice.id || data.id,
+            title: choice.title || 'Mureka Generated Song',
+            lyrics: choice.lyrics || '[Auto-generated lyrics]',
+            audio_url: choice.audio_url,
+            duration: choice.duration || 120,
+            created_at: new Date().toISOString()
+          })) : []
+        };
+        
+        if (mappedStatus === 'completed' || mappedStatus === 'failed') {
+          console.log('[POLLING] Generation finished:', mappedStatus);
+          return mappedData;
         }
       }
     } catch (error) {
@@ -260,19 +293,23 @@ async function saveTracksToDatabase(
     const song = songs[i];
     
     try {
-      // Создаем трек через RPC функцию
-      const { data: trackId, error: trackError } = await supabase.rpc(
-        'create_mureka_track',
+      // Создаем трек через Edge Function
+      const { data: result, error: trackError } = await supabase.functions.invoke(
+        'create-mureka-track-rpc',
         {
-          p_generation_id: generationId,
-          p_project_id: projectId,
-          p_title: song.title,
-          p_audio_url: song.audio_url,
-          p_lyrics: song.lyrics,
-          p_duration: song.duration,
-          p_metadata: song.metadata
+          body: {
+            p_generation_id: generationId,
+            p_project_id: projectId,
+            p_title: song.title,
+            p_audio_url: song.audio_url,
+            p_lyrics: song.lyrics,
+            p_duration: song.duration,
+            p_metadata: song.metadata
+          }
         }
       );
+      
+      const trackId = result?.track_id;
       
       if (trackError) {
         console.error(`[DB] Error creating track ${i + 1}:`, trackError);
