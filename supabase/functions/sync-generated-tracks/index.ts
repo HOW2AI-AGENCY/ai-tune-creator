@@ -47,7 +47,6 @@ serve(async (req) => {
 
     // Find all completed generations that need track creation/update
     // Exclude generations that are marked as deleted or archived
-    console.log('[SYNC] Fetching completed generations...')
     const { data: generations, error: fetchError } = await supabase
       .from('ai_generations')
       .select(`
@@ -67,8 +66,6 @@ serve(async (req) => {
       .eq('status', 'completed')
       .not('metadata->skip_sync', 'eq', true) // Skip syncing if marked
       .not('metadata->deleted', 'eq', true)   // Skip deleted generations
-      .not('metadata->track_deleted', 'eq', true) // Skip if track was deleted by user
-      .not('metadata->deleted_by_user', 'eq', true) // Skip if explicitly deleted by user
       .order('completed_at', { ascending: false })
       .limit(50); // Process recent generations first
 
@@ -76,12 +73,7 @@ serve(async (req) => {
       throw new Error(`Failed to fetch generations: ${fetchError.message}`);
     }
 
-    console.log(`[SYNC] Found ${generations?.length || 0} completed generations to process`)
-    
-    // Log generation metadata for debugging
-    for (const gen of generations?.slice(0, 3) || []) {
-      console.log(`[SYNC] Generation ${gen.id}: track_id=${gen.track_id}, skip_sync=${gen.metadata?.skip_sync}, track_deleted=${gen.metadata?.track_deleted}`)
-    }
+    console.log(`Found ${generations?.length || 0} completed generations to process`);
 
     const results = {
       processed: 0,
@@ -152,12 +144,6 @@ serve(async (req) => {
         
         // Determine if we need to create/update track
         if (!gen.track_id) {
-          // Проверяем, не была ли связанная генерация помечена как удаленная пользователем
-          if (gen.metadata?.track_deleted || gen.metadata?.deleted_by_user) {
-            console.log(`Skipping track creation for generation ${gen.id} - marked as deleted by user`);
-            continue;
-          }
-          
           // Create new track
           try {
             const { data: trackId, error: rpcError } = await supabase.rpc(
@@ -197,51 +183,13 @@ serve(async (req) => {
               action: 'create_track'
             });
           }
-        } else {
-          // Проверяем, не был ли существующий трек удален пользователем
-          console.log(`[SYNC] Checking existing track ${gen.track_id} for generation ${gen.id}`)
-          const { data: existingTrack } = await supabase
-            .from('tracks')
-            .select('id, metadata')
-            .eq('id', gen.track_id)
-            .single();
-            
-          if (!existingTrack) {
-            console.log(`[SYNC] Track ${gen.track_id} no longer exists, unlinking from generation ${gen.id}`)
-            // Трек больше не существует, отвязать от генерации
-            await supabase
-              .from('ai_generations')
-              .update({ track_id: null })
-              .eq('id', gen.id);
-            continue;
-          }
-            
-          if (existingTrack?.metadata?.prevent_sync_restore || existingTrack?.metadata?.deleted) {
-            console.log(`[SYNC] Skipping sync for generation ${gen.id} - associated track marked as deleted (prevent_sync_restore: ${existingTrack.metadata?.prevent_sync_restore}, deleted: ${existingTrack.metadata?.deleted})`)
-            // Помечаем генерацию как не подлежащую синхронизации
-            await supabase
-              .from('ai_generations')
-              .update({
-                metadata: {
-                  ...(gen.metadata || {}),
-                  skip_sync: true,
-                  track_deleted: true,
-                  deleted_by_user: true,
-                  deleted_at: new Date().toISOString()
-                }
-              })
-              .eq('id', gen.id);
-            continue;
-          }
-          
+        } else if (audioUrl && audioUrl !== "missing" && !gen.metadata?.local_storage_path) {
           // Existing track but needs download
-          if (audioUrl && audioUrl !== "missing" && !gen.metadata?.local_storage_path) {
-            toDownload.push({
-              generation_id: gen.id,
-              external_url: audioUrl,
-              service: gen.service
-            });
-          }
+          toDownload.push({
+            generation_id: gen.id,
+            external_url: audioUrl,
+            service: gen.service
+          });
         }
         
       } catch (error: any) {

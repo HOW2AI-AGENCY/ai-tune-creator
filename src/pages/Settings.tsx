@@ -13,7 +13,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { AIPromptSettings } from "@/features/ai-generation/components/AIPromptSettings";
-import { TrackCleanupTools } from "@/components/dev/TrackCleanupTools";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -79,7 +78,7 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="profile" className="p-2 md:p-3" title="Профиль">
             <User className="h-4 w-4 md:h-5 md:w-5" />
             <span className="sr-only">Профиль</span>
@@ -95,10 +94,6 @@ export default function Settings() {
           <TabsTrigger value="ai" className="p-2 md:p-3" title="Настройки ИИ">
             <Bot className="h-4 w-4 md:h-5 md:w-5" />
             <span className="sr-only">Настройки ИИ</span>
-          </TabsTrigger>
-          <TabsTrigger value="data" className="p-2 md:p-3" title="Управление данными">
-            <Database className="h-4 w-4 md:h-5 md:w-5" />
-            <span className="sr-only">Управление данными</span>
           </TabsTrigger>
           <TabsTrigger value="security" className="p-2 md:p-3" title="Безопасность">
             <Shield className="h-4 w-4 md:h-5 md:w-5" />
@@ -313,18 +308,6 @@ export default function Settings() {
 
         <TabsContent value="ai" className="space-y-6">
           <AIPromptSettings />
-        </TabsContent>
-
-        <TabsContent value="data" className="space-y-6">
-          <div className="max-w-4xl">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold mb-2">Управление данными</h2>
-              <p className="text-muted-foreground">
-                Инструменты для очистки, оптимизации и управления вашими треками и данными
-              </p>
-            </div>
-            <TrackCleanupTools />
-          </div>
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">

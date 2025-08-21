@@ -1,27 +1,35 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense, lazy, startTransition } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Search, Music, Sparkles, RefreshCw, Command, Plus } from "lucide-react";
+import { Search, Play, Heart, Download, Music, Sparkles, RefreshCw, CloudDownload, MoreHorizontal, Command, Clock, Eye, Pause, Filter, SlidersHorizontal, Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useTrackSync } from "@/hooks/useTrackSync";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
+import { GenerationParams } from "@/features/ai-generation/types";
 import { cn } from "@/lib/utils";
+import { useLocation } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
-import { GenerationInterface } from "@/components/ai-generation/GenerationInterface";
-import { ProductionTrackGrid } from "@/components/ai-generation/ProductionTrackGrid";
-import { useCleanGeneration } from "@/hooks/useCleanGeneration";
+import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
+import { useEventListener } from "@/lib/events/event-bus";
+
+// Eagerly-loaded components to avoid Suspense during synchronous input (fix React #426)
+import { GenerationContextPanel } from "@/features/ai-generation/components/GenerationContextPanel";
+import { TaskQueuePanel } from "@/features/ai-generation/components/TaskQueuePanel";
+import { TrackResultsGrid } from "@/features/ai-generation/components/TrackResultsGrid";
 import { TrackDetailsDrawer } from "@/features/ai-generation/components/TrackDetailsDrawer";
 import { CommandPalette } from "@/features/ai-generation/components/CommandPalette";
 import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
-
 interface Track {
   id: string;
   title: string;
@@ -36,37 +44,66 @@ interface Track {
   updated_at?: string;
   audio_url?: string;
   metadata?: any;
+  project?: {
+    title: string;
+    artist?: {
+      name: string;
+    };
+  };
 }
-
+interface GenerationTask {
+  id: string;
+  prompt: string;
+  service: 'suno' | 'mureka';
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  progress?: number;
+  error?: string;
+  result?: Track;
+  created_at: string;
+  estimated_time?: number;
+}
 interface Option {
   id: string;
   name: string;
 }
-
 export default function AIGenerationStudio() {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const { t } = useTranslation();
-  const isMobile = useIsMobile();
-  const { state: sidebarState } = useSidebar();
-
-  // Use clean generation hook
   const {
-    tracks,
-    activeGenerations,
-    loading,
+    user
+  } = useAuth();
+  const {
+    toast
+  } = useToast();
+  const {
+    t
+  } = useTranslation();
+  const isMobile = useIsMobile();
+  const location = useLocation();
+  const {
+    state: sidebarState
+  } = useSidebar();
+
+  // Generation with progress tracking
+  const {
     generateTrack,
-    deleteTrack,
-    playTrack,
-    currentTrack,
-    isPlaying
-  } = useCleanGeneration();
+    isGenerating,
+    generationProgress,
+    ongoingGenerations,
+    cancelGeneration
+  } = useTrackGenerationWithProgress();
 
   // Check sidebar actual state
   const sidebarCollapsed = sidebarState === "collapsed";
 
+  // Listen for tracks-updated events
+  useEventListener('tracks-updated', () => {
+    console.log('📢 Received tracks-updated event, refreshing tracks...');
+    fetchTracks();
+  });
+
   // Core State
   const [searchQuery, setSearchQuery] = useState("");
+  const [tasks, setTasks] = useState<GenerationTask[]>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [projects, setProjects] = useState<Option[]>([]);
   const [artists, setArtists] = useState<Option[]>([]);
 
@@ -74,10 +111,20 @@ export default function AIGenerationStudio() {
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [isTrackDetailsOpen, setIsTrackDetailsOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [currentPlayingTrack, setCurrentPlayingTrack] = useState<Track | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showRecoveryTools, setShowRecoveryTools] = useState(false);
+
+  // Mobile State
   const [isGenerationPanelOpen, setIsGenerationPanelOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Sync Hook
-  const { isSyncing, syncTracks } = useTrackSync();
+  const {
+    isSyncing,
+    syncTracks,
+    lastSyncResults
+  } = useTrackSync();
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -97,12 +144,194 @@ export default function AIGenerationStudio() {
     }
   }, [isMobile]);
 
+  // Open generation panel on request (from track details button)
+  useEffect(() => {
+    const openHandler = () => setIsGenerationPanelOpen(true);
+    window.addEventListener('open-generation-panel', openHandler);
+    return () => window.removeEventListener('open-generation-panel', openHandler);
+  }, []);
+  useEffect(() => {
+    if (!user) return;
+
+    // Clear stuck processing tasks first
+    const clearStuckTasks = async () => {
+      try {
+        await supabase.functions.invoke('update-processing-status');
+      } catch (error) {
+        console.error('Error clearing stuck tasks:', error);
+      }
+    };
+    clearStuckTasks().then(() => {
+      fetchData();
+    });
+
+    // Preload lazy components to minimize suspensions
+    Promise.all([import("@/features/ai-generation/components/GenerationContextPanel"), import("@/features/ai-generation/components/TaskQueuePanel"), import("@/features/ai-generation/components/TrackResultsGrid"), import("@/features/ai-generation/components/TrackDetailsDrawer"), import("@/features/ai-generation/components/CommandPalette"), import("@/features/ai-generation/components/FloatingPlayer")]).catch(() => {
+      // Silently handle preload failures
+    });
+  }, [user]);
+  const fetchData = async () => {
+    try {
+      // Fetch context data
+      const [projectsRes, artistsRes] = await Promise.all([supabase.from("projects").select("id, title, artists(name)").order("created_at", {
+        ascending: false
+      }), supabase.from("artists").select("id, name").order("name")]);
+      if (projectsRes.data) {
+        setProjects(projectsRes.data.map((p: any) => ({
+          id: p.id,
+          name: p.artists?.name ? `${p.title} (${p.artists.name})` : p.title
+        })));
+      }
+      if (artistsRes.data) {
+        setArtists(artistsRes.data.map((a: any) => ({
+          id: a.id,
+          name: a.name
+        })));
+      }
+      await Promise.all([fetchTasks(), fetchTracks()]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+  const fetchTasks = async () => {
+    try {
+      const {
+        data,
+        error
+      } = await supabase.from("ai_generations").select(`
+          id,
+          prompt,
+          service,
+          status,
+          created_at,
+          metadata,
+          error_message,
+          track_id
+        `).order("created_at", {
+        ascending: false
+      }).limit(50);
+      if (error) throw error;
+      const transformedTasks: GenerationTask[] = data?.map(item => ({
+        id: item.id,
+        prompt: item.prompt,
+        service: item.service as 'suno' | 'mureka',
+        status: item.status as any,
+        error: item.error_message,
+        created_at: item.created_at,
+        progress: item.status === 'running' ? 50 : item.status === 'completed' ? 100 : 0,
+        estimated_time: 120 // 2 minutes default
+      })) || [];
+      setTasks(transformedTasks);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    }
+  };
+  const fetchTracks = async () => {
+    if (!user) return;
+    try {
+      console.log('[AIGenerationStudio] Fetching tracks from database...');
+
+      // Получаем треки с более детальным запросом включая проекты через artists
+      const {
+        data,
+        error
+      } = await supabase.from('tracks').select(`
+          id,
+          title,
+          project_id,
+          track_number,
+          audio_url,
+          lyrics,
+          duration,
+          genre_tags,
+          metadata,
+          created_at,
+          updated_at,
+          projects!inner (
+            id,
+            title,
+            artist_id,
+            artists!inner (
+              id,
+              name,
+              user_id,
+              avatar_url
+            )
+          )
+        `).eq('projects.artists.user_id', user.id).not('audio_url', 'is', null).order('updated_at', {
+        ascending: false
+      });
+      if (error) {
+        console.error('[AIGenerationStudio] Error fetching tracks:', error);
+        toast({
+          title: "Ошибка загрузки треков",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      console.log(`[AIGenerationStudio] Raw tracks data:`, data);
+      console.log(`[AIGenerationStudio] Found ${data?.length || 0} tracks for user ${user.id}`);
+
+      // Проверяем на аудио URL
+      const tracksWithAudio = data?.filter(track => track.audio_url) || [];
+      console.log(`[AIGenerationStudio] Tracks with audio:`, {
+        total: data?.length || 0,
+        withAudio: tracksWithAudio.length,
+        tracks: tracksWithAudio.map(t => ({
+          id: t.id,
+          title: t.title,
+          audio_url: !!t.audio_url
+        }))
+      });
+      const formattedTracks: Track[] = (data || []).map(track => ({
+        id: track.id,
+        title: track.title,
+        project_id: track.project_id,
+        track_number: track.track_number,
+        audio_url: track.audio_url,
+        lyrics: track.lyrics,
+        duration: track.duration,
+        genre_tags: track.genre_tags || [],
+        metadata: track.metadata,
+        created_at: track.created_at,
+        updated_at: track.updated_at,
+        project: track.projects ? {
+          title: track.projects.title,
+          artist: track.projects.artists ? {
+            name: track.projects.artists.name
+          } : undefined
+        } : undefined
+      }));
+      setTracks(formattedTracks);
+      console.log('[AIGenerationStudio] Tracks loaded and formatted successfully');
+
+      // Показываем уведомление если треки есть
+      if (formattedTracks.length > 0) {
+        toast({
+          title: "Треки загружены",
+          description: `Найдено ${formattedTracks.length} треков`
+        });
+      }
+    } catch (error) {
+      console.error('[AIGenerationStudio] Unexpected error fetching tracks:', error);
+      toast({
+        title: "Ошибка загрузки",
+        description: "Произошла неожиданная ошибка при загрузке треков",
+        variant: "destructive"
+      });
+    }
+  };
   const handleSync = async () => {
     console.log('🔄 Starting manual sync...');
     try {
+      // Сначала синхронизируем треки
       const result = await syncTracks();
       console.log('🔄 Sync result:', result);
-      
+
+      // Затем перезагружаем данные  
+      await Promise.all([fetchTracks(), fetchTasks()]);
+      console.log('✅ Data refresh completed');
       toast({
         title: 'Синхронизация завершена',
         description: 'Список треков обновлен'
@@ -116,31 +345,64 @@ export default function AIGenerationStudio() {
       });
     }
   };
-
   const filteredTracks = useMemo(() => {
     return tracks.filter(track => {
       if (!searchQuery) return true;
       const query = searchQuery.toLowerCase();
-      return track.title?.toLowerCase().includes(query) || 
-             track.lyrics?.toLowerCase().includes(query) || 
-             track.genre_tags?.some(tag => tag.toLowerCase().includes(query));
+      return track.title?.toLowerCase().includes(query) || track.description?.toLowerCase().includes(query) || track.genre_tags?.some(tag => tag.toLowerCase().includes(query)) || track.project?.title?.toLowerCase().includes(query) || track.project?.artist?.name?.toLowerCase().includes(query);
     });
   }, [tracks, searchQuery]);
+  const handleGenerate = async (params: GenerationParams) => {
+    try {
+      await generateTrack(params);
+      toast({
+        title: t('generationStarted'),
+        description: `${params.service === 'suno' ? 'Suno AI' : 'Mureka'} создает ваш трек`
+      });
 
-  const handleGenerate = async (prompt: string, service: 'suno' | 'mureka') => {
-    await generateTrack(prompt, service);
-    
-    // Close mobile generation panel
-    if (isMobile) {
-      setIsGenerationPanelOpen(false);
+      // Close mobile generation panel
+      if (isMobile) {
+        setIsGenerationPanelOpen(false);
+      }
+
+      // Refresh tasks
+      await fetchTasks();
+    } catch (error: any) {
+      console.error('Generation error:', error);
+      toast({
+        title: t('generationError'),
+        description: error.message || t('generationErrorDesc'),
+        variant: "destructive"
+      });
     }
   };
-
   const handlePlayTrack = (track: Track) => {
-    playTrack(track);
+    console.log('🎵 handlePlayTrack called with:', {
+      id: track.id,
+      title: track.title,
+      audio_url: track.audio_url
+    });
+    if (!track.audio_url) {
+      console.warn('❌ Cannot play track without audio_url');
+      toast({
+        title: "Ошибка воспроизведения",
+        description: "У этого трека нет аудио файла для воспроизведения",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (currentPlayingTrack?.id === track.id) {
+      setIsPlaying(!isPlaying);
+    } else {
+      setCurrentPlayingTrack(track);
+      setIsPlaying(true);
+    }
+    // Close track details drawer when starting playback
     setIsTrackDetailsOpen(false);
   };
-
+  const handlePlayerPlayPause = (playing: boolean) => {
+    setIsPlaying(playing);
+  };
   const handleTrackClick = (track: Track) => {
     console.log('🔍 handleTrackClick called with:', {
       id: track.id,
@@ -149,50 +411,49 @@ export default function AIGenerationStudio() {
     setSelectedTrack(track);
     setIsTrackDetailsOpen(true);
   };
-
   const playNextTrack = () => {
-    if (!currentTrack || filteredTracks.length === 0) return;
-    const idx = filteredTracks.findIndex(t => t.id === currentTrack.id);
+    if (!currentPlayingTrack || filteredTracks.length === 0) return;
+    const idx = filteredTracks.findIndex(t => t.id === currentPlayingTrack.id);
     if (idx === -1) return;
     const next = filteredTracks[(idx + 1) % filteredTracks.length];
-    playTrack(next);
+    setCurrentPlayingTrack(next);
+    setIsPlaying(true);
   };
-  
   const playPrevTrack = () => {
-    if (!currentTrack || filteredTracks.length === 0) return;
-    const idx = filteredTracks.findIndex(t => t.id === currentTrack.id);
+    if (!currentPlayingTrack || filteredTracks.length === 0) return;
+    const idx = filteredTracks.findIndex(t => t.id === currentPlayingTrack.id);
     if (idx === -1) return;
     const prev = filteredTracks[(idx - 1 + filteredTracks.length) % filteredTracks.length];
-    playTrack(prev);
+    setCurrentPlayingTrack(prev);
+    setIsPlaying(true);
   };
-
   const handleCommandAction = (action: string, data?: any) => {
-    switch (action) {
-      case 'search':
-        setSearchQuery(data?.query || '');
-        break;
-      case 'generate':
-        if (isMobile) {
-          setIsGenerationPanelOpen(true);
-        }
-        break;
-      case 'sync':
-        handleSync();
-        break;
-      case 'play':
-        if (data?.track) {
-          handlePlayTrack(data.track);
-        }
-        break;
-      default:
-        console.log('Unknown command action:', action);
-    }
-    setIsCommandPaletteOpen(false);
+    startTransition(() => {
+      switch (action) {
+        case 'search':
+          setSearchQuery(data?.query || '');
+          break;
+        case 'generate':
+          if (isMobile) {
+            setIsGenerationPanelOpen(true);
+          }
+          break;
+        case 'sync':
+          handleSync();
+          break;
+        case 'play':
+          if (data?.track) {
+            handlePlayTrack(data.track);
+          }
+          break;
+        default:
+          console.log('Unknown command action:', action);
+      }
+      setIsCommandPaletteOpen(false);
+    });
   };
-
   if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    return <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="p-6 text-center">
             <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -202,355 +463,165 @@ export default function AIGenerationStudio() {
             </p>
           </CardContent>
         </Card>
-      </div>
-    );
+      </div>;
   }
 
   // Mobile Layout
   if (isMobile) {
-    return (
-      <div className={cn("min-h-screen bg-background animate-fade-in", "pb-mobile-nav", currentTrack && "pb-[150px]")}>
+    return <div className={cn("min-h-screen bg-background animate-fade-in", "pb-mobile-nav", currentPlayingTrack && "pb-[150px]")}>
         {/* Mobile Header */}
-        <MobileHeader 
-          title="AI Studio" 
-          subtitle={`${filteredTracks.length} ${t('tracks')}`} 
-          showSearch={true} 
-          onSearch={() => setIsCommandPaletteOpen(true)} 
-          showNotifications={false} 
-          isOnline={true}
-        >
+        <MobileHeader title="AI Studio" subtitle={`${filteredTracks.length} ${t('tracks')}`} showSearch={true} onSearch={() => startTransition(() => setIsCommandPaletteOpen(true))} showNotifications={false} isOnline={true}>
           {/* Search Bar */}
           <div className="flex items-center gap-2 mt-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder={t('searchTracksPlaceholder')} 
-                value={searchQuery} 
-                onChange={e => setSearchQuery(e.target.value)} 
-                className="pl-10 bg-muted/50 border-0" 
-              />
+              <Input placeholder={t('searchTracksPlaceholder')} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 bg-muted/50 border-0" />
             </div>
             
-            <Button 
-              size="icon" 
-              onClick={handleSync} 
-              disabled={isSyncing} 
-              className="tap-highlight bg-gradient-primary" 
-              aria-label={t('syncTracks')}
-            >
-              <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+            <Button variant="outline" size="icon" onClick={() => setShowFilters(!showFilters)} className={cn("tap-highlight", showFilters && "bg-primary/10 text-primary")} aria-label={t('filterTracks')}>
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+
+            <Button size="icon" onClick={handleSync} disabled={isSyncing} className="tap-highlight bg-gradient-primary" aria-label={t('syncTracks')}>
+              <CloudDownload className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => setShowRecoveryTools(v => !v)} className="tap-highlight" aria-label="Загрузить 2 трека" title="Ручная загрузка последних 2 треков">
+              <Download className="h-4 w-4" />
             </Button>
           </div>
         </MobileHeader>
 
-        {/* Active Generations */}
-        {activeGenerations.length > 0 && (
-          <div className="px-4 py-2">
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-medium mb-3">Генерация треков</h3>
-                <div className="space-y-2">
-                  {activeGenerations.map((gen) => (
-                    <div key={gen.taskId} className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">{gen.service === 'suno' ? 'Suno AI' : 'Mureka'}</div>
-                        <div className="text-xs text-muted-foreground">{gen.status}</div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">{gen.progress}%</div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {/* Task Queue */}
+        <Suspense fallback={<div className="p-4"><TrackSkeleton animated /></div>}>
+          <TaskQueuePanel />
+        </Suspense>
 
-        {/* Tracks Grid */}
-        <div className="px-4 pb-4">
-          {loading ? (
-            <div className="grid grid-cols-2 gap-3">
-              {[...Array(6)].map((_, i) => (
-                <TrackSkeleton key={i} />
-              ))}
-            </div>
-          ) : filteredTracks.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Music className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-medium mb-2">{t('noTracksYet')}</h3>
-                <p className="text-muted-foreground mb-4">
-                  {t('createFirstTrack')}
-                </p>
-                <Button onClick={() => setIsGenerationPanelOpen(true)} className="gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  {t('startGenerating')}
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <ProductionTrackGrid 
-                tracks={filteredTracks} 
-                currentTrack={currentTrack} 
-                isPlaying={isPlaying} 
-                onTrackClick={handleTrackClick} 
-                onPlayTrack={handlePlayTrack} 
-                onDeleteTrack={deleteTrack}
-              />
-            </div>
-          )}
+        {showRecoveryTools && <div className="p-4">
+            <ManualUploadLastTwo />
+          </div>}
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Generation Progress Skeletons */}
+          {ongoingGenerations.length > 0 && <div className="p-4 space-y-3">
+              {ongoingGenerations.map(generation => <TrackSkeleton key={generation.taskId} progress={generation.progress} title={generation.taskId} subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'} status={generation.status as any} steps={generation.steps} animated={true} />)}
+            </div>}
+          
+          <TrackResultsGrid tracks={filteredTracks} onTrackClick={handleTrackClick} onPlayTrack={handlePlayTrack} currentPlayingTrack={currentPlayingTrack} isPlaying={isPlaying} isSyncing={isSyncing} onTrackDeleted={fetchTracks} />
         </div>
 
-        {/* Generation Panel Sheet */}
-        <Sheet open={isGenerationPanelOpen} onOpenChange={setIsGenerationPanelOpen}>
-          <SheetContent side="bottom" className="h-[90vh] p-0 rounded-t-xl border-t">
-            <div className="h-full overflow-hidden">
-              <GenerationInterface onGenerate={handleGenerate} />
-            </div>
-          </SheetContent>
-        </Sheet>
-
         {/* Floating Action Button */}
-        <Button 
-          size="icon" 
-          onClick={() => setIsGenerationPanelOpen(true)} 
-          className="fixed bottom-20 right-4 h-14 w-14 rounded-full bg-gradient-primary shadow-lg" 
-          aria-label={t('createTrack')}
-        >
+        <Button size="icon" onClick={() => startTransition(() => setIsGenerationPanelOpen(true))} className="fixed bottom-20 right-4 h-14 w-14 rounded-full bg-gradient-primary shadow-glow animate-float tap-highlight" aria-label={t('createTrack')}>
           <Plus className="h-6 w-6" />
         </Button>
 
-        {/* Floating Player */}
-        {currentTrack && (
-          <FloatingPlayer 
-            track={currentTrack} 
-            isPlaying={isPlaying} 
-            onPlayPause={() => playTrack(currentTrack)} 
-            onNext={playNextTrack} 
-            onPrev={playPrevTrack} 
-          />
-        )}
-
-        {/* Mobile Bottom Navigation */}
-        <MobileBottomNav />
-
-        {/* Command Palette */}
-        <CommandPalette 
-          open={isCommandPaletteOpen} 
-          onOpenChange={setIsCommandPaletteOpen} 
-          tracks={filteredTracks} 
-          onAction={handleCommandAction} 
-        />
-
-        {/* Track Details Drawer */}
-        <TrackDetailsDrawer 
-          track={selectedTrack} 
-          open={isTrackDetailsOpen} 
-          onOpenChange={setIsTrackDetailsOpen} 
-          onPlay={handlePlayTrack}
-          onEdit={track => console.log('Edit track:', track)} 
-          onDownload={track => {
-            if (track.audio_url) {
-              const link = document.createElement('a');
-              link.href = track.audio_url;
-              link.download = `${track.title}.mp3`;
-              link.click();
-            }
-          }} 
-          onDelete={track => {
-            deleteTrack(track.id);
-            setIsTrackDetailsOpen(false);
-          }}
-        />
-      </div>
-    );
-  }
-
-  // Desktop Layout
-  return (
-    <div className="h-screen bg-background flex">
-      <div className="flex-1 flex">
-        {/* Generation Form/Panel */}
-        <div className={cn("transition-all duration-300", sidebarCollapsed ? "w-full px-6" : "w-2/3")}>
-          {sidebarCollapsed ? (
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <Button onClick={() => setIsGenerationPanelOpen(true)} size="lg" className="gap-2">
-                  <Plus className="h-5 w-5" />
-                  Создать трек
-                </Button>
+        {/* Generation Panel Sheet */}
+        <Sheet open={isGenerationPanelOpen} onOpenChange={open => startTransition(() => setIsGenerationPanelOpen(open))}>
+          <SheetContent side="bottom" className="h-[90vh] rounded-t-xl border-0 p-0 animate-slide-in-bottom">
+            <div className="h-full overflow-y-auto">
+              <div className="p-4 border-b border-border">
+                <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
+                <h2 className="text-lg font-semibold text-center">{t('createTrack')}</h2>
               </div>
-            </div>
-          ) : (
-            <div className="h-full">
-              <GenerationInterface onGenerate={handleGenerate} />
-            </div>
-          )}
-        </div>
-
-        {/* Tracks Panel */}
-        <div className={cn("flex-1 overflow-hidden transition-all duration-300", sidebarCollapsed ? "px-6" : "pl-6")}>
-          <div className="h-full flex flex-col">
-            {/* Header with Search */}
-            <div className="flex-shrink-0 pb-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-2xl font-bold">{t('tracks')}</h2>
-                  <Badge variant="secondary" className="gap-1">
-                    <Music className="h-3 w-3" />
-                    {filteredTracks.length}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setIsCommandPaletteOpen(true)} 
-                    className="gap-2"
-                  >
-                    <Command className="h-4 w-4" />
-                    <span className="hidden sm:inline">{t('search')}</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleSync} 
-                    disabled={isSyncing} 
-                    className="gap-2"
-                  >
-                    <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
-                    <span className="hidden sm:inline">
-                      {isSyncing ? t('syncing') : t('sync')}
-                    </span>
-                  </Button>
-                </div>
+              
+              <div className="p-4">
+                <Suspense fallback={<div className="p-4">Loading...</div>}>
+                  <GenerationContextPanel projects={projects} artists={artists} onGenerate={handleGenerate} />
+                </Suspense>
               </div>
-
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder={t('searchTracksPlaceholder')} 
-                  value={searchQuery} 
-                  onChange={e => setSearchQuery(e.target.value)} 
-                  className="pl-10" 
-                />
-              </div>
-            </div>
-
-            {/* Active Generations */}
-            {activeGenerations.length > 0 && (
-              <div className="flex-shrink-0 mb-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="font-medium mb-3">Активная генерация</h3>
-                    <div className="space-y-2">
-                      {activeGenerations.map((gen) => (
-                        <div key={gen.taskId} className="flex items-center gap-3 p-2 bg-muted/30 rounded">
-                          <div className="flex-1">
-                            <div className="text-sm font-medium">{gen.service === 'suno' ? 'Suno AI' : 'Mureka'}</div>
-                            <div className="text-xs text-muted-foreground">{gen.status}</div>
-                          </div>
-                          <div className="text-sm text-muted-foreground">{gen.progress}%</div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {/* Tracks Grid */}
-            <div className="flex-1 overflow-auto">
-              {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-1">
-                  {[...Array(8)].map((_, i) => (
-                    <TrackSkeleton key={i} />
-                  ))}
-                </div>
-              ) : filteredTracks.length === 0 ? (
-                <div className="h-full flex items-center justify-center">
-                  <Card className="max-w-md w-full text-center">
-                    <CardContent className="py-12">
-                      <Music className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                      <h3 className="text-lg font-medium mb-2">{t('noTracksYet')}</h3>
-                      <p className="text-muted-foreground mb-4">
-                        {t('createFirstTrack')}
-                      </p>
-                      <Button onClick={() => setIsGenerationPanelOpen(true)} className="gap-2">
-                        <Sparkles className="h-4 w-4" />
-                        {t('startGenerating')}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-1">
-                  <ProductionTrackGrid 
-                    tracks={filteredTracks} 
-                    currentTrack={currentTrack} 
-                    isPlaying={isPlaying} 
-                    onTrackClick={handleTrackClick} 
-                    onPlayTrack={handlePlayTrack} 
-                    onDeleteTrack={deleteTrack}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Generation Panel Sheet for collapsed sidebar */}
-      {sidebarCollapsed && (
-        <Sheet open={isGenerationPanelOpen} onOpenChange={setIsGenerationPanelOpen}>
-          <SheetContent side="right" className="w-full sm:w-[500px] p-0">
-            <div className="h-full overflow-hidden">
-              <GenerationInterface onGenerate={handleGenerate} />
             </div>
           </SheetContent>
         </Sheet>
-      )}
 
-      {/* Floating Player */}
-      {currentTrack && (
-        <FloatingPlayer 
-          track={currentTrack} 
-          isPlaying={isPlaying} 
-          onPlayPause={() => playTrack(currentTrack)} 
-          onNext={playNextTrack} 
-          onPrev={playPrevTrack} 
-        />
-      )}
+        {/* Track Details Drawer */}
+        <TrackDetailsDrawer track={selectedTrack} isOpen={isTrackDetailsOpen} onClose={() => startTransition(() => setIsTrackDetailsOpen(false))} onPlay={handlePlayTrack} />
+
+        {/* Command Palette */}
+        <Suspense fallback={null}>
+          <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => startTransition(() => setIsCommandPaletteOpen(false))} onAction={handleCommandAction} tracks={tracks} projects={projects} artists={artists} />
+        </Suspense>
+
+        {/* Floating Player */}
+        {currentPlayingTrack && <Suspense fallback={null}>
+            <FloatingPlayer track={currentPlayingTrack} isOpen={true} playing={isPlaying} onClose={() => startTransition(() => setCurrentPlayingTrack(null))} onPlayPause={handlePlayerPlayPause} onPrev={playPrevTrack} onNext={playNextTrack} />
+          </Suspense>}
+
+        {/* Bottom Navigation */}
+        <MobileBottomNav />
+      </div>;
+  }
+
+  // Desktop Layout (using proper sidebar layout)
+  return <div className="h-screen bg-background text-foreground flex animate-fade-in">
+      {/* Context Panel - adapts to sidebar state */}
+      <div className={cn("bg-card border-r border-border flex flex-col glass transition-all duration-200 relative", sidebarCollapsed ? "w-64 xl:w-72" : "w-80")}>
+
+        <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
+          <Suspense fallback={<div className="animate-pulse h-96 bg-muted rounded-md" />}>
+            <GenerationContextPanel projects={projects} artists={artists} onGenerate={handleGenerate} />
+          </Suspense>
+        </div>
+      </div>
+
+      {/* Main Content - adapts to sidebar and context panel */}
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-200">
+        {/* Header */}
+        <div className="p-6 border-b border-border bg-gradient-surface">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder={t('searchTracks')} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 bg-muted/50 border-0 focus:ring-2 focus:ring-primary/50" />
+              </div>
+              <Button size="sm" variant="outline" onClick={() => startTransition(() => setIsCommandPaletteOpen(true))} className="flex items-center gap-2 hover-lift">
+                <Command className="h-4 w-4" />
+                <span className="hidden md:inline">Команды</span>
+                <Badge variant="secondary" className="text-xs">⌘K</Badge>
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="outline" onClick={handleSync} disabled={isSyncing} className="flex items-center gap-2 hover-lift">
+                <CloudDownload className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                {isSyncing ? 'Синхронизация...' : 'Синхронизация'}
+              </Button>
+              
+              <Badge variant="secondary" className="px-3 py-1 bg-primary/10 text-primary">
+                {filteredTracks.length} треков
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        {/* Task Queue */}
+        <Suspense fallback={<div className="p-4"><TrackSkeleton animated /></div>}>
+          <TaskQueuePanel />
+        </Suspense>
+
+        <Separator />
+
+        {/* Results Grid */}
+        <div className="flex-1 overflow-y-auto scrollbar-slim">
+          {/* Generation Progress Skeletons */}
+          {ongoingGenerations.length > 0 && <div className="p-4 space-y-3 bg-muted/20 border-b border-border">
+              {ongoingGenerations.map(generation => <TrackSkeleton key={generation.taskId} progress={generation.progress} title={generation.title} subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'} status={generation.status as any} steps={generation.steps} animated={true} />)}
+            </div>}
+          
+          <TrackResultsGrid tracks={filteredTracks} onTrackClick={handleTrackClick} onPlayTrack={handlePlayTrack} currentPlayingTrack={currentPlayingTrack} isPlaying={isPlaying} isSyncing={isSyncing} onTrackDeleted={fetchTracks} />
+        </div>
+      </div>
+
+      {/* Right Drawer - Track Details */}
+      <TrackDetailsDrawer track={selectedTrack} isOpen={isTrackDetailsOpen} onClose={() => startTransition(() => setIsTrackDetailsOpen(false))} onPlay={handlePlayTrack} />
 
       {/* Command Palette */}
-      <CommandPalette 
-        open={isCommandPaletteOpen} 
-        onOpenChange={setIsCommandPaletteOpen} 
-        tracks={filteredTracks} 
-        onAction={handleCommandAction} 
-      />
+      <Suspense fallback={null}>
+        <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => startTransition(() => setIsCommandPaletteOpen(false))} onAction={handleCommandAction} tracks={tracks} projects={projects} artists={artists} />
+      </Suspense>
 
-      {/* Track Details Drawer */}
-      <TrackDetailsDrawer 
-        track={selectedTrack} 
-        open={isTrackDetailsOpen} 
-        onOpenChange={setIsTrackDetailsOpen} 
-        onPlay={handlePlayTrack}
-        onEdit={track => console.log('Edit track:', track)} 
-        onDownload={track => {
-          if (track.audio_url) {
-            const link = document.createElement('a');
-            link.href = track.audio_url;
-            link.download = `${track.title}.mp3`;
-            link.click();
-          }
-        }} 
-        onDelete={track => {
-          deleteTrack(track.id);
-          setIsTrackDetailsOpen(false);
-        }}
-      />
-    </div>
-  );
+      {/* Floating Player */}
+      {currentPlayingTrack && <Suspense fallback={null}>
+          <FloatingPlayer track={currentPlayingTrack} isOpen={true} playing={isPlaying} onClose={() => startTransition(() => setCurrentPlayingTrack(null))} onPlayPause={handlePlayerPlayPause} onPrev={playPrevTrack} onNext={playNextTrack} />
+        </Suspense>}
+    </div>;
 }
