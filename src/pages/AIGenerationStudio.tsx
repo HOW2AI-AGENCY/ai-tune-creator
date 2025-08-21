@@ -21,7 +21,6 @@ import { useTranslation } from "@/hooks/useTranslation";
 // Removed old generation hook
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
-import { TrackCleanupTools } from "@/components/dev/TrackCleanupTools";
 import { GenerationInterface } from "@/components/ai-generation/GenerationInterface";
 import { useEventListener } from "@/lib/events/event-bus";
 import { useCleanGeneration } from "@/hooks/useCleanGeneration";
@@ -600,11 +599,6 @@ export default function AIGenerationStudio() {
         {/* Generation Interface */}
         <div className="flex-1 overflow-y-auto scrollbar-slim p-6">
           <GenerationInterface />
-        </div>
-
-        {/* Track Cleanup Tools - Moved to bottom */}
-        <div className="p-4 border-t border-border bg-muted/20">
-          <TrackCleanupTools />
         </div>
       </div>
 
