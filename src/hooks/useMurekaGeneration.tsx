@@ -159,7 +159,7 @@ export function useMurekaGeneration(): UseMurekaGenerationReturn {
             .eq('metadata->>generation_id', generationId);
           
           updateGenerationStatus(generationId, {
-            status: 'completed',
+            status: 'completed' as const,
             progress: 100,
             message: 'Generation completed successfully',
             tracks: (tracks || []).map(track => ({
