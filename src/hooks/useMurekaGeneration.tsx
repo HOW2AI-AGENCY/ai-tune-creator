@@ -146,7 +146,7 @@ export function useMurekaGeneration(): UseMurekaGenerationReturn {
         const progress = Math.min(90, (attempts / maxAttempts) * 90);
         
         updateGenerationStatus(generationId, {
-          status: generation.status,
+          status: generation.status as 'processing' | 'completed' | 'failed',
           progress,
           message: getStatusMessage(generation.status, attempts)
         });
@@ -159,10 +159,13 @@ export function useMurekaGeneration(): UseMurekaGenerationReturn {
             .eq('metadata->>generation_id', generationId);
           
           updateGenerationStatus(generationId, {
-            status: 'completed',
+            status: 'completed' as const,
             progress: 100,
             message: 'Generation completed successfully',
-            tracks: tracks || []
+            tracks: (tracks || []).map(track => ({
+              ...track,
+              metadata: track.metadata as Record<string, any>
+            })) as MurekaTrack[]
           });
           
           toast({
@@ -180,12 +183,12 @@ export function useMurekaGeneration(): UseMurekaGenerationReturn {
             status: 'failed',
             progress: 0,
             message: 'Generation failed',
-            error: generation.metadata?.error || 'Unknown error'
+            error: (generation.metadata as any)?.error || 'Unknown error'
           });
           
           toast({
             title: "❌ Ошибка генерации",
-            description: generation.metadata?.error || 'Неизвестная ошибка',
+            description: (generation.metadata as any)?.error || 'Неизвестная ошибка',
             variant: "destructive",
           });
           
@@ -300,8 +303,7 @@ export function useMurekaGeneration(): UseMurekaGenerationReturn {
       
       // Вызываем Edge Function
       const { data, error } = await supabase.functions.invoke('mureka-generate', {
-        body: request,
-        signal: controller.signal
+        body: request
       });
       
       if (error) {

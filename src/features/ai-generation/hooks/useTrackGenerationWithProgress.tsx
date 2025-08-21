@@ -145,18 +145,18 @@ export function useTrackGenerationWithProgress() {
         
         // Добавляем контент в зависимости от типа ввода
         if (params.inputType === 'lyrics') {
-          murekaPayload.lyrics = params.prompt; // Для лирики используем prompt
-          murekaPayload.title = `Mureka Track ${new Date().toLocaleDateString('ru-RU')}`;
+          (murekaPayload as any).lyrics = params.prompt; // Для лирики используем prompt
+          (murekaPayload as any).title = `Mureka Track ${new Date().toLocaleDateString('ru-RU')}`;
         } else {
-          murekaPayload.prompt = params.prompt; // Для описания используем prompt
-          murekaPayload.title = `Mureka Track ${new Date().toLocaleDateString('ru-RU')}`;
+          (murekaPayload as any).prompt = params.prompt; // Для описания используем prompt
+          (murekaPayload as any).title = `Mureka Track ${new Date().toLocaleDateString('ru-RU')}`;
         }
         
         // Добавляем жанр и настроение
         if (params.genreTags && params.genreTags.length > 0) {
-          murekaPayload.genre = params.genreTags[0];
+          (murekaPayload as any).genre = params.genreTags[0];
           if (params.genreTags.length > 1) {
-            murekaPayload.mood = params.genreTags[1];
+            (murekaPayload as any).mood = params.genreTags[1];
           }
         }
         
