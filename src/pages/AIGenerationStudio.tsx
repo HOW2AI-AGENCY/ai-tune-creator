@@ -21,6 +21,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
+import { TrackCleanupTools } from "@/components/dev/TrackCleanupTools";
 import { useEventListener } from "@/lib/events/event-bus";
 
 // Eagerly-loaded components to avoid Suspense during synchronous input (fix React #426)
@@ -599,6 +600,11 @@ export default function AIGenerationStudio() {
         </Suspense>
 
         <Separator />
+
+        {/* Track Cleanup Tools */}
+        <div className="p-4 border-b border-border bg-gradient-surface">
+          <TrackCleanupTools />
+        </div>
 
         {/* Results Grid */}
         <div className="flex-1 overflow-y-auto scrollbar-slim">
