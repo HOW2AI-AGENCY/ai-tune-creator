@@ -22,6 +22,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
 import { GenerationInterface } from "@/components/ai-generation/GenerationInterface";
+import { ProductionTrackGrid } from "@/components/ai-generation/ProductionTrackGrid";
 import { useEventListener } from "@/lib/events/event-bus";
 import { useCleanGeneration } from "@/hooks/useCleanGeneration";
 
