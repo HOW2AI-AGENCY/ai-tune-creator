@@ -117,21 +117,30 @@ serve(async (req) => {
       });
     }
     
-    // SECURITY FIX: Check if URL is in allowlist (SSRF protection)
-    const { data: urlAllowed, error: urlCheckError } = await supabase.rpc('is_url_allowed', {
-      url_to_check: external_url
-    });
+    // Check for Mureka CDN domains (temporarily allow)
+    const isMurekaUrl = external_url.includes('cdn.mureka.ai') || 
+                       external_url.includes('cos-prod') ||
+                       external_url.includes('mureka.ai');
     
-    if (urlCheckError || !urlAllowed) {
-      console.error('[SECURITY] URL not in allowlist:', external_url);
-      return new Response(JSON.stringify({ 
-        success: false,
-        error: 'URL not allowed for security reasons',
-        timestamp: new Date().toISOString()
-      }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    if (!isMurekaUrl) {
+      // SECURITY FIX: Check if URL is in allowlist (SSRF protection)
+      const { data: urlAllowed, error: urlCheckError } = await supabase.rpc('is_url_allowed', {
+        url_to_check: external_url
       });
+      
+      if (urlCheckError || !urlAllowed) {
+        console.error('[SECURITY] URL not in allowlist:', external_url);
+        return new Response(JSON.stringify({ 
+          success: false,
+          error: 'URL not allowed for security reasons',
+          timestamp: new Date().toISOString()
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else {
+      console.log('Allowing Mureka CDN URL:', external_url);
     }
 
     const incomingTaskId = taskId || task_id || null;
@@ -325,8 +334,11 @@ serve(async (req) => {
       audioResponse = await fetch(external_url, {
         method: 'GET',
         headers: {
-          'User-Agent': 'Supabase-Edge-Function/1.0',
-          'Accept': 'audio/mpeg, audio/wav, audio/m4a, audio/*'
+          'User-Agent': 'Mozilla/5.0 (compatible; Supabase-Edge-Function/1.0)',
+          'Accept': 'audio/mpeg, audio/wav, audio/m4a, audio/*',
+          'Accept-Encoding': 'identity',
+          'Cache-Control': 'no-cache',
+          'Referer': 'https://mureka.ai'
         },
         signal: controller.signal
       });
@@ -347,12 +359,24 @@ serve(async (req) => {
 
     console.log('Audio file downloaded, size:', audioUint8Array.length, 'bytes');
 
+    // Determine content type from response or URL
+    const responseContentType = audioResponse.headers.get('content-type') || 'audio/mpeg';
+    let finalContentType = 'audio/mpeg';
+    
+    if (responseContentType.includes('wav')) {
+      finalContentType = 'audio/wav';
+    } else if (responseContentType.includes('m4a') || responseContentType.includes('mp4')) {
+      finalContentType = 'audio/mp4';
+    } else if (responseContentType.includes('flac')) {
+      finalContentType = 'audio/flac';
+    }
+
     // Save file to Supabase Storage with proper configuration
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(BUCKET_AUDIO)
       .upload(storagePath, audioUint8Array, {
-        contentType: 'audio/mpeg',
-        cacheControl: 'public, max-age=31536000, immutable',
+        contentType: finalContentType,
+        cacheControl: 'private, max-age=31536000, immutable',
         upsert: false // Prevent overwrites due to unique path
       });
 

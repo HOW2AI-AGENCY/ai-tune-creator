@@ -124,6 +124,54 @@ export function GenerationTrackCard({
     return null;
   };
 
+  const getExternalUrl = () => {
+    // Get the external CDN URL for download (from Mureka specifically)
+    if (generation.service === 'mureka') {
+      const choicesUrl = generation.metadata?.mureka?.choices?.[0]?.url || 
+                        generation.metadata?.mureka_result?.choices?.[0]?.url ||
+                        generation.metadata?.mureka_response?.choices?.[0]?.url ||
+                        generation.metadata?.data?.choices?.[0]?.url;
+      if (choicesUrl) return choicesUrl;
+      const providerMp3 = generation.metadata?.provider_urls?.mp3;
+      if (providerMp3) return providerMp3;
+    }
+    return null;
+  };
+
+  const handleDownloadToLocal = async () => {
+    const externalUrl = getExternalUrl();
+    if (!externalUrl) {
+      toast.error('Внешний URL не найден');
+      return;
+    }
+
+    try {
+      // Import supabase directly for the download call
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      const { data, error } = await supabase.functions.invoke('download-and-save-track', {
+        body: {
+          generation_id: generation.id,
+          external_url: externalUrl
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Download failed');
+      }
+
+      onCheckStatus(generation.id); // Refresh status after download
+      toast.success('Трек загружен в локальное хранилище');
+    } catch (error: any) {
+      console.error('Error downloading track:', error);
+      toast.error(error.message || 'Ошибка загрузки трека');
+    }
+  };
+
   const audioUrl = getAudioUrl();
 
   if (generation.status === 'completed' && audioUrl) {
@@ -265,6 +313,16 @@ export function GenerationTrackCard({
               >
                 <RefreshCw className="h-4 w-4" />
                 Повторить
+              </Button>
+            )}
+            {generation.status === 'completed' && !generation.metadata?.local_storage_path && getExternalUrl() && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadToLocal}
+                disabled={isRefreshing}
+              >
+                Загрузить в хранилище
               </Button>
             )}
           </div>
