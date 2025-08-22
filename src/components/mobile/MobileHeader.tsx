@@ -59,99 +59,99 @@ export function MobileHeader({
   return (
     <header className={cn(
       "sticky top-0 z-40 w-full bg-card/95 backdrop-blur-md border-b border-border",
-      "safe-area-inset",
+      "pt-safe-top",
       "animate-fade-in",
       className
     )}>
-      <div className={cn("flex items-center justify-between mobile-header-height px-4")}>
-        {/* Left Section */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+      {/* Top Row - Navigation & Indicators */}
+      <div className="flex items-center justify-between h-12 px-2">
+        {/* Left - Back Button */}
+        <div className="w-12 h-12 flex items-center justify-center">
           {showBack && !isInTelegram && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 tap-highlight"
+              className="h-8 w-8 tap-highlight"
               onClick={onBack}
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
-          
-          <div className="flex-1 min-w-0">
-            <h1 className={cn(
-              "font-semibold text-foreground truncate",
-              subtitle ? "text-base leading-tight" : "text-lg"
-            )}>
-              {title}
-            </h1>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground truncate">
-                {subtitle}
-              </p>
-            )}
-          </div>
         </div>
 
-        {/* Right Section */}
-        <div className="flex items-center gap-1">
+        {/* Center - Status Indicators */}
+        <div className="flex items-center gap-2">
           {/* Connection Status */}
           <div className={cn(
-            "flex items-center justify-center w-8 h-8 rounded-full transition-colors",
+            "flex items-center justify-center w-6 h-6 rounded-full transition-colors",
             isOnline ? "text-green-500" : "text-destructive"
           )}>
             {isOnline ? (
-              <Wifi className="h-4 w-4" />
+              <Wifi className="h-3 w-3" />
             ) : (
-              <WifiOff className="h-4 w-4" />
+              <WifiOff className="h-3 w-3" />
             )}
           </div>
 
+          {/* Notifications */}
+          {showNotifications && notificationCount > 0 && (
+            <Badge 
+              variant="destructive"
+              className="h-4 w-4 p-0 text-xs flex items-center justify-center"
+            >
+              {notificationCount > 9 ? '9+' : notificationCount}
+            </Badge>
+          )}
+        </div>
+
+        {/* Right - Menu/Settings */}
+        <div className="w-12 h-12 flex items-center justify-center">
+          {showMenu && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 tap-highlight"
+              onClick={onMenu}
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+          )}
+          
           {showSearch && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 tap-highlight"
+              className="h-8 w-8 tap-highlight"
               onClick={onSearch}
             >
               <Search className="h-4 w-4" />
             </Button>
           )}
+        </div>
+      </div>
 
-          {showNotifications && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 relative tap-highlight"
-              onClick={onNotifications}
-            >
-              <Bell className="h-4 w-4" />
-              {notificationCount > 0 && (
-                <Badge 
-                  variant="destructive"
-                  className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center animate-bounce-in"
-                >
-                  {notificationCount > 99 ? '99+' : notificationCount}
-                </Badge>
-              )}
-            </Button>
+      {/* Bottom Row - Title & User Avatar */}
+      <div className="flex items-center justify-between px-4 pb-3">
+        <div className="flex-1 min-w-0">
+          <h1 className="font-semibold text-lg text-foreground truncate">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="text-sm text-muted-foreground truncate mt-0.5">
+              {subtitle}
+            </p>
           )}
+        </div>
 
-          {showMenu && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 tap-highlight"
-              onClick={onMenu}
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          )}
+        {/* User Avatar Placeholder */}
+        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center ml-3">
+          <div className="w-6 h-6 rounded-full bg-primary/20" />
         </div>
       </div>
 
       {/* Custom Content */}
       {children && (
-        <div className="px-4 pb-3 border-t border-border/50">
+        <div className="px-4 pb-3 border-t border-border/50 mt-2">
           {children}
         </div>
       )}
