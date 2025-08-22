@@ -71,18 +71,21 @@ export const useTelegramAuth = () => {
         return false;
       }
 
-      if (!data?.session) {
-        console.error('Telegram Auth: No session in response');
-        setAuthError('Authentication failed: No session received');
+      if (!data?.email || !data?.password) {
+        console.error('Telegram Auth: Invalid response format');
+        setAuthError('Authentication failed: Invalid server response');
         return false;
       }
 
-      // Set the session in Supabase client
-      const { error: setSessionError } = await supabase.auth.setSession(data.session);
+      // Sign in with generated credentials
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
       
-      if (setSessionError) {
-        console.error('Telegram Auth: Error setting session:', setSessionError);
-        setAuthError(`Session error: ${setSessionError.message}`);
+      if (signInError) {
+        console.error('Telegram Auth: Error signing in:', signInError);
+        setAuthError(`Sign in failed: ${signInError.message}`);
         return false;
       }
 

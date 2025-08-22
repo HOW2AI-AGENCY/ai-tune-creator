@@ -265,58 +265,7 @@ export function useTelegramWebApp() {
   };
 }
 
-export function useTelegramAuth() {
-  const { webApp, isInTelegram } = useTelegramWebApp();
-  const [authData, setAuthData] = useState<any>(null);
-
-  useEffect(() => {
-    if (webApp && webApp.initData) {
-      // Получаем данные аутентификации из Telegram
-      const initData = webApp.initDataUnsafe;
-      setAuthData({
-        telegramId: initData.user?.id,
-        firstName: initData.user?.first_name,
-        lastName: initData.user?.last_name,
-        username: initData.user?.username,
-        languageCode: initData.user?.language_code,
-        initData: webApp.initData // Для валидации на бэкенде
-      });
-    }
-  }, [webApp]);
-
-  const authenticateWithTelegram = async () => {
-    if (!authData || !isInTelegram) {
-      throw new Error('Telegram authentication data not available');
-    }
-
-    try {
-      const response = await fetch('/functions/v1/telegram-auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ authData })
-      });
-
-      if (!response.ok) {
-        throw new Error('Telegram authentication failed');
-      }
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Telegram auth error:', error);
-      throw error;
-    }
-  };
-
-  return {
-    authData,
-    isInTelegram,
-    isAuthenticated: !!authData,
-    authenticateWithTelegram
-  };
-}
+// Removed useTelegramAuth - consolidated into dedicated hook
 
 export function useTelegramMainButton() {
   const { webApp } = useTelegramWebApp();
