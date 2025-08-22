@@ -39,7 +39,7 @@ export function MobileLayout({ children }: MobileLayoutProps) {
     <div className="min-h-screen bg-background mobile-layout">
       {/* Mobile-specific viewport meta and CSS variables */}
       <div 
-        className="mobile-viewport-height flex flex-col"
+        className="mobile-viewport-height flex flex-col telegram-mobile-content"
         style={{
           height: '100dvh', // Dynamic viewport height for mobile
         }}

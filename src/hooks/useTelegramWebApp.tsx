@@ -199,6 +199,7 @@ interface TelegramWebApp {
   isExpanded: boolean;
   viewportHeight: number;
   viewportStableHeight: number;
+  isFullscreen?: boolean;
   safeAreaInsets: {
     top: number;
     bottom: number;
@@ -347,27 +348,81 @@ export function closeTelegramApp() {
 export function useTelegramLayout() {
   const { isInTelegram, webApp } = useTelegramWebApp();
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+  const [isStable, setIsStable] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    if (isInTelegram && webApp) {
-      // Отслеживание изменений viewport
-      const updateViewport = () => {
-        setViewportHeight(webApp.viewportHeight || window.innerHeight);
-      };
+    if (!isInTelegram || !webApp) return;
 
-      updateViewport();
-      window.addEventListener('resize', updateViewport);
+    // Получаем актуальные данные viewport
+    const updateViewportData = () => {
+      const height = webApp.viewportHeight || window.innerHeight;
+      setViewportHeight(height);
+      setIsStable(webApp.viewportStableHeight ? height === webApp.viewportStableHeight : true);
+      setIsExpanded(webApp.isExpanded || false);
+      setIsFullscreen(webApp.isFullscreen || false);
+
+      // Обновляем CSS переменные для динамического viewport
+      const root = document.documentElement;
+      root.style.setProperty('--tg-vh', `${height}px`);
+      root.style.setProperty('--tg-viewport-height', `${height}px`);
       
-      return () => window.removeEventListener('resize', updateViewport);
+      // Вычисляем безопасные отступы
+      const safeAreaTop = isFullscreen ? 'env(safe-area-inset-top, 44px)' : '0px';
+      const safeAreaBottom = webApp.MainButton?.isVisible ? '72px' : 'env(safe-area-inset-bottom, 0px)';
+      
+      root.style.setProperty('--telegram-safe-top', safeAreaTop);
+      root.style.setProperty('--telegram-safe-bottom', safeAreaBottom);
+      
+      // Дополнительные отступы для нативных элементов Telegram
+      const headerOffset = isFullscreen ? '0px' : '44px'; // Стандартная высота header Telegram
+      const settingsOffset = isFullscreen ? '44px' : '0px'; // Отступ для кнопки настроек
+      
+      root.style.setProperty('--telegram-header-offset', headerOffset);
+      root.style.setProperty('--telegram-settings-offset', settingsOffset);
+    };
+
+    // Начальная настройка
+    updateViewportData();
+
+    // Разворачиваем приложение на полный экран
+    if (webApp.expand) {
+      webApp.expand();
     }
+
+    // Слушаем изменения viewport
+    const handleViewportChanged = () => {
+      updateViewportData();
+    };
+
+    // Добавляем обработчик изменений
+    if (webApp.onEvent) {
+      webApp.onEvent('viewportChanged', handleViewportChanged);
+    }
+
+    // Fallback для старых версий или браузера
+    window.addEventListener('resize', updateViewportData);
+    
+    return () => {
+      if (webApp.offEvent) {
+        webApp.offEvent('viewportChanged', handleViewportChanged);
+      }
+      window.removeEventListener('resize', updateViewportData);
+    };
   }, [isInTelegram, webApp]);
 
   return {
     isInTelegram,
     viewportHeight,
-    // Дополнительные отступы для Telegram UI
-    telegramSafeArea: isInTelegram ? 'pt-12 pb-4' : '',
-    // Стили для полноэкранного режима в Telegram
-    telegramFullscreen: isInTelegram ? 'min-h-screen overflow-hidden' : ''
+    isStable,
+    isExpanded,
+    isFullscreen,
+    // Динамические безопасные отступы
+    telegramSafeArea: isInTelegram ? 'telegram-safe-area' : '',
+    // Стили для полноэкранного режима
+    telegramFullscreen: isInTelegram ? 'telegram-fullscreen' : '',
+    // Стили для адаптивной высоты
+    telegramViewport: isInTelegram ? 'telegram-viewport' : ''
   };
 }

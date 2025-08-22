@@ -5,15 +5,15 @@ import { useTracks } from "@/hooks/data/useTracks";
 import { TelegramGenerationForm } from "@/components/mobile/TelegramGenerationForm";
 import { TelegramMobilePlayer } from "@/components/mobile/TelegramMobilePlayer";
 import { MobilePageWrapper } from "@/components/mobile/MobilePageWrapper";
+import { TelegramLayout } from "@/components/telegram/TelegramLayout";
 import { useTelegramWebApp, useTelegramHaptics } from "@/hooks/useTelegramWebApp";
 import { useTelegramTheme } from "@/hooks/useTelegramTheme";
 import { useTelegramShare } from "@/hooks/useTelegramShare";
 import { TelegramGenerationProgress } from "@/components/mobile/TelegramGenerationProgress";
-import { TelegramLayout } from "@/components/telegram/TelegramLayout";
 import { useUnifiedGeneration } from "@/features/ai-generation/hooks/useUnifiedGeneration";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wand2, Music, ArrowLeft } from "lucide-react";
+import { Wand2, Music, ArrowLeft, Plus, Share2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface GenerationFormData {

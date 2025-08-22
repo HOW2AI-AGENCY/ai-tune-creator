@@ -26,7 +26,7 @@ export function MobilePageWrapper({
       "mobile-page-wrapper",
       padding && "px-4 py-4",
       spacingClasses[spacing],
-      "safe-area-inset",
+      "safe-area-inset telegram-content-safe",
       className
     )}>
       {children}

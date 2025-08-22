@@ -82,6 +82,18 @@ All colors MUST be HSL.
     --mobile-safe-area-left: env(safe-area-inset-left);
     --mobile-safe-area-right: env(safe-area-inset-right);
     
+    /* Telegram Mini App specific variables */
+    --tg-vh: 100vh;
+    --tg-viewport-height: 100vh;
+    --telegram-safe-top: 0px;
+    --telegram-safe-bottom: 0px;
+    --telegram-header-offset: 0px;
+    --telegram-settings-offset: 0px;
+    --telegram-main-button-height: 72px;
+    --mobile-safe-area-bottom: env(safe-area-inset-bottom);
+    --mobile-safe-area-left: env(safe-area-inset-left);
+    --mobile-safe-area-right: env(safe-area-inset-right);
+    
     /* Telegram safe area */
     --telegram-safe-top: 0px;
     --telegram-safe-bottom: 0px;
@@ -242,6 +254,51 @@ All colors MUST be HSL.
   .mobile-safe-area {
     padding-top: var(--mobile-safe-area-top);
     padding-bottom: var(--mobile-safe-area-bottom);
+  }
+
+  /* Telegram-specific layout classes */
+  .telegram-safe-area {
+    padding-top: var(--telegram-safe-top);
+    padding-bottom: var(--telegram-safe-bottom);
+  }
+
+  .telegram-fullscreen {
+    height: var(--tg-vh);
+    min-height: var(--tg-vh);
+    overflow: hidden;
+  }
+
+  .telegram-viewport {
+    height: var(--tg-viewport-height);
+    max-height: var(--tg-viewport-height);
+  }
+
+  .telegram-layout {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .telegram-content-safe {
+    padding-top: var(--telegram-safe-top);
+    padding-bottom: var(--telegram-safe-bottom);
+    box-sizing: border-box;
+  }
+
+  .telegram-no-main-button {
+    --telegram-safe-bottom: var(--mobile-safe-area-bottom);
+  }
+
+  .telegram-with-main-button {
+    --telegram-safe-bottom: var(--telegram-main-button-height);
+  }
+
+  .telegram-mobile-content {
+    height: var(--tg-viewport-height);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: var(--telegram-safe-top);
+    padding-bottom: var(--telegram-safe-bottom);
+    box-sizing: border-box;
   }
 }
 

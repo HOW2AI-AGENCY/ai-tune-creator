@@ -9,7 +9,7 @@ interface TelegramLayoutProps {
 
 export function TelegramLayout({ children, className }: TelegramLayoutProps) {
   const { isInTelegram } = useTelegramWebApp();
-  const { telegramSafeArea, telegramFullscreen } = useTelegramLayout();
+  const { telegramSafeArea, telegramFullscreen, telegramViewport } = useTelegramLayout();
 
   if (!isInTelegram) {
     return <>{children}</>;
@@ -19,8 +19,9 @@ export function TelegramLayout({ children, className }: TelegramLayoutProps) {
     <div className={cn(
       'telegram-layout',
       telegramFullscreen,
+      telegramViewport,
       telegramSafeArea,
-      'w-full',
+      'w-full relative',
       className
     )}>
       {children}
@@ -39,7 +40,7 @@ export function TelegramContainer({ children, className }: TelegramContainerProp
   return (
     <div className={cn(
       'w-full',
-      isInTelegram ? 'px-2 py-1' : 'container mx-auto px-4 py-6',
+      isInTelegram ? 'telegram-content-safe px-3 py-2' : 'container mx-auto px-4 py-6',
       className
     )}>
       {children}
