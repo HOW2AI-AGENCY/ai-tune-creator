@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { TranslationProvider } from "@/hooks/useTranslation";
 import { AppDataProvider } from "@/providers/AppDataProvider";
@@ -90,25 +92,37 @@ function AppContent() {
  * 4. TranslationProvider - i18n support
  * 5. TooltipProvider - UI tooltips
  */
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      {/* Temporarily disable AppDataProvider to fix IndexedDB issues */}
-      {/* <AppDataProvider> */}
-        <TranslationProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <SidebarProvider>
-                <AppContent />
-              </SidebarProvider>
-            </BrowserRouter>
-          </TooltipProvider>
-        </TranslationProvider>
-      {/* </AppDataProvider> */}
-    </AuthProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Установка темной темы по умолчанию
+  useEffect(() => {
+    if (!localStorage.getItem('theme')) {
+      localStorage.setItem('theme', 'dark');
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+        <AuthProvider>
+          {/* Temporarily disable AppDataProvider to fix IndexedDB issues */}
+          {/* <AppDataProvider> */}
+            <TranslationProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <SidebarProvider>
+                    <AppContent />
+                  </SidebarProvider>
+                </BrowserRouter>
+              </TooltipProvider>
+            </TranslationProvider>
+          {/* </AppDataProvider> */}
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

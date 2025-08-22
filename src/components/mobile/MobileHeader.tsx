@@ -59,12 +59,11 @@ export function MobileHeader({
   return (
     <header className={cn(
       "sticky top-0 z-40 w-full bg-card/95 backdrop-blur-md border-b border-border",
-      "pt-safe-top",
       "safe-area-inset",
       "animate-fade-in",
       className
     )}>
-      <div className={cn("flex items-center justify-between mobile-header-height", isInTelegram ? "px-3" : "px-4")}>
+      <div className={cn("flex items-center justify-between mobile-header-height px-4")}>
         {/* Left Section */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {showBack && !isInTelegram && (

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { User, Bell, Palette, Shield, Database, Save, Bot, ChevronRight, Moon, Sun } from "lucide-react";
+import { useState, useEffect } from "react";
+import { User, Bell, Palette, Shield, Database, Save, Bot, ChevronRight, Moon, Sun, Mail, MessageCircle, Link, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,10 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
+import { useTheme } from "next-themes";
+import { supabase } from "@/integrations/supabase/client";
 import { MobilePageWrapper } from "@/components/mobile/MobilePageWrapper";
 import { MobileCard } from "@/components/mobile/MobileCard";
 import { MobileBottomSheet } from "@/components/mobile/MobileBottomSheet";
@@ -33,6 +37,9 @@ interface SettingsItem {
 export default function MobileSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
+  const { isInTelegram } = useTelegramWebApp();
+  const { authData } = useTelegramAuth();
   
   const [settings, setSettings] = useState({
     profile: {
@@ -50,12 +57,120 @@ export default function MobileSettings() {
     preferences: {
       defaultAiService: "suno",
       autoSaveProjects: true,
-      darkMode: false
+      darkMode: theme === 'dark'
+    },
+    connections: {
+      emailLinked: !!user?.email,
+      telegramLinked: !!authData?.telegramId
     }
   });
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [sectionOpen, setSectionOpen] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+
+  // Синхронизация темы с настройками
+  useEffect(() => {
+    setSettings(prev => ({
+      ...prev,
+      preferences: {
+        ...prev.preferences,
+        darkMode: theme === 'dark'
+      }
+    }));
+  }, [theme]);
+
+  // Функции для привязки аккаунтов
+  const linkEmail = async () => {
+    if (!newEmail.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Введите email адрес",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLinking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('link-account', {
+        body: {
+          provider: 'email',
+          credentials: { email: newEmail.trim() }
+        }
+      });
+
+      if (error) throw error;
+
+      setSettings(prev => ({
+        ...prev,
+        connections: { ...prev.connections, emailLinked: true }
+      }));
+
+      toast({
+        title: "Успешно",
+        description: "Email привязан к аккаунту"
+      });
+      setNewEmail("");
+    } catch (error: any) {
+      console.error('Error linking email:', error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось привязать email",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
+  const linkTelegram = async () => {
+    if (!isInTelegram || !authData) {
+      toast({
+        title: "Ошибка",
+        description: "Telegram аккаунт доступен только внутри Telegram",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLinking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('link-account', {
+        body: {
+          provider: 'telegram',
+          credentials: {
+            telegram_id: authData.telegramId?.toString(),
+            telegram_username: authData.username,
+            telegram_first_name: authData.firstName,
+            telegram_last_name: authData.lastName
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      setSettings(prev => ({
+        ...prev,
+        connections: { ...prev.connections, telegramLinked: true }
+      }));
+
+      toast({
+        title: "Успешно",
+        description: "Telegram аккаунт привязан"
+      });
+    } catch (error: any) {
+      console.error('Error linking Telegram:', error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось привязать Telegram",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLinking(false);
+    }
+  };
 
   const sections: SettingsSection[] = [
     {
@@ -81,6 +196,41 @@ export default function MobileSettings() {
           title: 'URL аватара',
           type: 'text',
           value: settings.profile.avatarUrl
+        }
+      ]
+    },
+    {
+      id: 'connections',
+      title: 'Привязка аккаунтов',
+      description: 'Управление связанными аккаунтами',
+      icon: <Link className="h-5 w-5" />,
+      items: [
+        {
+          id: 'emailConnection',
+          title: 'Привязать Email',
+          description: settings.connections.emailLinked ? 
+            `Привязан: ${user?.email}` : 
+            'Email не привязан',
+          type: 'button',
+          action: () => {
+            if (!settings.connections.emailLinked) {
+              // Открываем форму привязки email
+            } else {
+              toast({
+                title: "Email уже привязан",
+                description: "Ваш email уже привязан к аккаунту"
+              });
+            }
+          }
+        },
+        {
+          id: 'telegramConnection',
+          title: 'Привязать Telegram',
+          description: settings.connections.telegramLinked ? 
+            `Привязан: @${authData?.username || 'Unknown'}` : 
+            isInTelegram ? 'Доступно для привязки' : 'Доступно только в Telegram',
+          type: 'button',
+          action: linkTelegram
         }
       ]
     },
@@ -221,6 +371,11 @@ export default function MobileSettings() {
   };
 
   const handleSettingChange = (sectionId: string, itemId: string, value: any) => {
+    // Специальная обработка переключения темы
+    if (itemId === 'darkMode') {
+      setTheme(value ? 'dark' : 'light');
+    }
+    
     setSettings(prev => ({
       ...prev,
       [sectionId]: {
@@ -314,7 +469,87 @@ export default function MobileSettings() {
       >
         {getActiveSection() && (
           <div className="p-4 space-y-6">
-            {getActiveSection()!.items.map((item) => (
+            {/* Специальная обработка для привязки email */}
+            {getActiveSection()!.id === 'connections' && (
+              <div className="space-y-4">
+                {/* Email Connection */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm font-medium">Email</Label>
+                    {settings.connections.emailLinked && (
+                      <Check className="h-4 w-4 text-green-500" />
+                    )}
+                  </div>
+                  
+                  {settings.connections.emailLinked ? (
+                    <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        ✓ Привязан: {user?.email}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Введите email адрес"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        type="email"
+                      />
+                      <Button 
+                        onClick={linkEmail}
+                        disabled={isLinking || !newEmail.trim()}
+                        size="sm"
+                        className="w-full"
+                      >
+                        {isLinking ? "Привязка..." : "Привязать Email"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Telegram Connection */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm font-medium">Telegram</Label>
+                    {settings.connections.telegramLinked && (
+                      <Check className="h-4 w-4 text-green-500" />
+                    )}
+                  </div>
+                  
+                  {settings.connections.telegramLinked ? (
+                    <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        ✓ Привязан: @{authData?.username || 'Unknown'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        {isInTelegram 
+                          ? "Привяжите ваш Telegram аккаунт для получения уведомлений" 
+                          : "Доступно только при использовании внутри Telegram"
+                        }
+                      </p>
+                      <Button 
+                        onClick={linkTelegram}
+                        disabled={isLinking || !isInTelegram}
+                        size="sm"
+                        className="w-full"
+                      >
+                        {isLinking ? "Привязка..." : "Привязать Telegram"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Обычные настройки */}
+            {getActiveSection()!.id !== 'connections' && getActiveSection()!.items.map((item) => (
               <div key={item.id} className="space-y-2">
                 {item.type === 'switch' && (
                   <div className="flex items-center justify-between">
@@ -390,7 +625,7 @@ export default function MobileSettings() {
               </div>
             ))}
 
-            {getActiveSection()!.id !== 'security' && (
+            {getActiveSection()!.id !== 'security' && getActiveSection()!.id !== 'connections' && (
               <Button 
                 onClick={() => handleSave(getActiveSection()!.id)} 
                 className="w-full gap-2"

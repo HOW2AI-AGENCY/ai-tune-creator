@@ -36,7 +36,7 @@ export default function Settings() {
     preferences: {
       defaultAiService: "suno",
       autoSaveProjects: true,
-      darkMode: false
+      darkMode: true
     },
     ai: {
       provider: "openai",
