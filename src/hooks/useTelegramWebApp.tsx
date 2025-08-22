@@ -284,10 +284,37 @@ export function useTelegramAuth() {
     }
   }, [webApp]);
 
+  const authenticateWithTelegram = async () => {
+    if (!authData || !isInTelegram) {
+      throw new Error('Telegram authentication data not available');
+    }
+
+    try {
+      const response = await fetch('/functions/v1/telegram-auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ authData })
+      });
+
+      if (!response.ok) {
+        throw new Error('Telegram authentication failed');
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Telegram auth error:', error);
+      throw error;
+    }
+  };
+
   return {
     authData,
     isInTelegram,
-    isAuthenticated: !!authData
+    isAuthenticated: !!authData,
+    authenticateWithTelegram
   };
 }
 

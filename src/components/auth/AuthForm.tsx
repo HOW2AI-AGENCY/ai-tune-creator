@@ -1,18 +1,77 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConnectionDiagnostics } from "./ConnectionDiagnostics";
+import { useTelegramAuth } from "@/hooks/useTelegramWebApp";
+import { Music, Apple, Play } from "lucide-react";
 
 export const AuthForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const { toast } = useToast();
+  const { authData, isInTelegram, isAuthenticated } = useTelegramAuth();
+
+  // Автоматическая авторизация через Telegram
+  useEffect(() => {
+    if (isAuthenticated && authData && isInTelegram) {
+      handleTelegramAuth();
+    }
+  }, [isAuthenticated, authData, isInTelegram]);
+
+  const handleTelegramAuth = async () => {
+    setIsLoading(true);
+    try {
+      // Создаем или входим в аккаунт через Telegram
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'telegram',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        }
+      });
+
+      if (error) {
+        setError(`Telegram auth error: ${error.message}`);
+      } else {
+        toast({
+          title: "Welcome from Telegram!",
+          description: "You have been successfully authenticated.",
+        });
+      }
+    } catch (err) {
+      setError("Telegram authentication failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSocialAuth = async (provider: 'spotify' | 'google' | 'apple') => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        }
+      });
+
+      if (error) {
+        setError(`${provider} authentication failed: ${error.message}`);
+      }
+    } catch (err) {
+      setError(`An error occurred during ${provider} authentication.`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSignUp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -180,6 +239,69 @@ export const AuthForm = () => {
               </form>
             </TabsContent>
           </Tabs>
+
+          {/* Разделитель */}
+          <div className="relative my-6">
+            <Separator />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="bg-background px-2 text-muted-foreground text-sm">или продолжить с</span>
+            </div>
+          </div>
+
+          {/* Социальные провайдеры */}
+          <div className="space-y-3">
+            {/* Spotify */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full flex items-center justify-center gap-3 h-11"
+              onClick={() => handleSocialAuth('spotify')}
+              disabled={isLoading}
+            >
+              <Music className="h-5 w-5 text-green-500" />
+              <span>Spotify</span>
+            </Button>
+
+            {/* Google */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full flex items-center justify-center gap-3 h-11"
+              onClick={() => handleSocialAuth('google')}
+              disabled={isLoading}
+            >
+              <div className="h-5 w-5 bg-gradient-to-r from-blue-500 via-red-500 to-yellow-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">G</span>
+              </div>
+              <span>Google</span>
+            </Button>
+
+            {/* Apple */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full flex items-center justify-center gap-3 h-11"
+              onClick={() => handleSocialAuth('apple')}
+              disabled={isLoading}
+            >
+              <Apple className="h-5 w-5" />
+              <span>Apple</span>
+            </Button>
+
+            {/* Telegram (если в Telegram) */}
+            {isInTelegram && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full flex items-center justify-center gap-3 h-11 bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
+                onClick={handleTelegramAuth}
+                disabled={isLoading || isAuthenticated}
+              >
+                <Play className="h-5 w-5" />
+                <span>{isAuthenticated ? 'Автоматический вход' : 'Telegram'}</span>
+              </Button>
+            )}
+          </div>
           
           <div className="mt-6">
             <ConnectionDiagnostics />
