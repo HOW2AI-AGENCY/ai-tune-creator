@@ -26,19 +26,20 @@ export const AuthForm = () => {
   }, [isAuthenticated, authData, isInTelegram]);
 
   const handleTelegramAuth = async () => {
+    if (!authData) return;
+    
     setIsLoading(true);
     try {
-      // Создаем или входим в аккаунт через Telegram
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'telegram',
-        options: {
-          redirectTo: `${window.location.origin}/`,
-        }
+      // Вызываем нашу Edge Function для Telegram авторизации
+      const { data, error } = await supabase.functions.invoke('telegram-auth', {
+        body: { authData }
       });
 
       if (error) {
         setError(`Telegram auth error: ${error.message}`);
-      } else {
+      } else if (data?.session) {
+        // Устанавливаем сессию в Supabase
+        await supabase.auth.setSession(data.session);
         toast({
           title: "Welcome from Telegram!",
           description: "You have been successfully authenticated.",

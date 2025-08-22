@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { createHmac } from "https://deno.land/std@0.190.0/node/crypto.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,8 +15,8 @@ interface TelegramAuthData {
   initData: string;
 }
 
-// Валидация данных из Telegram
-function validateTelegramAuth(initData: string, botToken: string): boolean {
+// Валидация данных из Telegram с использованием Web Crypto API
+async function validateTelegramAuth(initData: string, botToken: string): Promise<boolean> {
   try {
     const urlParams = new URLSearchParams(initData);
     const hash = urlParams.get('hash');
@@ -31,11 +30,31 @@ function validateTelegramAuth(initData: string, botToken: string): boolean {
       .map(([key, value]) => `${key}=${value}`)
       .join('\n');
 
-    // Создаем секретный ключ
-    const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
+    // Создаем секретный ключ с помощью Web Crypto API
+    const encoder = new TextEncoder();
+    const secretKeyData = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode('WebAppData'),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    
+    const secretKeyBytes = await crypto.subtle.sign('HMAC', secretKeyData, encoder.encode(botToken));
+    
+    const secretKey = await crypto.subtle.importKey(
+      'raw',
+      secretKeyBytes,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
     
     // Создаем хеш для проверки
-    const expectedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+    const signature = await crypto.subtle.sign('HMAC', secretKey, encoder.encode(dataCheckString));
+    const expectedHash = Array.from(new Uint8Array(signature))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
     
     return hash === expectedHash;
   } catch (error) {
@@ -65,7 +84,7 @@ serve(async (req) => {
     }
 
     // Валидируем данные от Telegram
-    if (!validateTelegramAuth(authData.initData, botToken)) {
+    if (!(await validateTelegramAuth(authData.initData, botToken))) {
       return new Response(
         JSON.stringify({ error: 'Invalid Telegram authentication data' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
