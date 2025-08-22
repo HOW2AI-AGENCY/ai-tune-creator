@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
+import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -12,22 +12,28 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) => {
   const { user, session, loading } = useAuth();
-  const { isInTelegram } = useTelegramWebApp();
+  const { isInTelegram, isAuthenticating } = useTelegramAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     // If we don't require auth, render children regardless
     if (!requireAuth) return;
 
+    // Don't redirect if we're in Telegram and still trying to authenticate
+    if (isInTelegram && isAuthenticating) {
+      console.log('ProtectedRoute: Telegram auth in progress, waiting...');
+      return;
+    }
+
     // If not loading and no authenticated user, redirect to auth
-    if (!loading && !user && !session) {
+    if (!loading && !user && !session && !isAuthenticating) {
       console.log('ProtectedRoute: No authenticated user, redirecting to /auth');
       navigate('/auth', { replace: true });
     }
-  }, [loading, user, session, requireAuth, navigate]);
+  }, [loading, user, session, requireAuth, navigate, isInTelegram, isAuthenticating]);
 
-  // Show loading state while checking authentication
-  if (loading) {
+  // Show loading state while checking authentication or during Telegram auth
+  if (loading || (isInTelegram && isAuthenticating)) {
     return (
       <div className="flex-1 space-y-6 p-6">
         <div className="space-y-4">

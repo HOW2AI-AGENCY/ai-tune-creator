@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Rate limiting storage
+const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+
 interface TelegramAuthData {
   telegramId: number;
   firstName: string;
@@ -15,21 +20,49 @@ interface TelegramAuthData {
   initData: string;
 }
 
+// Rate limiting function
+function checkRateLimit(identifier: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const key = identifier;
+  const current = rateLimitMap.get(key) || { count: 0, lastReset: now };
+  
+  // Reset window if expired
+  if (now - current.lastReset > RATE_LIMIT_WINDOW) {
+    current.count = 0;
+    current.lastReset = now;
+  }
+  
+  const allowed = current.count < RATE_LIMIT_MAX_ATTEMPTS;
+  
+  if (allowed) {
+    current.count++;
+  }
+  
+  rateLimitMap.set(key, current);
+  
+  return {
+    allowed,
+    remaining: Math.max(0, RATE_LIMIT_MAX_ATTEMPTS - current.count)
+  };
+}
+
 // Correct Telegram initData validation using HMAC-SHA256
-async function validateTelegramAuth(initData: string, botToken: string): Promise<boolean> {
+async function validateTelegramAuth(initData: string, botToken: string): Promise<{ valid: boolean; error?: string }> {
   try {
     const urlParams = new URLSearchParams(initData);
     const hash = urlParams.get('hash');
     const authDate = urlParams.get('auth_date');
     
-    if (!hash || !authDate) return false;
+    if (!hash || !authDate) {
+      return { valid: false, error: 'Missing hash or auth_date' };
+    }
 
     // Check auth_date is not older than 5 minutes (300 seconds)
     const authTime = parseInt(authDate) * 1000;
     const now = Date.now();
     if (now - authTime > 300000) {
       console.log('Telegram auth: initData too old');
-      return false;
+      return { valid: false, error: 'Authentication data expired' };
     }
 
     urlParams.delete('hash');
@@ -61,10 +94,13 @@ async function validateTelegramAuth(initData: string, botToken: string): Promise
     const isValid = hash === expectedHash;
     console.log('Telegram validation:', { isValid, authDate, hash: hash.substring(0, 8) + '...' });
     
-    return isValid;
+    return { 
+      valid: isValid, 
+      error: isValid ? undefined : 'Invalid signature' 
+    };
   } catch (error) {
     console.error('Telegram validation error:', error);
-    return false;
+    return { valid: false, error: 'Validation failed' };
   }
 }
 
@@ -74,6 +110,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  const startTime = Date.now();
+  const clientIP = req.headers.get('x-forwarded-for') || 'unknown';
+  
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -82,16 +121,44 @@ serve(async (req) => {
 
     const { authData }: { authData: TelegramAuthData } = await req.json()
     
+    // Rate limiting check
+    const rateLimitKey = `${authData.telegramId}_${clientIP}`;
+    const rateLimit = checkRateLimit(rateLimitKey);
+    
+    if (!rateLimit.allowed) {
+      console.log(`Rate limit exceeded for ${authData.telegramId} from ${clientIP}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Too many authentication attempts. Please wait before trying again.',
+          retryAfter: Math.ceil(RATE_LIMIT_WINDOW / 1000)
+        }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Retry-After': String(Math.ceil(RATE_LIMIT_WINDOW / 1000))
+          } 
+        }
+      )
+    }
+    
     // Получаем токен бота из переменных окружения
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
     if (!botToken) {
-      throw new Error('Telegram bot token not configured')
+      console.error('Telegram bot token not configured');
+      throw new Error('Service configuration error')
     }
 
     // Валидируем данные от Telegram
-    if (!(await validateTelegramAuth(authData.initData, botToken))) {
+    const validation = await validateTelegramAuth(authData.initData, botToken);
+    if (!validation.valid) {
+      console.log(`Invalid Telegram auth for ${authData.telegramId}: ${validation.error}`);
       return new Response(
-        JSON.stringify({ error: 'Invalid Telegram authentication data' }),
+        JSON.stringify({ 
+          error: `Authentication failed: ${validation.error}`,
+          code: 'INVALID_TELEGRAM_DATA'
+        }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -99,8 +166,15 @@ serve(async (req) => {
     // Создаем уникальный email для пользователя Telegram
     const telegramEmail = `telegram_${authData.telegramId}@telegram.local`
     
+    console.log(`Processing auth for Telegram user ${authData.telegramId} (${authData.firstName})`);
+    
     // Пытаемся найти существующего пользователя
     const { data: existingUser, error: getUserError } = await supabaseClient.auth.admin.getUserByEmail(telegramEmail)
+    
+    if (getUserError && !getUserError.message.includes('not found')) {
+      console.error('Error checking existing user:', getUserError);
+      throw new Error('Database error during user lookup');
+    }
     
     // Generate random password for one-time use
     const randomPassword = crypto.randomUUID();
@@ -116,14 +190,20 @@ serve(async (req) => {
         throw updateError;
       }
 
-      console.log('Telegram auth: Existing user updated', existingUser.user.id);
+      const duration = Date.now() - startTime;
+      console.log(`Telegram auth: Existing user ${existingUser.user.id} updated successfully in ${duration}ms`);
 
       return new Response(
         JSON.stringify({ 
           success: true,
           email: telegramEmail,
           password: randomPassword,
-          isNewUser: false
+          isNewUser: false,
+          user: {
+            id: existingUser.user.id,
+            telegramId: authData.telegramId,
+            firstName: authData.firstName
+          }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -148,23 +228,43 @@ serve(async (req) => {
         throw createError;
       }
 
-      console.log('Telegram auth: New user created', newUser.user?.id);
+      const duration = Date.now() - startTime;
+      console.log(`Telegram auth: New user ${newUser.user?.id} created successfully in ${duration}ms`);
 
       return new Response(
         JSON.stringify({ 
           success: true,
           email: telegramEmail,
           password: randomPassword,
-          isNewUser: true
+          isNewUser: true,
+          user: {
+            id: newUser.user?.id,
+            telegramId: authData.telegramId,
+            firstName: authData.firstName
+          }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
   } catch (error) {
-    console.error('Telegram auth error:', error)
+    const duration = Date.now() - startTime;
+    console.error(`Telegram auth error after ${duration}ms:`, {
+      error: error.message,
+      telegramId: (error as any).telegramId,
+      clientIP
+    });
+    
+    // Don't expose internal errors to client
+    const publicError = error.message.includes('Service configuration') 
+      ? 'Service temporarily unavailable'
+      : 'Authentication failed. Please try again.';
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: publicError,
+        code: 'AUTH_ERROR'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

@@ -67,12 +67,22 @@ export const useTelegramAuth = () => {
 
       if (error) {
         console.error('Telegram Auth: Error from edge function:', error);
-        setAuthError(`Authentication failed: ${error.message}`);
+        
+        // Handle specific error types
+        if (error.message?.includes('Too many')) {
+          setAuthError('Too many login attempts. Please wait a moment and try again.');
+        } else if (error.message?.includes('expired')) {
+          setAuthError('Session expired. Please restart the app and try again.');
+        } else if (error.message?.includes('Invalid signature')) {
+          setAuthError('Authentication failed. Please restart the app.');
+        } else {
+          setAuthError(`Authentication failed: ${error.message}`);
+        }
         return false;
       }
 
       if (!data?.email || !data?.password) {
-        console.error('Telegram Auth: Invalid response format');
+        console.error('Telegram Auth: Invalid response format', data);
         setAuthError('Authentication failed: Invalid server response');
         return false;
       }
@@ -110,16 +120,25 @@ export const useTelegramAuth = () => {
   // Auto-authenticate if conditions are met
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+    let mounted = true;
 
     if (shouldAutoAuth()) {
       // Small delay to ensure all components are initialized
-      timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(async () => {
+        if (!mounted) return;
+        
         console.log('Telegram Auth: Auto-authenticating user...');
-        authenticateWithTelegram();
-      }, 100);
+        try {
+          await authenticateWithTelegram();
+        } catch (error) {
+          console.error('Auto-auth failed:', error);
+          // Don't show toast for auto-auth failures to avoid spam
+        }
+      }, 200); // Slightly longer delay for better stability
     }
 
     return () => {
+      mounted = false;
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [shouldAutoAuth, authenticateWithTelegram]);
