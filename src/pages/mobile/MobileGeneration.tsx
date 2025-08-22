@@ -6,6 +6,10 @@ import { TelegramGenerationForm } from "@/components/mobile/TelegramGenerationFo
 import { TelegramMobilePlayer } from "@/components/mobile/TelegramMobilePlayer";
 import { MobilePageWrapper } from "@/components/mobile/MobilePageWrapper";
 import { useTelegramWebApp, useTelegramHaptics } from "@/hooks/useTelegramWebApp";
+import { useTelegramTheme } from "@/hooks/useTelegramTheme";
+import { useTelegramShare } from "@/hooks/useTelegramShare";
+import { TelegramGenerationProgress } from "@/components/mobile/TelegramGenerationProgress";
+import { TelegramLayout } from "@/components/telegram/TelegramLayout";
 import { useUnifiedGeneration } from "@/features/ai-generation/hooks/useUnifiedGeneration";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +50,10 @@ export default function MobileGeneration() {
   const { toast } = useToast();
   const { isInTelegram } = useTelegramWebApp();
   const { notificationFeedback, impactFeedback } = useTelegramHaptics();
+  const { shareTrackToTelegram, copyShareLink, canShareToTelegram } = useTelegramShare();
+  
+  // Apply Telegram theme
+  useTelegramTheme();
   const { generateTrack, activeGenerations } = useUnifiedGeneration();
   const { tracks: userTracks = [], isLoading: tracksLoading, refetch: refreshTracks } = useTracks();
 
@@ -127,22 +135,14 @@ export default function MobileGeneration() {
     impactFeedback?.('light');
   };
 
-  const handleShare = (track: TrackData) => {
-    if (navigator.share) {
-      navigator.share({
-        title: track.title,
-        text: `Check out this AI-generated track: ${track.title}`,
-        url: track.audio_url
-      });
-    } else {
-      // Fallback for non-supporting browsers
-      navigator.clipboard.writeText(track.audio_url || '');
-      toast({
-        title: "Link copied",
-        description: "Track link copied to clipboard"
-      });
-    }
+  const handleShare = async (track: TrackData) => {
     impactFeedback?.('medium');
+    
+    if (canShareToTelegram) {
+      await shareTrackToTelegram({ track });
+    } else {
+      await copyShareLink(track);
+    }
   };
 
   const handleDownload = (track: TrackData) => {
@@ -181,56 +181,46 @@ export default function MobileGeneration() {
     );
   }
 
+  // Show enhanced Telegram progress overlay
   if (isGenerating) {
     return (
-      <div className={cn(
-        "min-h-screen bg-background flex items-center justify-center",
-        isInTelegram && "pt-safe-area-inset-top pb-safe-area-inset-bottom"
-      )}>
-        <div className="text-center p-6">
-          <div className="relative mb-6">
-            <div className="w-24 h-24 rounded-full border-4 border-primary/20 mx-auto flex items-center justify-center">
-              <Wand2 className="h-8 w-8 text-primary animate-spin" />
-            </div>
-            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-primary animate-spin" />
-          </div>
-          
-          <h2 className="text-xl font-semibold mb-2">Creating your music...</h2>
-          <p className="text-muted-foreground mb-4">
-            AI is composing your track. This may take a few moments.
-          </p>
-          
-          <div className="w-full max-w-xs mx-auto bg-secondary rounded-full h-2 mb-2">
-            <div 
-              className="bg-primary h-2 rounded-full transition-all duration-500"
-              style={{ width: `${generationProgress}%` }}
-            />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {Math.round(generationProgress)}% complete
-          </p>
-        </div>
-      </div>
+      <TelegramLayout>
+        <TelegramGenerationProgress
+          isActive={isGenerating}
+          onCancel={() => {
+            // Handle generation cancellation if needed
+            toast({
+              title: "Generation cancelled",
+              description: "Music creation was stopped",
+              variant: "default"
+            });
+          }}
+          onComplete={() => {
+            setShowForm(false);
+            refreshTracks();
+          }}
+        />
+      </TelegramLayout>
     );
   }
 
   if (showForm) {
     return (
-      <TelegramGenerationForm
-        onGenerate={handleGenerate}
-        onCancel={() => {}}
-        isGenerating={isGenerating}
-      />
+      <TelegramLayout>
+        <TelegramGenerationForm
+          onGenerate={handleGenerate}
+          onCancel={() => {}}
+          isGenerating={isGenerating}
+        />
+      </TelegramLayout>
     );
   }
 
   return (
-    <div className={cn(
-      "min-h-screen bg-background",
-      isInTelegram && "pt-safe-area-inset-top pb-safe-area-inset-bottom"
-    )}>
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+    <TelegramLayout>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
             {!isInTelegram && (
@@ -368,6 +358,7 @@ export default function MobileGeneration() {
           }}
         />
       )}
-    </div>
+      </div>
+    </TelegramLayout>
   );
 }

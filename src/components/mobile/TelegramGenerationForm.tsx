@@ -102,20 +102,33 @@ export function TelegramGenerationForm({
     { title: "Final Details", icon: Tag }
   ];
 
-  // Telegram button integration
+  const handleGenerate = () => {
+    if (formData.prompt.trim().length > 0) {
+      onGenerate(formData);
+    }
+  };
+
+  // Telegram button integration with improved lifecycle
   useEffect(() => {
     if (isInTelegram) {
-      if (currentStep < STEPS.length - 1) {
-        showMainButton("Далее", () => setCurrentStep(prev => prev + 1));
+      const isLastStep = currentStep >= STEPS.length - 1;
+      const canGenerate = formData.prompt.trim().length > 0;
+      
+      if (isGenerating) {
+        // During generation, show progress
+        showMainButton("Generating...", () => {});
+      } else if (isLastStep && canGenerate) {
+        // Final step - enable generate button
+        showMainButton("🎵 Create Music", handleGenerate);
+      } else if (isLastStep) {
+        // Final step but can't generate
+        showMainButton("Add description first", () => {});
       } else {
-        const canGenerate = formData.prompt.trim().length > 0;
-        if (canGenerate && !isGenerating) {
-          showMainButton("Создать музыку", handleGenerate);
-        } else {
-          hideMainButton();
-        }
+        // Navigation steps
+        showMainButton("Next →", () => setCurrentStep(prev => prev + 1));
       }
 
+      // Back button with smart behavior
       showBackButton(() => {
         if (currentStep > 0) {
           setCurrentStep(prev => prev - 1);
@@ -129,13 +142,7 @@ export function TelegramGenerationForm({
         hideBackButton();
       };
     }
-  }, [isInTelegram, currentStep, formData.prompt, isGenerating, showMainButton, hideMainButton, showBackButton, hideBackButton]);
-
-  const handleGenerate = () => {
-    if (formData.prompt.trim().length > 0) {
-      onGenerate(formData);
-    }
-  };
+  }, [isInTelegram, currentStep, formData.prompt, isGenerating, showMainButton, hideMainButton, showBackButton, hideBackButton, handleGenerate, onCancel]);
 
   const updateFormData = (updates: Partial<GenerationFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTrackActions } from "@/hooks/useTrackActions";
 import { useTelegramWebApp, useTelegramMainButton, useTelegramBackButton } from "@/hooks/useTelegramWebApp";
+import { useTelegramShare } from "@/hooks/useTelegramShare";
 import {
   Play,
   Pause,
@@ -70,6 +71,7 @@ export function TelegramMobilePlayer({
   const { showMainButton, hideMainButton } = useTelegramMainButton();
   const { showBackButton, hideBackButton } = useTelegramBackButton();
   const { likeTrack, unlikeTrack, isLiked } = useTrackActions();
+  const { shareTrackToTelegram, copyShareLink, canShareToTelegram } = useTelegramShare();
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -80,15 +82,22 @@ export function TelegramMobilePlayer({
   const [isShuffle, setIsShuffle] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Telegram button integration
+  // Enhanced Telegram button integration
   useEffect(() => {
     if (isInTelegram && track) {
-      if (isPlaying) {
-        showMainButton("Пауза", () => onPlayPause?.(false));
+      if (isExpanded) {
+        // Expanded player - show play/pause as main action
+        if (isPlaying) {
+          showMainButton("⏸️ Pause", () => onPlayPause?.(false));
+        } else {
+          showMainButton("▶️ Play", () => onPlayPause?.(true));
+        }
       } else {
-        showMainButton("Играть", () => onPlayPause?.(true));
+        // Compact player - show play/pause
+        showMainButton(isPlaying ? "⏸️" : "▶️", () => onPlayPause?.(!isPlaying));
       }
 
+      // Smart back button behavior
       showBackButton(() => {
         if (isExpanded) {
           setIsExpanded(false);
@@ -416,8 +425,15 @@ export function TelegramMobilePlayer({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onShare?.(track)}
+            onClick={async () => {
+              if (canShareToTelegram) {
+                await shareTrackToTelegram({ track });
+              } else {
+                await copyShareLink(track);
+              }
+            }}
             className="h-10 w-10 p-0"
+            title={canShareToTelegram ? "Share to Telegram" : "Copy link"}
           >
             <Share2 className="h-5 w-5" />
           </Button>
