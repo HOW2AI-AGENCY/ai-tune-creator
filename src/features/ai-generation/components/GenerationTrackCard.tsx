@@ -11,7 +11,7 @@ import {
   CheckCircle2,
   Loader2
 } from "lucide-react";
-import { toast } from 'sonner';
+import { useToast } from "@/hooks/use-toast";
 import { AIGeneration } from '../hooks/useGenerationState';
 
 interface GenerationTrackCardProps {
@@ -125,7 +125,7 @@ export function GenerationTrackCard({
   };
 
   const getExternalUrl = () => {
-    // Get the external CDN URL for download (from Mureka specifically)
+    // Get the external CDN URL for download
     if (generation.service === 'mureka') {
       const choicesUrl = generation.metadata?.mureka?.choices?.[0]?.url || 
                         generation.metadata?.mureka_result?.choices?.[0]?.url ||
@@ -135,13 +135,36 @@ export function GenerationTrackCard({
       const providerMp3 = generation.metadata?.provider_urls?.mp3;
       if (providerMp3) return providerMp3;
     }
+    
+    // Check if current result_url is external (not local storage)
+    if (generation.result_url && 
+        !generation.result_url.includes('supabase.co') && 
+        !generation.metadata?.local_storage_path) {
+      return generation.result_url;
+    }
+    
     return null;
   };
+
+  const isExternalUrl = (url: string) => {
+    return url && (
+      url.includes('cdn.mureka.ai') ||
+      url.includes('apiboxfiles.erweima.ai') ||
+      url.includes('cos-prod') ||
+      !url.includes('supabase.co')
+    );
+  };
+
+  const { toast } = useToast();
 
   const handleDownloadToLocal = async () => {
     const externalUrl = getExternalUrl();
     if (!externalUrl) {
-      toast.error('Внешний URL не найден');
+      toast({
+        title: "Ошибка",
+        description: "Внешний URL не найден",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -165,10 +188,17 @@ export function GenerationTrackCard({
       }
 
       onCheckStatus(generation.id); // Refresh status after download
-      toast.success('Трек загружен в локальное хранилище');
+      toast({
+        title: "Успешно",
+        description: "Трек загружен в локальное хранилище"
+      });
     } catch (error: any) {
       console.error('Error downloading track:', error);
-      toast.error(error.message || 'Ошибка загрузки трека');
+      toast({
+        title: "Ошибка",
+        description: error.message || "Ошибка загрузки трека",
+        variant: "destructive"
+      });
     }
   };
 
@@ -230,6 +260,17 @@ export function GenerationTrackCard({
                 <RefreshCw className="h-4 w-4" />
                 Скачать
               </Button>
+              {!generation.metadata?.local_storage_path && isExternalUrl(audioUrl!) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadToLocal}
+                  disabled={isRefreshing}
+                  className="flex items-center gap-2"
+                >
+                  ⬇️ В хранилище
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -308,7 +349,10 @@ export function GenerationTrackCard({
                 size="sm"
                 onClick={() => {
                   // TODO: implement retry logic
-                  toast.info('Повтор генерации пока не реализован');
+                  toast({
+                    title: "Информация",
+                    description: "Повтор генерации пока не реализован"
+                  });
                 }}
               >
                 <RefreshCw className="h-4 w-4" />
