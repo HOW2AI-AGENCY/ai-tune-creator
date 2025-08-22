@@ -1,5 +1,8 @@
 project_id = "zwbhlfhwymbmvioaikvs"
 
+[functions.telegram-auth]
+verify_jwt = false
+
 [functions.suno-callback]
 verify_jwt = false
 

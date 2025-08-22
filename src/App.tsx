@@ -9,6 +9,7 @@ import { AppDataProvider } from "@/providers/AppDataProvider";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects"; 
@@ -53,9 +54,14 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route path="/auth" element={<Auth />} />
+      <Route path="/auth" element={
+        <ProtectedRoute requireAuth={false}>
+          <Auth />
+        </ProtectedRoute>
+      } />
       <Route path="/*" element={
-        <Layout>
+        <ProtectedRoute requireAuth={true}>
+          <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/projects" element={<Projects />} />
@@ -63,12 +69,12 @@ function AppContent() {
               <Route path="/artists" element={<Artists />} />
               <Route path="/generate" element={<AIGenerationStudio />} />
               <Route path="/generate-old" element={<AIGeneration />} />
-
               <Route path="/settings" element={<Settings />} />
               <Route path="/demo/track-details" element={<TrackDetailsDemo />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
+        </ProtectedRoute>
       } />
     </Routes>
   );

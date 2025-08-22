@@ -9,43 +9,40 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConnectionDiagnostics } from "./ConnectionDiagnostics";
-import { useTelegramAuth } from "@/hooks/useTelegramWebApp";
+import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 import { Music, Apple, Play } from "lucide-react";
 
 export const AuthForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const { toast } = useToast();
-  const { authData, isInTelegram, isAuthenticated } = useTelegramAuth();
+  const { 
+    authData, 
+    isInTelegram, 
+    isAuthenticated, 
+    isAuthenticating,
+    authError,
+    authenticateWithTelegram,
+    clearError 
+  } = useTelegramAuth();
 
-  // Автоматическая авторизация через Telegram
+  // Clear any auth errors when component mounts
   useEffect(() => {
-    if (isAuthenticated && authData && isInTelegram) {
-      handleTelegramAuth();
+    if (authError) {
+      setError(authError);
     }
-  }, [isAuthenticated, authData, isInTelegram]);
+  }, [authError]);
 
   const handleTelegramAuth = async () => {
-    if (!authData) return;
-    
+    clearError();
     setIsLoading(true);
     try {
-      // Вызываем нашу Edge Function для Telegram авторизации
-      const { data, error } = await supabase.functions.invoke('telegram-auth', {
-        body: { authData }
-      });
-
-      if (error) {
-        setError(`Telegram auth error: ${error.message}`);
-      } else if (data?.session) {
-        // Устанавливаем сессию в Supabase
-        await supabase.auth.setSession(data.session);
-        toast({
-          title: "Welcome from Telegram!",
-          description: "You have been successfully authenticated.",
-        });
+      const success = await authenticateWithTelegram();
+      if (success) {
+        // Redirect will happen automatically via useAuth
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Manual Telegram auth error:', error);
       setError("Telegram authentication failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -296,10 +293,10 @@ export const AuthForm = () => {
                 variant="outline"
                 className="w-full flex items-center justify-center gap-3 h-11 bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
                 onClick={handleTelegramAuth}
-                disabled={isLoading || isAuthenticated}
+                disabled={isLoading || isAuthenticating}
               >
                 <Play className="h-5 w-5" />
-                <span>{isAuthenticated ? 'Автоматический вход' : 'Telegram'}</span>
+                <span>{isAuthenticating ? 'Выполняется вход...' : 'Telegram'}</span>
               </Button>
             )}
           </div>
