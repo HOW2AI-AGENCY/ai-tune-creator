@@ -8,11 +8,11 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Base Colors */
+    /* Base Colors - High Contrast */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
-    /* Card Components */
+    /* Card Components - Elevated Design */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
@@ -20,49 +20,62 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* Music Platform Brand Colors */
-    --primary: 261 83% 58%; /* Purple for music theme */
-    --primary-foreground: 210 40% 98%;
+    /* Enhanced Music Platform Brand Colors */
+    --primary: 261 83% 58%; /* Vibrant purple for music */
+    --primary-foreground: 0 0% 100%; /* Pure white text */
     --primary-glow: 261 83% 68%;
+    --primary-hover: 261 83% 48%; /* Darker for hover */
     
     --secondary: 263 70% 50%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 263 70% 40%;
 
-    /* Neutral Colors */
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Optimized Neutral Colors */
+    --muted: 220 13% 96%; /* Warmer neutral */
+    --muted-foreground: 220 9% 46%;
 
     --accent: 261 70% 95%;
     --accent-foreground: 261 83% 58%;
 
-    /* System Colors */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Enhanced System Colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
     
     --success: 142 71% 45%;
-    --success-foreground: 210 40% 98%;
+    --success-foreground: 0 0% 100%;
     
     --warning: 38 92% 50%;
-    --warning-foreground: 210 40% 98%;
+    --warning-foreground: 0 0% 100%;
 
-    /* Borders & Inputs */
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    /* Improved Borders & Inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
     --ring: 261 83% 58%;
 
-    /* Design System Enhancements */
+    /* Design System Core */
     --radius: 0.75rem;
     
-    /* Music Platform Gradients */
+    /* Professional Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(261 83% 58%), hsl(290 80% 60%));
     --gradient-secondary: linear-gradient(135deg, hsl(263 70% 50%), hsl(261 83% 58%));
     --gradient-accent: linear-gradient(180deg, hsl(261 70% 98%), hsl(261 70% 95%));
-    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%), hsl(261 70% 99%));
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 13% 98%));
+    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.2), hsl(261 83% 58% / 0.05));
     
-    /* Shadows */
+    /* Enhanced Shadows */
     --shadow-glow: 0 0 30px hsl(261 83% 58% / 0.3);
     --shadow-elevated: 0 10px 30px -5px hsl(222.2 84% 4.9% / 0.1);
     --shadow-card: 0 4px 12px -2px hsl(222.2 84% 4.9% / 0.08);
+    --shadow-button: 0 2px 8px -2px hsl(261 83% 58% / 0.2);
+    
+    /* Telegram-specific Variables */
+    --tg-bg: 0 0% 100%;
+    --tg-text: 222.2 84% 4.9%;
+    --tg-hint: 220 9% 46%;
+    --tg-link: 261 83% 58%;
+    --tg-button: 261 83% 58%;
+    --tg-button-text: 0 0% 100%;
+    --tg-secondary-bg: 220 13% 96%;
 
     /* Sidebar */
     --sidebar-background: 261 70% 98%;
@@ -110,35 +123,37 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* Base Colors */
+    /* Enhanced Dark Base Colors */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
-    /* Card Components */
-    --card: 222.2 84% 4.9%;
+    /* Dark Card Components */
+    --card: 217.2 32.6% 17.5%;
     --card-foreground: 210 40% 98%;
 
-    /* Popover Components */
-    --popover: 222.2 84% 4.9%;
+    /* Dark Popover Components */
+    --popover: 217.2 32.6% 17.5%;
     --popover-foreground: 210 40% 98%;
 
-    /* Music Platform Brand Colors (Dark) */
+    /* Enhanced Dark Brand Colors */
     --primary: 261 83% 68%;
     --primary-foreground: 222.2 84% 4.9%;
     --primary-glow: 261 83% 78%;
+    --primary-hover: 261 83% 58%;
 
     --secondary: 263 70% 60%;
     --secondary-foreground: 222.2 84% 4.9%;
+    --secondary-hover: 263 70% 50%;
 
-    /* Neutral Colors */
+    /* Dark Neutral Colors */
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 217.2 32.6% 20%;
     --accent-foreground: 261 83% 68%;
 
-    /* System Colors */
-    --destructive: 0 62.8% 30.6%;
+    /* Dark System Colors */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
     
     --success: 142 71% 55%;
@@ -147,21 +162,32 @@ All colors MUST be HSL.
     --warning: 38 92% 60%;
     --warning-foreground: 222.2 84% 4.9%;
 
-    /* Borders & Inputs */
+    /* Dark Borders & Inputs */
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 261 83% 68%;
 
-    /* Music Platform Gradients (Dark) */
+    /* Dark Professional Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(261 83% 68%), hsl(290 80% 70%));
     --gradient-secondary: linear-gradient(135deg, hsl(263 70% 60%), hsl(261 83% 68%));
     --gradient-accent: linear-gradient(180deg, hsl(217.2 32.6% 20%), hsl(217.2 32.6% 17.5%));
     --gradient-surface: linear-gradient(180deg, hsl(222.2 84% 4.9%), hsl(217.2 32.6% 6%));
+    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.05), hsl(261 83% 68% / 0.1));
     
-    /* Shadows (Dark) */
+    /* Dark Enhanced Shadows */
     --shadow-glow: 0 0 30px hsl(261 83% 68% / 0.4);
     --shadow-elevated: 0 10px 30px -5px hsl(0 0% 0% / 0.3);
     --shadow-card: 0 4px 12px -2px hsl(0 0% 0% / 0.2);
+    --shadow-button: 0 2px 8px -2px hsl(261 83% 68% / 0.3);
+    
+    /* Dark Telegram Variables */
+    --tg-bg: 222.2 84% 4.9%;
+    --tg-text: 210 40% 98%;
+    --tg-hint: 215 20.2% 65.1%;
+    --tg-link: 261 83% 68%;
+    --tg-button: 261 83% 68%;
+    --tg-button-text: 222.2 84% 4.9%;
+    --tg-secondary-bg: 217.2 32.6% 17.5%;
 
     /* Telegram Mini App Variables */
     --telegram-safe-top: 48px;

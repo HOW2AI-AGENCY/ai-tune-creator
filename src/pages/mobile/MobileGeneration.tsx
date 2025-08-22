@@ -4,15 +4,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useTracks } from "@/hooks/data/useTracks";
 import { TelegramGenerationForm } from "@/components/mobile/TelegramGenerationForm";
 import { TelegramMobilePlayer } from "@/components/mobile/TelegramMobilePlayer";
-import { MobilePageWrapper } from "@/components/mobile/MobilePageWrapper";
-import { TelegramLayout } from "@/components/telegram/TelegramLayout";
+import { TelegramPageLayout, TelegramSection } from "@/components/mobile/TelegramPageLayout";
+import { TelegramNativeButton } from "@/components/mobile/TelegramNativeButton";
+import { EnhancedMobileCard } from "@/components/mobile/EnhancedMobileCard";
 import { useTelegramWebApp, useTelegramHaptics } from "@/hooks/useTelegramWebApp";
 import { useTelegramTheme } from "@/hooks/useTelegramTheme";
 import { useTelegramShare } from "@/hooks/useTelegramShare";
 import { TelegramGenerationProgress } from "@/components/mobile/TelegramGenerationProgress";
 import { useUnifiedGeneration } from "@/features/ai-generation/hooks/useUnifiedGeneration";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Wand2, Music, ArrowLeft, Plus, Share2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -167,28 +166,27 @@ export default function MobileGeneration() {
 
   if (!user) {
     return (
-      <MobilePageWrapper>
-        <div className="flex-1 flex items-center justify-center p-6">
-          <Card className="p-6 text-center max-w-sm">
-            <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h2 className="text-lg font-semibold mb-2">Sign in required</h2>
-            <p className="text-muted-foreground mb-4">
+      <TelegramPageLayout>
+        <TelegramSection className="flex-1 flex items-center justify-center">
+          <EnhancedMobileCard variant="telegram" className="p-6 text-center max-w-sm">
+            <Music className="h-12 w-12 mx-auto mb-4 text-[--tg-hint]" />
+            <h2 className="text-lg font-semibold mb-2 text-[--tg-text]">Sign in required</h2>
+            <p className="text-[--tg-hint] mb-4">
               Please sign in to start generating music with AI
             </p>
-          </Card>
-        </div>
-      </MobilePageWrapper>
+          </EnhancedMobileCard>
+        </TelegramSection>
+      </TelegramPageLayout>
     );
   }
 
   // Show enhanced Telegram progress overlay
   if (isGenerating) {
     return (
-      <TelegramLayout>
+      <TelegramPageLayout fullscreen>
         <TelegramGenerationProgress
           isActive={isGenerating}
           onCancel={() => {
-            // Handle generation cancellation if needed
             toast({
               title: "Generation cancelled",
               description: "Music creation was stopped",
@@ -200,57 +198,58 @@ export default function MobileGeneration() {
             refreshTracks();
           }}
         />
-      </TelegramLayout>
+      </TelegramPageLayout>
     );
   }
 
   if (showForm) {
     return (
-      <TelegramLayout>
+      <TelegramPageLayout>
         <TelegramGenerationForm
           onGenerate={handleGenerate}
           onCancel={() => {}}
           isGenerating={isGenerating}
         />
-      </TelegramLayout>
+      </TelegramPageLayout>
     );
   }
 
   return (
-    <TelegramLayout>
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center justify-between p-4">
+    <TelegramPageLayout>
+      {/* Enhanced Telegram Header */}
+      <TelegramSection padding="md">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {!isInTelegram && (
-              <Button
+              <TelegramNativeButton
                 variant="ghost"
                 size="sm"
                 onClick={handleCancel}
-                className="h-8 w-8 p-0"
+                className="h-9 w-9 p-0 rounded-full"
+                hapticFeedback="light"
               >
                 <ArrowLeft className="h-4 w-4" />
-              </Button>
+              </TelegramNativeButton>
             )}
             <div>
-              <h1 className="text-lg font-semibold">Generated Music</h1>
-              <p className="text-sm text-muted-foreground">
+              <h1 className="text-lg font-semibold text-[--tg-text]">Generated Music</h1>
+              <p className="text-sm text-[--tg-hint]">
                 {generatedTracks.length} track{generatedTracks.length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
           
-          <Button
+          <TelegramNativeButton
             onClick={handleNewGeneration}
             size="sm"
             className="gap-2"
+            hapticFeedback="medium"
           >
             <Wand2 className="h-4 w-4" />
             New
-          </Button>
+          </TelegramNativeButton>
         </div>
-      </div>
+      </TelegramSection>
 
       {/* Track List */}
       <div className="flex-1 overflow-auto scrollbar-hide">
@@ -358,7 +357,6 @@ export default function MobileGeneration() {
           }}
         />
       )}
-      </div>
-    </TelegramLayout>
+    </TelegramPageLayout>
   );
 }
