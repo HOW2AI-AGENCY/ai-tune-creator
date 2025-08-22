@@ -157,13 +157,12 @@ export const AuthForm = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Welcome</CardTitle>
-          <CardDescription>Sign in to your account or create a new one</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <Card className="w-full max-w-md">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl font-bold">Welcome</CardTitle>
+        <CardDescription>Sign in to your account or create a new one</CardDescription>
+      </CardHeader>
+      <CardContent>
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -286,17 +285,17 @@ export const AuthForm = () => {
               <span>Apple</span>
             </Button>
 
-            {/* Telegram (если в Telegram) */}
-            {isInTelegram && (
+            {/* Telegram (только в Telegram Mini App) */}
+            {isInTelegram && authData && (
               <Button
                 type="button"
                 variant="outline"
-                className="w-full flex items-center justify-center gap-3 h-11 bg-blue-500 text-white border-blue-500 hover:bg-blue-600"
+                className="w-full flex items-center justify-center gap-3 h-11 bg-[hsl(var(--chart-1))] text-white border-[hsl(var(--chart-1))] hover:bg-[hsl(var(--chart-1))]/90"
                 onClick={handleTelegramAuth}
                 disabled={isLoading || isAuthenticating}
               >
                 <Play className="h-5 w-5" />
-                <span>{isAuthenticating ? 'Выполняется вход...' : 'Telegram'}</span>
+                <span>{isAuthenticating ? 'Connecting...' : 'Continue with Telegram'}</span>
               </Button>
             )}
           </div>
@@ -305,7 +304,6 @@ export const AuthForm = () => {
             <ConnectionDiagnostics />
           </div>
         </CardContent>
-      </Card>
-    </div>
+    </Card>
   );
 };
