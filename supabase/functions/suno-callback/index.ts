@@ -175,23 +175,44 @@ serve(async (req) => {
         if (trackIndex === 0 && generation.track_id) {
           // Вычисляем умный заголовок для первого трека, если он шаблонный
           let newTitle = track.title;
-          if (!newTitle || /^AI Generated Track/i.test(newTitle)) {
-            const lyrics = track.prompt || track.lyric || '';
-            if (lyrics) {
-              const lyricsMatch = lyrics.match(/\[(?:Куплет|Verse|Intro|Интро|Припев|Chorus)\s*\d*\]?\s*\n(.+)/i);
-              if (lyricsMatch && lyricsMatch[1]) {
-                newTitle = lyricsMatch[1].trim().slice(0, 50);
+          if (!newTitle || /^AI Generated Track/i.test(newTitle) || newTitle.includes('Generated Track')) {
+            console.log('Generating smart title from lyrics...');
+            
+            // Приоритет: lyric > prompt
+            const lyrics = track.lyric || track.prompt || '';
+            console.log('Lyrics for title extraction:', lyrics.substring(0, 200));
+            
+            if (lyrics && lyrics.trim()) {
+              // Ищем первую строку после структурных тегов
+              const structureMatch = lyrics.match(/\[(?:Куплет|Verse|Intro|Интро|Припев|Chorus|Verse\s*\d+|Куплет\s*\d+)\s*\]?\s*\n(.+)/i);
+              if (structureMatch && structureMatch[1] && structureMatch[1].trim()) {
+                newTitle = structureMatch[1].trim().slice(0, 50);
+                console.log('Title from structure match:', newTitle);
               } else {
-                const lines = lyrics.split('\n').filter(line => 
-                  line.trim() && 
-                  !line.includes('[') && 
-                  !line.toLowerCase().includes('создай') &&
-                  line.length > 10
-                );
+                // Ищем первую содержательную строку
+                const lines = lyrics.split('\n').filter(line => {
+                  const trimmed = line.trim();
+                  return trimmed && 
+                    !trimmed.includes('[') && 
+                    !trimmed.includes('{') &&
+                    !trimmed.toLowerCase().includes('создай') &&
+                    !trimmed.toLowerCase().includes('generate') &&
+                    !trimmed.toLowerCase().includes('style:') &&
+                    !trimmed.toLowerCase().includes('стиль:') &&
+                    trimmed.length > 5;
+                });
+                
                 if (lines.length > 0) {
                   newTitle = lines[0].trim().slice(0, 50);
+                  console.log('Title from first meaningful line:', newTitle);
                 }
               }
+            }
+            
+            // Если не нашли хорошее название - используем дату
+            if (!newTitle || newTitle === track.title) {
+              newTitle = `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`;
+              console.log('Fallback title used:', newTitle);
             }
           }
 
@@ -202,7 +223,7 @@ serve(async (req) => {
               title: newTitle,
               audio_url: track.audio_url,
               duration: Math.floor(parseFloat(track.duration) || 0),
-              lyrics: track.prompt || track.lyric || null,
+              lyrics: track.lyric || track.prompt || null,
               metadata: {
                 ...generation.metadata,
                 suno_track_id: track.id,
@@ -238,27 +259,46 @@ serve(async (req) => {
           }
         } else {
           // Создаем треки для всех вариантов (включая первый, если у него нет track_id)
-          // Генерируем smart title из лирики если нужно
+          // Генерируем smart title из лирики если нужно  
           let smartTitle = track.title;
-          if (track.title === 'AI Generated Track 17.08.2025' || !track.title) {
-            const lyrics = track.prompt || track.lyric;
-            if (lyrics) {
-              // Ищем первую строку после [Куплет], [Verse], [Intro] и т.д.
-              const lyricsMatch = lyrics.match(/\[(?:Куплет|Verse|Intro|Интро|Припев|Chorus)\s*\d*\]?\s*\n(.+)/i);
-              if (lyricsMatch && lyricsMatch[1]) {
-                smartTitle = lyricsMatch[1].trim().slice(0, 50);
+          if (!smartTitle || /Generated Track/i.test(smartTitle) || smartTitle.includes('AI Generated')) {
+            console.log(`Generating smart title for track variant ${trackIndex + 1}`);
+            
+            // Приоритет: lyric > prompt для извлечения лирики
+            const lyrics = track.lyric || track.prompt || '';
+            console.log('Lyrics for variant title extraction:', lyrics.substring(0, 200));
+            
+            if (lyrics && lyrics.trim()) {
+              // Ищем первую строку после структурных тегов
+              const structureMatch = lyrics.match(/\[(?:Куплет|Verse|Intro|Интро|Припев|Chorus|Verse\s*\d+|Куплет\s*\d+)\s*\]?\s*\n(.+)/i);
+              if (structureMatch && structureMatch[1] && structureMatch[1].trim()) {
+                smartTitle = structureMatch[1].trim().slice(0, 50);
+                console.log('Variant title from structure match:', smartTitle);
               } else {
-                // Используем первую содержательную строку
-                const lines = lyrics.split('\n').filter(line => 
-                  line.trim() && 
-                  !line.includes('[') && 
-                  !line.toLowerCase().includes('создай') &&
-                  line.length > 10
-                );
+                // Ищем первую содержательную строку
+                const lines = lyrics.split('\n').filter(line => {
+                  const trimmed = line.trim();
+                  return trimmed && 
+                    !trimmed.includes('[') && 
+                    !trimmed.includes('{') &&
+                    !trimmed.toLowerCase().includes('создай') &&
+                    !trimmed.toLowerCase().includes('generate') &&
+                    !trimmed.toLowerCase().includes('style:') &&
+                    !trimmed.toLowerCase().includes('стиль:') &&
+                    trimmed.length > 5;
+                });
+                
                 if (lines.length > 0) {
                   smartTitle = lines[0].trim().slice(0, 50);
+                  console.log('Variant title from first meaningful line:', smartTitle);
                 }
               }
+            }
+            
+            // Если не нашли хорошее название - используем дату
+            if (!smartTitle || smartTitle === track.title) {
+              smartTitle = `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`;
+              console.log('Fallback variant title used:', smartTitle);
             }
           }
 
@@ -304,7 +344,7 @@ serve(async (req) => {
               track_number: trackNumber,
               audio_url: track.audio_url,
               duration: Math.floor(parseFloat(track.duration) || 0),
-              lyrics: track.prompt || track.lyric || '',
+              lyrics: track.lyric || track.prompt || '',
               description: track.prompt || `Generated with ${track.model_name}`,
               genre_tags: track.tags ? track.tags.split(', ').filter(Boolean) : [],
               style_prompt: track.style || '',

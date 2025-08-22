@@ -189,21 +189,25 @@ function normalizeModelName(model: string): NormalizedSunoModel {
   function prepareSunoParams(request: GenerationRequest) {
     const isLyricsInput = request.inputType === 'lyrics';
     
-    const providedLyrics = ((request as any).custom_lyrics as string | undefined) ?? request.lyrics ?? '';
+    // Проверяем различные поля с лирикой
+    const providedLyrics = ((request as any).custom_lyrics as string | undefined) ?? 
+                          request.lyrics ?? 
+                          '';
     
     console.log('[SUNO PARAMS] Preparing with:', {
       inputType: request.inputType,
       hasLyrics: !!(providedLyrics && providedLyrics.trim().length > 0),
       hasPrompt: !!request.prompt,
-      mode: request.mode
+      mode: request.mode,
+      lyricsSource: providedLyrics ? 'custom_lyrics/lyrics' : 'none'
     });
     
     // Если пользователь ввел лирику
     if (isLyricsInput) {
+      // КРИТИЧНО: При вводе кастомной лирики - используем её как lyrics, а style как prompt
       return {
-        prompt: request.stylePrompt || request.style || 'Создай музыку к этой лирике',
-        // ВАЖНО: не подставляем prompt как лирику, только явные lyrics/custom_lyrics
-        lyrics: providedLyrics && providedLyrics.trim().length > 0 ? providedLyrics : undefined,
+        prompt: request.stylePrompt || request.style || 'Pop, upbeat, modern',
+        lyrics: providedLyrics && providedLyrics.trim().length > 0 ? providedLyrics : request.prompt,
         customMode: true
       };
     }
