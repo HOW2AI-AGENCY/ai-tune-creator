@@ -1,6 +1,5 @@
 import { ReactNode, forwardRef } from "react";
 import { cn } from "@/lib/utils";
-import { Card, CardProps } from "@/components/ui/card";
 import { useTelegramHaptics } from "@/hooks/useTelegramWebApp";
 
 interface EnhancedMobileCardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick'> {

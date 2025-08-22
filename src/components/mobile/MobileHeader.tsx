@@ -58,20 +58,20 @@ export function MobileHeader({
 
   return (
     <header className={cn(
-      "sticky top-0 z-40 w-full bg-card/95 backdrop-blur-md border-b border-border",
+      "sticky top-0 z-50 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+      "border-b border-border/20",
       "pt-safe-top",
-      "animate-fade-in",
       className
     )}>
-      {/* Top Row - Navigation & Indicators */}
-      <div className="flex items-center justify-between h-12 px-2">
+      {/* Единый компактный ряд */}
+      <div className="flex items-center justify-between h-11 px-4">
         {/* Left - Back Button */}
-        <div className="w-12 h-12 flex items-center justify-center">
+        <div className="w-10 flex items-center justify-start">
           {showBack && !isInTelegram && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 tap-highlight"
+              className="h-8 w-8 text-tg-link hover:bg-tg-button/10 tap-highlight"
               onClick={onBack}
             >
               <ArrowLeft className="h-4 w-4" />
@@ -79,79 +79,61 @@ export function MobileHeader({
           )}
         </div>
 
-        {/* Center - Status Indicators */}
-        <div className="flex items-center gap-2">
-          {/* Connection Status */}
-          <div className={cn(
-            "flex items-center justify-center w-6 h-6 rounded-full transition-colors",
-            isOnline ? "text-green-500" : "text-destructive"
-          )}>
-            {isOnline ? (
-              <Wifi className="h-3 w-3" />
-            ) : (
-              <WifiOff className="h-3 w-3" />
-            )}
-          </div>
-
-          {/* Notifications */}
-          {showNotifications && notificationCount > 0 && (
-            <Badge 
-              variant="destructive"
-              className="h-4 w-4 p-0 text-xs flex items-center justify-center"
-            >
-              {notificationCount > 9 ? '9+' : notificationCount}
-            </Badge>
-          )}
-        </div>
-
-        {/* Right - Menu/Settings */}
-        <div className="w-12 h-12 flex items-center justify-center">
-          {showMenu && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 tap-highlight"
-              onClick={onMenu}
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-          )}
-          
-          {showSearch && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 tap-highlight"
-              onClick={onSearch}
-            >
-              <Search className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom Row - Title & User Avatar */}
-      <div className="flex items-center justify-between px-4 pb-3">
-        <div className="flex-1 min-w-0">
-          <h1 className="font-semibold text-lg text-foreground truncate">
+        {/* Center - Title */}
+        <div className="flex-1 flex flex-col items-center justify-center min-w-0">
+          <h1 className="font-medium text-base text-tg-text truncate max-w-full">
             {title}
           </h1>
           {subtitle && (
-            <p className="text-sm text-muted-foreground truncate mt-0.5">
+            <p className="text-xs text-tg-hint truncate max-w-full">
               {subtitle}
             </p>
           )}
         </div>
 
-        {/* User Avatar Placeholder */}
-        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center ml-3">
-          <div className="w-6 h-6 rounded-full bg-primary/20" />
+        {/* Right - Actions & Status */}
+        <div className="w-10 flex items-center justify-end gap-1">
+          {/* Connection Status */}
+          {isOnline !== undefined && (
+            <div className={cn(
+              "flex items-center justify-center w-5 h-5",
+              isOnline ? "text-success" : "text-destructive"
+            )}>
+              {isOnline ? (
+                <Wifi className="h-3 w-3" />
+              ) : (
+                <WifiOff className="h-3 w-3" />
+              )}
+            </div>
+          )}
+
+          {/* Menu/Search Button */}
+          {(showMenu || showSearch) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-tg-link hover:bg-tg-button/10 tap-highlight"
+              onClick={showMenu ? onMenu : onSearch}
+            >
+              {showMenu ? <Menu className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+            </Button>
+          )}
+
+          {/* Notifications Badge */}
+          {showNotifications && notificationCount > 0 && (
+            <Badge 
+              variant="destructive"
+              className="h-4 w-4 p-0 text-[10px] flex items-center justify-center absolute top-1 right-1"
+            >
+              {notificationCount > 9 ? '9+' : notificationCount}
+            </Badge>
+          )}
         </div>
       </div>
 
       {/* Custom Content */}
       {children && (
-        <div className="px-4 pb-3 border-t border-border/50 mt-2">
+        <div className="px-4 pb-2 border-t border-border/20">
           {children}
         </div>
       )}
