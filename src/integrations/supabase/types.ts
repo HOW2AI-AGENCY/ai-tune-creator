@@ -208,6 +208,45 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_analytics: {
+        Row: {
+          action: string
+          created_at: string
+          error_message: string | null
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          provider: string
+          success: boolean
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          provider: string
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          provider?: string
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       logs: {
         Row: {
           action: string | null
@@ -879,6 +918,19 @@ export type Database = {
       is_url_allowed: {
         Args: { url_to_check: string }
         Returns: boolean
+      }
+      log_auth_event: {
+        Args: {
+          p_action: string
+          p_error_message?: string
+          p_ip_address?: unknown
+          p_metadata?: Json
+          p_provider: string
+          p_success?: boolean
+          p_user_agent?: string
+          p_user_id: string
+        }
+        Returns: undefined
       }
       log_critical_operation: {
         Args: {
