@@ -91,14 +91,14 @@ export const AuthForm = () => {
 
       if (error) {
         if (error.message.includes("already registered")) {
-          setError("This email is already registered. Please try signing in instead.");
+          setError("Этот email уже зарегистрирован. Попробуйте войти в систему.");
         } else {
           setError(error.message);
         }
       } else {
         toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation link to complete your registration.",
+          title: "Проверьте вашу почту",
+          description: "Мы отправили вам ссылку для подтверждения регистрации.",
         });
       }
     } catch (err) {
@@ -131,25 +131,25 @@ export const AuthForm = () => {
       if (error) {
         console.error('Sign in error:', error);
         if (error.message.includes("Invalid login credentials")) {
-          setError("Invalid email or password. Please check your credentials and try again.");
+          setError("Неверный email или пароль. Проверьте данные и попробуйте снова.");
         } else if (error.message.includes("Failed to fetch")) {
-          setError("Connection error. Please check your internet connection and try again.");
+          setError("Ошибка подключения. Проверьте интернет-соединение и попробуйте снова.");
         } else {
           setError(error.message);
         }
       } else {
         console.log('Sign in successful');
         toast({
-          title: "Welcome back!",
-          description: "You have been successfully signed in.",
+          title: "Добро пожаловать!",
+          description: "Вы успешно вошли в систему.",
         });
       }
     } catch (err) {
       console.error('Sign in exception:', err);
       if (err instanceof Error && err.message.includes("Failed to fetch")) {
-        setError("Unable to connect to the server. Please check your internet connection.");
+        setError("Не удается подключиться к серверу. Проверьте интернет-соединение.");
       } else {
-        setError("An unexpected error occurred. Please try again.");
+        setError("Произошла неожиданная ошибка. Попробуйте снова.");
       }
     } finally {
       setIsLoading(false);
@@ -157,38 +157,43 @@ export const AuthForm = () => {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold">Welcome</CardTitle>
-        <CardDescription>Sign in to your account or create a new one</CardDescription>
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader className="text-center space-y-2">
+        <div className="mx-auto w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mb-4">
+          <Music className="h-6 w-6 text-white" />
+        </div>
+        <CardTitle className="text-2xl font-bold">Добро пожаловать</CardTitle>
+        <CardDescription>Войдите в свой аккаунт или создайте новый</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="signin">Войти</TabsTrigger>
+              <TabsTrigger value="signup">Регистрация</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="signin">
+            <TabsContent value="signin" className="space-y-4 mt-6">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
+                  <Label htmlFor="signin-email">Электронная почта</Label>
                   <Input
                     id="signin-email"
                     name="email"
                     type="email"
                     required
-                    placeholder="Enter your email"
+                    placeholder="Введите ваш email"
+                    className="h-11"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
+                  <Label htmlFor="signin-password">Пароль</Label>
                   <Input
                     id="signin-password"
                     name="password"
                     type="password"
                     required
-                    placeholder="Enter your password"
+                    placeholder="Введите ваш пароль"
+                    className="h-11"
                   />
                 </div>
                 {error && (
@@ -196,32 +201,34 @@ export const AuthForm = () => {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign In"}
+                <Button type="submit" className="w-full h-11" disabled={isLoading}>
+                  {isLoading ? "Вход..." : "Войти"}
                 </Button>
               </form>
             </TabsContent>
             
-            <TabsContent value="signup">
+            <TabsContent value="signup" className="space-y-4 mt-6">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
+                  <Label htmlFor="signup-email">Электронная почта</Label>
                   <Input
                     id="signup-email"
                     name="email"
                     type="email"
                     required
-                    placeholder="Enter your email"
+                    placeholder="Введите ваш email"
+                    className="h-11"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
+                  <Label htmlFor="signup-password">Пароль</Label>
                   <Input
                     id="signup-password"
                     name="password"
                     type="password"
                     required
-                    placeholder="Create a password"
+                    placeholder="Создайте пароль (минимум 6 символов)"
+                    className="h-11"
                     minLength={6}
                   />
                 </div>
@@ -230,8 +237,8 @@ export const AuthForm = () => {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating account..." : "Create Account"}
+                <Button type="submit" className="w-full h-11" disabled={isLoading}>
+                  {isLoading ? "Создание аккаунта..." : "Создать аккаунт"}
                 </Button>
               </form>
             </TabsContent>
@@ -295,7 +302,7 @@ export const AuthForm = () => {
                 disabled={isLoading || isAuthenticating}
               >
                 <Play className="h-5 w-5" />
-                <span>{isAuthenticating ? 'Connecting...' : 'Continue with Telegram'}</span>
+                <span>{isAuthenticating ? 'Подключение...' : 'Продолжить с Telegram'}</span>
               </Button>
             )}
           </div>
