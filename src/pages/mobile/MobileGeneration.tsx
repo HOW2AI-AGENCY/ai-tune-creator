@@ -259,45 +259,42 @@ export default function MobileGeneration() {
             {generatedTracks.map((track) => (
               <div
                 key={track.id}
-                className="flex items-center gap-3 p-3 mb-2 bg-[--tg-theme-secondary-bg-color] rounded-lg tap-highlight active:opacity-80 transition-opacity"
+                className="flex items-center gap-2 p-3 mb-2 bg-[--tg-theme-secondary-bg-color] rounded-lg tap-highlight active:opacity-80 transition-opacity"
                 onClick={() => handleTrackSelect(track)}
               >
                 {/* Track Icon */}
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                  <Music className="h-6 w-6 text-white" />
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                  <Music className="h-5 w-5 text-white" />
                 </div>
                 
                 {/* Track Info */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-[--tg-text] truncate text-sm mb-1">
+                <div className="flex-1 min-w-0 pr-2">
+                  <h3 className="font-medium text-[--tg-text] truncate text-sm leading-tight mb-0.5">
                     {track.title}
                   </h3>
-                  <div className="flex items-center gap-1 text-xs text-[--tg-hint]">
-                    <span>DIGGY</span>
+                  <div className="flex items-center gap-1 text-xs text-[--tg-hint] truncate">
+                    <span className="truncate">DIGGY</span>
                     <span>•</span>
-                    <span>Inbox</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-[--tg-hint] mt-1">
-                    <span>energetic</span>
-                    <Clock className="h-3 w-3" />
-                    <span>
+                    <span className="truncate">Inbox</span>
+                    <span>•</span>
+                    <span className="flex-shrink-0">
                       {Math.floor((track.duration || 0) / 60)}:{((track.duration || 0) % 60).toString().padStart(2, '0')}
                     </span>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-0.5 flex-shrink-0">
                   <button 
-                    className="w-8 h-8 rounded-full text-[--tg-hint] hover:text-red-500 flex items-center justify-center transition-colors"
+                    className="w-7 h-7 rounded-full text-[--tg-hint] hover:text-red-500 flex items-center justify-center transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                     }}
                   >
-                    <Heart className="w-4 h-4" />
+                    <Heart className="w-3.5 h-3.5" />
                   </button>
                   <button 
-                    className="w-8 h-8 rounded-full bg-[--tg-button-color] text-[--tg-button-text-color] flex items-center justify-center"
+                    className="w-7 h-7 rounded-full bg-[--tg-button-color] text-[--tg-button-text-color] flex items-center justify-center"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleTrackSelect(track);
@@ -306,21 +303,12 @@ export default function MobileGeneration() {
                     <div className="w-0 h-0 border-l-[3px] border-l-current border-y-[2px] border-y-transparent ml-0.5" />
                   </button>
                   <button 
-                    className="w-8 h-8 rounded-full text-[--tg-hint] flex items-center justify-center"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload(track);
-                    }}
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                  <button 
-                    className="w-8 h-8 rounded-full text-[--tg-hint] flex items-center justify-center"
+                    className="w-7 h-7 rounded-full text-[--tg-hint] flex items-center justify-center"
                     onClick={(e) => {
                       e.stopPropagation();
                     }}
                   >
-                    <MoreHorizontal className="w-4 h-4" />
+                    <MoreHorizontal className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
