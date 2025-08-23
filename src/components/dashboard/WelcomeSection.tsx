@@ -12,12 +12,7 @@ interface UserProfile {
   display_name?: string;
   bio?: string;
   avatar_url?: string;
-  metadata?: {
-    telegram_id?: string;
-    telegram_username?: string;
-    telegram_first_name?: string;
-    telegram_last_name?: string;
-  };
+  metadata?: Record<string, any>;
 }
 
 export const WelcomeSection = () => {

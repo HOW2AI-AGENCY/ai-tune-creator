@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { User, Bell, Palette, Shield, Database, Save, Bot, Sparkles } from "lucide-react";
+import { User, Bell, Palette, Shield, Database, Save, Bot, Sparkles, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,62 +12,46 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import { AIPromptSettings } from "@/features/ai-generation/components/AIPromptSettings";
 
 export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation();
+  const { settings, isLoading, isSaving, updateSetting, saveSettings, linkAccount, isConnectedViaTelegram } = useUserSettings();
   
-  // Mock user settings - will be replaced with real data from Supabase
-  const [settings, setSettings] = useState({
-    profile: {
-      displayName: user?.user_metadata?.display_name || "",
-      bio: "",
-      avatarUrl: user?.user_metadata?.avatar_url || ""
-    },
-    notifications: {
-      emailNotifications: true,
-      pushNotifications: false,
-      aiGenerationComplete: true,
-      projectUpdates: true,
-      weeklyDigest: false
-    },
-    preferences: {
-      defaultAiService: "suno",
-      autoSaveProjects: true,
-      darkMode: true
-    },
-    ai: {
-      provider: "openai",
-      model: "gpt-4o-mini",
-      maxTokens: 1000,
-      temperature: 0.8,
-      customPrompts: {
-        artistGeneration: "Создай детальный профиль артиста, который будет полезен для дальнейшего создания лирики и маркетинговых материалов.",
-        lyricsGeneration: "Создай текст песни в стиле и тематике данного артиста.",
-        marketingMaterials: "Создай маркетинговые материалы для продвижения артиста и его музыки."
-      }
+  const [newEmail, setNewEmail] = useState("");
+
+  const handleSave = async (section: string) => {
+    const sectionKey = section.toLowerCase() as keyof typeof settings;
+    await saveSettings(sectionKey);
+  };
+
+  const handleLinkEmail = async () => {
+    if (!newEmail.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Введите email адрес",
+        variant: "destructive"
+      });
+      return;
     }
-  });
 
-  const handleSave = (section: string) => {
-    // TODO: Implement save to Supabase
-    toast({
-      title: "Настройки сохранены",
-      description: `Ваши настройки ${section} были обновлены.`,
-    });
+    const success = await linkAccount('email', { email: newEmail.trim() });
+    if (success) {
+      setNewEmail("");
+    }
   };
 
-  const updateSetting = (section: keyof typeof settings, key: string, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [key]: value
-      }
-    }));
-  };
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="h-8 bg-muted animate-pulse rounded" />
+        <div className="h-32 bg-muted animate-pulse rounded" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">

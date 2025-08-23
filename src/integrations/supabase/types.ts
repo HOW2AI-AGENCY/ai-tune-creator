@@ -901,6 +901,10 @@ export type Database = {
         Args: { p_project_id: string; p_title: string }
         Returns: string
       }
+      delete_track_completely: {
+        Args: { p_hard_delete?: boolean; p_track_id: string; p_user_id: string }
+        Returns: Json
+      }
       ensure_single_project: {
         Args: { p_description?: string; p_title: string; p_user_id: string }
         Returns: string
