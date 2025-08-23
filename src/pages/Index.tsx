@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { WelcomeSection } from "@/components/dashboard/WelcomeSection";
+import { UserStatsPanel } from "@/components/dashboard/UserStatsPanel";
+import { PublicTracksFeed } from "@/components/dashboard/PublicTracksFeed";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 
 const Index = () => {
@@ -33,14 +35,17 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
         <WelcomeSection />
+        
+        {/* Статистика пользователя */}
+        <UserStatsPanel />
         
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Button 
             onClick={() => navigate('/ai-generation')} 
-            className="h-24 flex-col gap-2"
+            className="h-20 flex-col gap-2"
           >
             <div className="text-lg">🎵</div>
             <div>Генерация ИИ</div>
@@ -48,7 +53,7 @@ const Index = () => {
           <Button 
             onClick={() => navigate('/tracks')} 
             variant="outline"
-            className="h-24 flex-col gap-2"
+            className="h-20 flex-col gap-2"
           >
             <div className="text-lg">🎼</div>
             <div>Мои треки</div>
@@ -56,11 +61,16 @@ const Index = () => {
           <Button 
             onClick={() => navigate('/projects')} 
             variant="outline"
-            className="h-24 flex-col gap-2"
+            className="h-20 flex-col gap-2"
           >
             <div className="text-lg">📁</div>
             <div>Проекты</div>
           </Button>
+        </div>
+
+        {/* Лента треков сообщества */}
+        <div className="mb-6">
+          <PublicTracksFeed limit={15} />
         </div>
 
         {/* Account Actions */}

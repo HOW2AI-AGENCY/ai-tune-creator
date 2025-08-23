@@ -36,10 +36,51 @@ export const WelcomeSection = () => {
         if (error && error.code !== 'PGRST116') {
           console.error('Error loading profile:', error);
         } else if (data) {
+          console.log('Profile data:', data);
+          console.log('Telegram user data:', telegramUser);
+          console.log('Auth data:', authData);
           setProfile({
             ...data,
             metadata: data.metadata as Record<string, any> || {}
           });
+        } else {
+          console.log('No profile found, creating default profile');
+          // Если профиль не найден, создаем базовый профиль с данными из Telegram
+          if (isInTelegram && telegramUser) {
+            try {
+              const newProfile = {
+                user_id: user.id,
+                display_name: `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
+                avatar_url: telegramUser.photo_url || null,
+                bio: 'Пользователь Telegram',
+                metadata: {
+                  telegram_connected: true,
+                  telegram_data: {
+                    id: telegramUser.id,
+                    first_name: telegramUser.first_name,
+                    last_name: telegramUser.last_name,
+                    username: telegramUser.username
+                  }
+                }
+              };
+
+              const { data: createdProfile, error: createError } = await supabase
+                .from('profiles')
+                .insert(newProfile)
+                .select()
+                .single();
+
+              if (!createError && createdProfile) {
+                console.log('Created new profile:', createdProfile);
+                setProfile({
+                  ...createdProfile,
+                  metadata: createdProfile.metadata as Record<string, any> || {}
+                });
+              }
+            } catch (createError) {
+              console.error('Error creating profile:', createError);
+            }
+          }
         }
       } catch (error) {
         console.error('Profile load error:', error);
@@ -49,7 +90,7 @@ export const WelcomeSection = () => {
     };
 
     loadUserProfile();
-  }, [user]);
+  }, [user, isInTelegram, telegramUser, authData]);
 
   if (!user || isLoading) {
     return (
