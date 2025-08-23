@@ -215,37 +215,25 @@ export default function MobileGeneration() {
   }
 
   return (
-    <TelegramPageLayout>
+    <div className="flex flex-col h-full bg-[--tg-theme-bg-color]">
       {/* Compact Header */}
-      <div className="bg-[--tg-theme-bg-color] border-b border-[--tg-separator-color] px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-[--tg-text] leading-tight">AI Studio</h1>
-            <p className="text-sm text-[--tg-hint] leading-tight">
-              {generatedTracks.length} треков
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="w-8 h-8 rounded-full bg-[--tg-button-color] text-[--tg-button-text-color] flex items-center justify-center">
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[--tg-separator-color] bg-[--tg-theme-bg-color]">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-medium text-[--tg-text]">AI Studio</h1>
+          <span className="text-xs text-[--tg-hint] bg-[--tg-theme-secondary-bg-color] px-2 py-1 rounded-full">
+            {generatedTracks.length} треков
+          </span>
         </div>
-      </div>
-
-      {/* Search Bar */}
-      <div className="px-4 py-3 bg-[--tg-theme-bg-color] border-b border-[--tg-separator-color]">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Поиск треков..."
-            className="w-full bg-[--tg-theme-secondary-bg-color] text-[--tg-text] placeholder-[--tg-hint] rounded-lg px-3 py-2 text-sm border-none outline-none"
-          />
-        </div>
+        <button 
+          onClick={handleNewGeneration}
+          className="w-8 h-8 rounded-full bg-[--tg-button-color] text-[--tg-button-text-color] flex items-center justify-center"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Track List */}
-      <div className="flex-1 overflow-auto bg-[--tg-theme-bg-color]">
+      <div className="flex-1 overflow-auto">
         {tracksLoading ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="text-center">
@@ -332,15 +320,6 @@ export default function MobileGeneration() {
         )}
       </div>
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-20 right-4 z-50">
-        <button
-          onClick={handleNewGeneration}
-          className="w-14 h-14 bg-[--tg-button-color] text-[--tg-button-text-color] rounded-full shadow-lg flex items-center justify-center tap-highlight"
-        >
-          <Plus className="w-6 h-6" />
-        </button>
-      </div>
 
       {/* Mobile Player */}
       {currentTrack && (
@@ -371,6 +350,6 @@ export default function MobileGeneration() {
           }}
         />
       )}
-    </TelegramPageLayout>
+    </div>
   );
 }
