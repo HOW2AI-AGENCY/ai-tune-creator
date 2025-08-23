@@ -151,16 +151,10 @@ export function GenerationAnalytics() {
     );
   }
 
-  /**
-   * ОПТИМИЗАЦИЯ: Мемоизация вычисления процента успешности
-   * Пересчитывается только при изменении аналитических данных
-   */
-  const successRate = useMemo(() => 
-    analytics?.totalGenerations > 0 
-      ? Math.round((analytics.successfulGenerations / analytics.totalGenerations) * 100) 
-      : 0, 
-    [analytics?.totalGenerations, analytics?.successfulGenerations]
-  );
+  // Вычисляем процент успешности без useMemo, чтобы избежать ошибок с хуками при условном рендере
+  const successRate = analytics && analytics.totalGenerations > 0
+    ? Math.round((analytics.successfulGenerations / analytics.totalGenerations) * 100)
+    : 0;
 
   return (
     <div className="space-y-6">
