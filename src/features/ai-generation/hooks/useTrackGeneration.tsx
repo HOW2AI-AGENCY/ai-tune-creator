@@ -362,7 +362,8 @@ export function useTrackGeneration({
    */
   const generateCacheKey = useCallback((functionName: string, params: any): string => {
     const sortedParams = JSON.stringify(params, Object.keys(params).sort());
-    return `${functionName}:${btoa(sortedParams).slice(0, 32)}`;
+    // Используем encodeURIComponent для корректной обработки русских символов
+    return `${functionName}:${encodeURIComponent(sortedParams).slice(0, 32)}`;
   }, []);
 
   /**
