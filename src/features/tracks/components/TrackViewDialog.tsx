@@ -70,16 +70,28 @@ export function TrackViewDialog({ open, onOpenChange, track }: TrackViewDialogPr
   const loadAiHistory = async (trackId: string) => {
     try {
       setLoadingAiHistory(true);
+      console.log('Loading AI history for track:', trackId);
+      
       const { data, error } = await supabase
         .from('ai_generations')
         .select('*')
         .eq('track_id', trackId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('AI history query error:', error);
+        throw error;
+      }
+      
+      console.log('AI history loaded:', data);
       setAiGenerations(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading AI history:', error);
+      toast({
+        title: "Ошибка загрузки",
+        description: "Не удалось загрузить историю ИИ генераций",
+        variant: "destructive"
+      });
     } finally {
       setLoadingAiHistory(false);
     }
