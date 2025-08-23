@@ -7,6 +7,7 @@ import { TelegramMobilePlayer } from "@/components/mobile/TelegramMobilePlayer";
 import { TelegramPageLayout, TelegramSection } from "@/components/mobile/TelegramPageLayout";
 import { TelegramNativeButton } from "@/components/mobile/TelegramNativeButton";
 import { EnhancedMobileCard } from "@/components/mobile/EnhancedMobileCard";
+import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { useTelegramWebApp, useTelegramHaptics } from "@/hooks/useTelegramWebApp";
 import { useTelegramTheme } from "@/hooks/useTelegramTheme";
 import { useTelegramShare } from "@/hooks/useTelegramShare";
@@ -216,21 +217,20 @@ export default function MobileGeneration() {
 
   return (
     <div className="flex flex-col h-full bg-[--tg-theme-bg-color]">
-      {/* Compact Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[--tg-separator-color] bg-[--tg-theme-bg-color]">
-        <div className="flex items-center gap-3">
-          <h1 className="text-base font-medium text-[--tg-text]">AI Studio</h1>
-          <span className="text-xs text-[--tg-hint] bg-[--tg-theme-secondary-bg-color] px-2 py-1 rounded-full">
-            {generatedTracks.length} треков
-          </span>
+      <MobileHeader
+        title="AI Studio"
+        subtitle={`${generatedTracks.length} треков`}
+        className="h-auto py-2"
+      >
+        <div className="flex justify-end pt-2">
+          <button 
+            onClick={handleNewGeneration}
+            className="w-8 h-8 rounded-full bg-[--tg-button-color] text-[--tg-button-text-color] flex items-center justify-center"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
-        <button 
-          onClick={handleNewGeneration}
-          className="w-8 h-8 rounded-full bg-[--tg-button-color] text-[--tg-button-text-color] flex items-center justify-center"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
+      </MobileHeader>
 
       {/* Track List */}
       <div className="flex-1 overflow-auto">
