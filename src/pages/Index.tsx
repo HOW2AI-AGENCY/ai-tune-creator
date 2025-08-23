@@ -2,16 +2,20 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { WelcomeSection } from "@/components/dashboard/WelcomeSection";
+import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
+  const { isInTelegram, isAuthenticated } = useTelegramAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
+    // Если не в Telegram и нет пользователя после загрузки
+    if (!loading && !user && !isInTelegram) {
       navigate("/auth");
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, isInTelegram]);
 
   if (loading) {
     return (
@@ -28,11 +32,43 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold mb-4">Welcome to AI Music Platform</h1>
-        <p className="text-xl text-muted-foreground">Hello, {user.email}!</p>
-        <Button onClick={signOut} variant="outline">Sign Out</Button>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <WelcomeSection />
+        
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Button 
+            onClick={() => navigate('/ai-generation')} 
+            className="h-24 flex-col gap-2"
+          >
+            <div className="text-lg">🎵</div>
+            <div>Генерация ИИ</div>
+          </Button>
+          <Button 
+            onClick={() => navigate('/tracks')} 
+            variant="outline"
+            className="h-24 flex-col gap-2"
+          >
+            <div className="text-lg">🎼</div>
+            <div>Мои треки</div>
+          </Button>
+          <Button 
+            onClick={() => navigate('/projects')} 
+            variant="outline"
+            className="h-24 flex-col gap-2"
+          >
+            <div className="text-lg">📁</div>
+            <div>Проекты</div>
+          </Button>
+        </div>
+
+        {/* Account Actions */}
+        <div className="flex justify-center">
+          <Button onClick={signOut} variant="ghost" size="sm">
+            Выйти из аккаунта
+          </Button>
+        </div>
       </div>
     </div>
   );

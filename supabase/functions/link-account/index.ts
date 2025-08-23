@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +15,11 @@ interface LinkAccountRequest {
     telegram_last_name?: string;
   };
 }
+
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
 export default async function handler(req: Request) {
   console.log('Link account function called with method:', req.method);
