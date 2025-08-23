@@ -49,11 +49,13 @@ function checkRateLimit(identifier: string): { allowed: boolean; remaining: numb
 // Correct Telegram initData validation using HMAC-SHA256
 async function validateTelegramAuth(initData: string, botToken: string): Promise<{ valid: boolean; error?: string }> {
   try {
+    console.log('Validating initData:', initData ? `${initData.length} chars` : 'empty');
     const urlParams = new URLSearchParams(initData);
     const hash = urlParams.get('hash');
     const authDate = urlParams.get('auth_date');
     
     if (!hash || !authDate) {
+      console.log('Missing hash or auth_date in initData');
       return { valid: false, error: 'Missing hash or auth_date' };
     }
 
@@ -61,7 +63,7 @@ async function validateTelegramAuth(initData: string, botToken: string): Promise
     const authTime = parseInt(authDate) * 1000;
     const now = Date.now();
     if (now - authTime > 300000) {
-      console.log('Telegram auth: initData too old');
+      console.log('Telegram auth: initData too old, age:', (now - authTime) / 1000, 'seconds');
       return { valid: false, error: 'Authentication data expired' };
     }
 

@@ -105,7 +105,7 @@ export const useTelegramAuth = () => {
 
       if (!data?.email || !data?.password) {
         console.error('Telegram Auth: Invalid response format', data);
-        setAuthError('Authentication failed: Invalid server response');
+        setAuthError('Неверный ответ сервера. Попробуйте еще раз.');
         return false;
       }
 
@@ -117,7 +117,7 @@ export const useTelegramAuth = () => {
       
       if (signInError) {
         console.error('Telegram Auth: Error signing in:', signInError);
-        setAuthError(`Sign in failed: ${signInError.message}`);
+        setAuthError('Ошибка входа в систему. Попробуйте еще раз.');
         return false;
       }
 
@@ -125,14 +125,14 @@ export const useTelegramAuth = () => {
       
       toast({
         title: "Добро пожаловать!",
-        description: data.message || (data.isNewUser ? "Аккаунт создан через Telegram" : "Вход выполнен через Telegram"),
+        description: data.isNewUser ? "Аккаунт успешно создан" : "Вход выполнен успешно",
       });
 
       return true;
 
     } catch (error) {
       console.error('Telegram Auth: Exception during authentication:', error);
-      setAuthError('Authentication failed. Please try again.');
+      setAuthError('Произошла ошибка. Попробуйте еще раз.');
       return false;
     } finally {
       setIsAuthenticating(false);
