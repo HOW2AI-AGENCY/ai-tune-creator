@@ -119,10 +119,17 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
       updateStep(generationId, 'queue', { status: 'running' });
       
       /**
-       * Maps canonical input to Suno format with proper inputType handling
+       * ИСПРАВЛЕНО: Maps canonical input to Suno format with proper inputType handling
        */
       const mapToSunoRequest = (input: CanonicalGenerationInput) => {
         const isLyricsMode = input.inputType === 'lyrics';
+        
+        console.log('[UNIFIED] Mapping to Suno:', {
+          inputType: input.inputType,
+          hasLyrics: !!input.lyrics,
+          isLyricsMode,
+          description: input.description.substring(0, 50) + '...'
+        });
         
         return {
           // ИСПРАВЛЕНО: Правильная обработка prompt и lyrics
@@ -130,14 +137,16 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
             (input.tags.join(', ') || 'Создай музыку к этой лирике') : 
             input.description,
           lyrics: isLyricsMode ? input.lyrics : undefined,
+          custom_lyrics: isLyricsMode ? input.lyrics : undefined, // дублируем для совместимости
           inputType: input.inputType,
           
           style: input.tags.join(', '),
+          stylePrompt: isLyricsMode ? input.tags.join(', ') : '', // стиль отдельно для lyrics режима
           title: `AI Generated Track ${new Date().toLocaleDateString('ru-RU')}`,
           tags: input.tags.join(', '),
           make_instrumental: input.flags.instrumental,
           wait_audio: false,
-          model: input.flags.model !== "auto" ? input.flags.model : 'V3_5', // ИСПРАВЛЕНО: передаем модель напрямую
+          model: input.flags.model && input.flags.model !== "auto" ? input.flags.model : 'V3_5',
           mode: input.mode,
           voice_style: input.flags.voiceStyle || '',
           language: input.flags.language,

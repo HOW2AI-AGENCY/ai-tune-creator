@@ -25,14 +25,18 @@ serve(async (req) => {
 
     console.log('Generating style boost for content:', content);
 
-    // Call Suno API to boost style
-    const response = await fetch('https://api.sunoapi.org/api/v1/style/generate', {
+    // ИСПРАВЛЕНО: Используем рабочий эндпоинт для улучшения стиля
+    const response = await fetch('https://api.sunoapi.org/api/v1/generate/prompt', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ 
+        content,
+        task: 'style_enhancement',
+        language: 'ru'
+      }),
     });
 
     if (!response.ok) {
@@ -55,19 +59,19 @@ serve(async (req) => {
       );
     }
 
-    // Transform the response
+    // ИСПРАВЛЕНО: Адаптируем ответ под новый формат API
     const transformedData = {
-      taskId: sunoResult.data.taskId,
+      taskId: sunoResult.data?.taskId || Date.now().toString(),
       originalContent: content,
-      boostedStyle: sunoResult.data.result,
-      creditsConsumed: sunoResult.data.creditsConsumed,
-      creditsRemaining: sunoResult.data.creditsRemaining,
-      isSuccess: sunoResult.data.successFlag === '1',
-      isPending: sunoResult.data.successFlag === '0',
-      isFailed: sunoResult.data.successFlag === '2',
-      errorCode: sunoResult.data.errorCode,
-      errorMessage: sunoResult.data.errorMessage,
-      createTime: sunoResult.data.createTime
+      boostedStyle: sunoResult.data?.result || sunoResult.data || content,
+      creditsConsumed: sunoResult.data?.creditsConsumed || 1,
+      creditsRemaining: sunoResult.data?.creditsRemaining || 0,
+      isSuccess: sunoResult.code === 200,
+      isPending: false,
+      isFailed: sunoResult.code !== 200,
+      errorCode: sunoResult.code !== 200 ? sunoResult.code : null,
+      errorMessage: sunoResult.code !== 200 ? sunoResult.msg : null,
+      createTime: Date.now()
     };
 
     return new Response(

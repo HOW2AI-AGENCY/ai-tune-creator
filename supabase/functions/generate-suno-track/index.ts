@@ -182,7 +182,7 @@ function normalizeModelName(model: string): NormalizedSunoModel {
 
   /**
    * Определяет параметры для Suno API на основе входных данных
-   * @description Правильно распределяет лирику и описание стиля
+   * @description ИСПРАВЛЕНО: Правильно распределяет лирику и описание стиля
    * @param request - Данные запроса
    * @returns Параметры для Suno API
    */
@@ -196,28 +196,35 @@ function normalizeModelName(model: string): NormalizedSunoModel {
     
     console.log('[SUNO PARAMS] Preparing with:', {
       inputType: request.inputType,
-      hasLyrics: !!(providedLyrics && providedLyrics.trim().length > 0),
+      hasCustomLyrics: !!(providedLyrics && providedLyrics.trim().length > 0),
       hasPrompt: !!request.prompt,
       mode: request.mode,
       lyricsSource: providedLyrics ? 'custom_lyrics/lyrics' : 'none'
     });
     
-    // Если пользователь ввел лирику
-    if (isLyricsInput) {
-      // КРИТИЧНО: При вводе кастомной лирики - используем её как lyrics, а style как prompt
+    // ИСПРАВЛЕНО: Четкое разделение логики
+    if (isLyricsInput && providedLyrics && providedLyrics.trim().length > 0) {
+      // Пользователь ввел ГОТОВУЮ лирику - используем её как lyrics, а stylePrompt как prompt
       return {
-        prompt: request.stylePrompt || request.style || 'Pop, upbeat, modern',
-        lyrics: providedLyrics && providedLyrics.trim().length > 0 ? providedLyrics : request.prompt,
+        prompt: request.stylePrompt || request.style || 'Pop, upbeat, modern song with vocals',
+        lyrics: providedLyrics.trim(),
         customMode: true
       };
+    } else if (isLyricsInput && request.prompt) {
+      // Пользователь выбрал "lyrics" но ввёл в prompt поле - это лирика
+      return {
+        prompt: request.stylePrompt || request.style || 'Pop, upbeat, modern song with vocals',
+        lyrics: request.prompt,
+        customMode: true
+      };
+    } else {
+      // Режим description - prompt это описание стиля/содержания
+      return {
+        prompt: request.prompt,
+        lyrics: undefined,
+        customMode: request.mode === 'custom'
+      };
     }
-    
-    // Если пользователь ввел описание
-    return {
-      prompt: request.prompt,
-      lyrics: undefined,
-      customMode: request.mode === 'custom'
-    };
   }
 
 /**

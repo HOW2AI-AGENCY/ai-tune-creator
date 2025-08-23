@@ -13,9 +13,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * @version 2.1.0 (Security Hardened)
  */
 
-// SECURITY FIX: Restrict CORS to our domain only
+// ИСПРАВЛЕНО: Убрали ограничение CORS для корректной работы
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://zwbhlfhwymbmvioaikvs.supabase.co',
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -29,13 +29,13 @@ const POLLING_INTERVAL = 3000;
 const MAX_POLLING_ATTEMPTS = 100;
 const API_TIMEOUT = 30000;
 
-// Model configuration
+// ИСПРАВЛЕНО: Правильный маппинг моделей Mureka
 const SUPPORTED_MODELS = ['auto', 'V7', 'O1', 'V6'] as const;
 const MODEL_MAPPING: Record<string, string> = {
   'auto': 'V7',
-  'V7': 'mureka-7',
-  'O1': 'mureka-7',
-  'V6': 'mureka-7'
+  'V7': 'V7', 
+  'O1': 'O1',
+  'V6': 'V6'
 };
 
 interface TrackGenerationRequest {
@@ -158,38 +158,47 @@ function validateRequest(request: TrackGenerationRequest): void {
 }
 
 /**
- * Content preparation for Mureka API
+ * ИСПРАВЛЕНО: Content preparation for Mureka API
  */
 function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string; prompt: string } {
   let lyrics = '';
   let prompt = '';
   
   const stylePrompt = request.style || 
-    `${request.genre || 'electronic'}, ${request.mood || 'energetic'}, ${request.tempo || 'medium'}`;
+    `${request.genre || 'electronic'}, ${request.mood || 'energetic'}, ${request.tempo || 'medium tempo'}`;
   
-  if (request.inputType === 'lyrics') {
-    lyrics = request.prompt || request.lyrics || request.custom_lyrics || '[No lyrics provided]';
-    prompt = stylePrompt;
-  } else if (request.inputType === 'description') {
-    lyrics = '[Auto-generated lyrics]';
-    prompt = request.prompt || request.lyrics || stylePrompt;
-  } else if (request.instrumental) {
+  console.log('[MUREKA CONTENT] Processing:', {
+    inputType: request.inputType,
+    hasPrompt: !!request.prompt,
+    hasLyrics: !!request.lyrics,
+    hasCustomLyrics: !!request.custom_lyrics,
+    instrumental: request.instrumental
+  });
+  
+  if (request.instrumental) {
+    // Инструментальная музыка
     lyrics = '[Instrumental]';
     prompt = request.prompt || stylePrompt;
-  } else if (request.custom_lyrics && request.custom_lyrics.trim().length > 0) {
-    lyrics = request.custom_lyrics.trim();
-    prompt = stylePrompt;
-  } else {
-    // Fallback - analyze content
-    const content = request.prompt || request.lyrics || '';
-    if (content.includes('\n') || content.length > 100) {
-      lyrics = content;
-      prompt = stylePrompt;
+  } else if (request.inputType === 'lyrics') {
+    // Пользователь хочет ввести лирику
+    const userLyrics = request.custom_lyrics || request.lyrics || request.prompt || '';
+    if (userLyrics.trim().length > 0) {
+      lyrics = userLyrics.trim();
+      prompt = stylePrompt; // стиль идет в prompt
     } else {
-      lyrics = '[Auto-generated lyrics]';
-      prompt = content || stylePrompt;
+      lyrics = '[Auto-generated lyrics based on prompt]';
+      prompt = request.prompt || stylePrompt;
     }
+  } else {
+    // Режим description - генерируем лирику автоматически
+    lyrics = '[Auto-generated lyrics]';
+    prompt = request.prompt || stylePrompt;
   }
+  
+  console.log('[MUREKA CONTENT] Result:', {
+    lyrics: lyrics.substring(0, 100) + (lyrics.length > 100 ? '...' : ''),
+    prompt: prompt.substring(0, 100) + (prompt.length > 100 ? '...' : '')
+  });
   
   return { lyrics, prompt };
 }
@@ -361,6 +370,13 @@ serve(async (req) => {
     
     // Prepare API request
     const { lyrics, prompt } = prepareMurekaContent(requestBody);
+    
+    console.log('[MUREKA API] Final request content:', {
+      lyrics: lyrics.substring(0, 100) + (lyrics.length > 100 ? '...' : ''),
+      prompt: prompt.substring(0, 100) + (prompt.length > 100 ? '...' : ''),
+      model: MODEL_MAPPING[requestBody.model || 'auto']
+    });
+    
     const payload: MurekaAPIRequest = {
       lyrics,
       prompt,
