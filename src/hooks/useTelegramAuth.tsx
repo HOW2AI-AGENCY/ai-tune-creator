@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +19,8 @@ export const useTelegramAuth = () => {
   const { toast } = useToast();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-
+  const [autoAuthDisabled, setAutoAuthDisabled] = useState(false);
+  const attemptRef = useRef(0);
   // Get Telegram auth data from initData
   const getTelegramAuthData = useCallback((): TelegramAuthData | null => {
     if (!webApp?.initData || !telegramUser) return null;
@@ -34,17 +35,25 @@ export const useTelegramAuth = () => {
     };
   }, [webApp, telegramUser]);
 
+  useEffect(() => {
+    if (sessionStorage.getItem('tg_auto_auth_disabled') === '1') {
+      setAutoAuthDisabled(true);
+    }
+  }, []);
+
   // Check if user should be automatically authenticated
   const shouldAutoAuth = useCallback(() => {
     return (
-      isInTelegram && 
-      !authLoading && 
-      !user && 
-      !session && 
+      isInTelegram &&
+      !authLoading &&
+      !user &&
+      !session &&
       getTelegramAuthData() !== null &&
-      !isAuthenticating
+      !isAuthenticating &&
+      !autoAuthDisabled &&
+      attemptRef.current < 1
     );
-  }, [isInTelegram, authLoading, user, session, getTelegramAuthData, isAuthenticating]);
+  }, [isInTelegram, authLoading, user, session, getTelegramAuthData, isAuthenticating, autoAuthDisabled]);
 
   // Telegram authentication function
   const authenticateWithTelegram = useCallback(async (): Promise<boolean> => {
@@ -67,16 +76,21 @@ export const useTelegramAuth = () => {
 
       if (error) {
         console.error('Telegram Auth: Error from edge function:', error);
-        
+
         // Handle specific error types
-        if (error.message?.includes('Too many')) {
-          setAuthError('Too many login attempts. Please wait a moment and try again.');
-        } else if (error.message?.includes('expired')) {
-          setAuthError('Session expired. Please restart the app and try again.');
-        } else if (error.message?.includes('Invalid signature')) {
-          setAuthError('Authentication failed. Please restart the app.');
+        const msg = error.message || '';
+        if (msg.includes('Too many')) {
+          setAuthError('Слишком много попыток входа. Подождите и попробуйте снова.');
+        } else if (msg.includes('expired')) {
+          setAuthError('Сессия Telegram устарела. Перезапустите мини‑приложение.');
+          setAutoAuthDisabled(true);
+          sessionStorage.setItem('tg_auto_auth_disabled', '1');
+        } else if (msg.includes('Invalid signature')) {
+          setAuthError('Не удалось подтвердить данные Telegram. Перезапустите мини‑приложение.');
+          setAutoAuthDisabled(true);
+          sessionStorage.setItem('tg_auto_auth_disabled', '1');
         } else {
-          setAuthError(`Authentication failed: ${error.message}`);
+          setAuthError(`Ошибка аутентификации: ${msg}`);
         }
         return false;
       }
@@ -123,18 +137,26 @@ export const useTelegramAuth = () => {
     let mounted = true;
 
     if (shouldAutoAuth()) {
-      // Small delay to ensure all components are initialized
       timeoutId = setTimeout(async () => {
         if (!mounted) return;
-        
-        console.log('Telegram Auth: Auto-authenticating user...');
+
+        // Ensure we only auto-attempt once per session
+        attemptRef.current += 1;
+        console.log('Telegram Auth: Auto-authenticating user (attempt', attemptRef.current, ')...');
         try {
-          await authenticateWithTelegram();
+          const ok = await authenticateWithTelegram();
+          if (!ok) {
+            // Disable further auto attempts this session to prevent loops/blinking
+            setAutoAuthDisabled(true);
+            sessionStorage.setItem('tg_auto_auth_disabled', '1');
+          }
         } catch (error) {
           console.error('Auto-auth failed:', error);
-          // Don't show toast for auto-auth failures to avoid spam
+          setAutoAuthDisabled(true);
+          sessionStorage.setItem('tg_auto_auth_disabled', '1');
+          // No toast to avoid spam
         }
-      }, 200); // Slightly longer delay for better stability
+      }, 500); // Slightly longer delay for better stability
     }
 
     return () => {
