@@ -84,7 +84,7 @@ export const useUserSettings = () => {
           .maybeSingle();
 
         if (profileData) {
-          const profilePrefs = (profileData.preferences as any) || {};
+          const savedPrefs = (profileData.preferences as any) || {};
           setSettings(prev => ({
             ...prev,
             profile: {
@@ -92,9 +92,9 @@ export const useUserSettings = () => {
               bio: profileData.bio || '',
               avatar_url: profileData.avatar_url || ''
             },
-            notifications: profilePrefs.notifications || prev.notifications,
-            preferences: profilePrefs.preferences || prev.preferences,
-            ai_settings: profilePrefs.ai_settings || prev.ai_settings
+            notifications: savedPrefs.notifications || prev.notifications,
+            preferences: savedPrefs.preferences || prev.preferences,
+            ai_settings: savedPrefs.ai_settings || prev.ai_settings
           }));
         }
 
