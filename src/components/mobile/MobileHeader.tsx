@@ -64,7 +64,7 @@ export function MobileHeader({
       className
     )}>
       {/* Единый компактный ряд */}
-      <div className="flex items-center justify-between h-11 px-4">
+      <div className="flex items-center justify-between h-8 px-3">
         {/* Left - Back Button */}
         <div className="w-10 flex items-center justify-start">
           {showBack && !isInTelegram && (
