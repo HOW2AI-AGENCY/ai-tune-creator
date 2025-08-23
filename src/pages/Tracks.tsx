@@ -42,11 +42,14 @@ interface Track {
   style_prompt?: string | null;
   project_id: string;
   projects?: {
+    id?: string;
     title: string;
     artist_id: string;
     is_inbox?: boolean;
     artists?: {
+      id?: string;
       name: string;
+      avatar_url?: string;
     };
   };
 }
@@ -81,11 +84,14 @@ export default function Tracks() {
         .select(`
           *,
           projects (
+            id,
             title,
             artist_id,
             is_inbox,
             artists (
-              name
+              id,
+              name,
+              avatar_url
             )
           )
         `);
@@ -171,7 +177,7 @@ export default function Tracks() {
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
-  const handleEditTrack = (track: Track) => {
+  const handleEdit = (track: Track) => {
     setSelectedTrack(track);
     setEditDialogOpen(true);
   };
@@ -268,31 +274,35 @@ export default function Tracks() {
   }
 
   return (
-    <div className="w-full p-2 md:p-6 space-y-3 md:space-y-6 pt-safe-top">
+    <div className="w-full p-3 md:p-6 space-y-4 md:space-y-6 max-w-full overflow-hidden">
       {/* Заголовок */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Треки</h1>
-          <p className="text-muted-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl md:text-3xl font-bold truncate">Треки</h1>
+          <p className="text-sm md:text-base text-muted-foreground hidden sm:block">
             Управление музыкальными треками и генерация с помощью ИИ
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 min-w-0">
           <Button 
             onClick={syncInboxTracks}
             variant="outline"
-            className="gap-2"
+            size="sm"
+            className="gap-2 text-xs sm:text-sm whitespace-nowrap"
           >
-            <RefreshCw className="h-4 w-4" />
-            Синхронизация
+            <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Синхронизация</span>
+            <span className="sm:hidden">Синх</span>
           </Button>
           <Button 
             onClick={() => handleGenerateAI()}
             variant="outline"
-            className="gap-2"
+            size="sm"
+            className="gap-2 text-xs sm:text-sm whitespace-nowrap"
           >
-            <Sparkles className="h-4 w-4" />
-            Генерация ИИ
+            <Sparkles className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Генерация ИИ</span>
+            <span className="sm:hidden">ИИ</span>
           </Button>
         </div>
       </div>
@@ -306,7 +316,7 @@ export default function Tracks() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Поиск</label>
               <div className="relative">
@@ -404,32 +414,34 @@ export default function Tracks() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6">
           {tracks.map((track) => (
-            <Card key={track.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg mb-1">{track.title}</CardTitle>
+            <Card key={track.id} className="hover:shadow-lg transition-shadow flex flex-col">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-base md:text-lg mb-1 line-clamp-2 leading-tight">
+                      {track.title}
+                    </CardTitle>
                     <div className="space-y-1">
                       {track.projects?.artists?.name && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs md:text-sm text-muted-foreground truncate">
                           {track.projects.artists.name}
                         </p>
                       )}
                       {track.projects?.title && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs md:text-sm text-muted-foreground truncate">
                           {track.projects.title}
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm text-muted-foreground">
-                      Трек #{track.track_number}
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-xs text-muted-foreground whitespace-nowrap">
+                      #{track.track_number}
                     </div>
                     {track.current_version > 1 && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-xs mt-1">
                         v{track.current_version}
                       </Badge>
                     )}
@@ -437,10 +449,10 @@ export default function Tracks() {
                 </div>
               </CardHeader>
               
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 flex-1">
                 {/* Описание */}
                 {track.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">
+                  <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">
                     {track.description}
                   </p>
                 )}
@@ -448,41 +460,47 @@ export default function Tracks() {
                 {/* Жанры */}
                 {track.genre_tags && track.genre_tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {track.genre_tags.map((genre, index) => (
+                    {track.genre_tags.slice(0, 3).map((genre, index) => (
                       <Badge key={index} variant="outline" className="text-xs">
                         {genre}
                       </Badge>
                     ))}
+                    {track.genre_tags.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{track.genre_tags.length - 3}
+                      </Badge>
+                    )}
                   </div>
                 )}
 
                 {/* Информация о треке */}
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 md:gap-4">
                     <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
+                      <Clock className="h-3 w-3" />
                       {formatDuration(track.duration)}
                     </div>
                     {track.lyrics && (
                       <div className="flex items-center gap-1">
-                        <FileText className="h-4 w-4" />
-                        Лирика
+                        <FileText className="h-3 w-3" />
+                        <span className="hidden sm:inline">Лирика</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Действия */}
-                <div className="flex gap-2">
+                <div className="flex gap-1 md:gap-2 mt-auto">
                   {track.audio_url && (
                     <Button
                       size="sm"
                       variant="default"
                       onClick={() => handlePlayTrack(track)}
-                      className="flex-1"
+                      className="flex-1 h-8 text-xs"
                     >
-                      <Play className="h-4 w-4 mr-2" />
-                      Играть
+                      <Play className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">Играть</span>
+                      <span className="sm:hidden">▶</span>
                     </Button>
                   )}
                   
@@ -490,33 +508,27 @@ export default function Tracks() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleViewTrack(track)}
-                    className={track.audio_url ? "" : "flex-1"}
+                    className={`h-8 px-2 ${track.audio_url ? "" : "flex-1"}`}
                   >
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-3 w-3" />
                   </Button>
                   
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleEditTrack(track)}
+                    onClick={() => handleEdit(track)}
+                    className="h-8 px-2"
                   >
-                    <Edit className="h-4 w-4" />
+                    <Edit className="h-3 w-3" />
                   </Button>
                   
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant="outline"
                     onClick={() => handleViewVersions(track)}
+                    className="h-8 px-2"
                   >
-                    <History className="h-4 w-4" />
-                  </Button>
-                  
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleGenerateAI(track)}
-                  >
-                    <Sparkles className="h-4 w-4" />
+                    <History className="h-3 w-3" />
                   </Button>
                 </div>
               </CardContent>
