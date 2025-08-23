@@ -35,8 +35,11 @@ export const WelcomeSection = () => {
 
         if (error && error.code !== 'PGRST116') {
           console.error('Error loading profile:', error);
-        } else {
-          setProfile(data);
+        } else if (data) {
+          setProfile({
+            ...data,
+            metadata: data.metadata as Record<string, any> || {}
+          });
         }
       } catch (error) {
         console.error('Profile load error:', error);

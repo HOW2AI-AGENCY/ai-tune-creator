@@ -76,37 +76,25 @@ export const useUserSettings = () => {
       if (!user) return;
 
       try {
-        // Load profile
-        const { data: profile } = await supabase
+        // Load profile data with preferences
+        const { data: profileData } = await supabase
           .from('profiles')
-          .select('display_name, bio, avatar_url, metadata')
+          .select('display_name, bio, avatar_url, preferences')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // Load user preferences (you may need to create this table)
-        const { data: preferences } = await supabase
-          .from('user_preferences')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (profile) {
+        if (profileData) {
+          const profilePrefs = (profileData.preferences as any) || {};
           setSettings(prev => ({
             ...prev,
             profile: {
-              display_name: profile.display_name || '',
-              bio: profile.bio || '',
-              avatar_url: profile.avatar_url || ''
-            }
-          }));
-        }
-
-        if (preferences) {
-          setSettings(prev => ({
-            ...prev,
-            notifications: preferences.notifications || prev.notifications,
-            preferences: preferences.preferences || prev.preferences,
-            ai_settings: preferences.ai_settings || prev.ai_settings
+              display_name: profileData.display_name || '',
+              bio: profileData.bio || '',
+              avatar_url: profileData.avatar_url || ''
+            },
+            notifications: profilePrefs.notifications || prev.notifications,
+            preferences: profilePrefs.preferences || prev.preferences,
+            ai_settings: profilePrefs.ai_settings || prev.ai_settings
           }));
         }
 
@@ -148,15 +136,17 @@ export const useUserSettings = () => {
         if (profileError) throw profileError;
       }
 
-      // Save other preferences
+      // Save preferences in profiles table
       if (!section || ['notifications', 'preferences', 'ai_settings'].includes(section)) {
         const { error: preferencesError } = await supabase
-          .from('user_preferences')
+          .from('profiles')
           .upsert({
             user_id: user.id,
-            notifications: settings.notifications,
-            preferences: settings.preferences,
-            ai_settings: settings.ai_settings,
+            preferences: {
+              notifications: settings.notifications,
+              preferences: settings.preferences,
+              ai_settings: settings.ai_settings
+            },
             updated_at: new Date().toISOString()
           }, {
             onConflict: 'user_id'

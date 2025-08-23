@@ -85,7 +85,90 @@ export default function Settings() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Link2 className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle>Привязка аккаунтов</CardTitle>
+                <CardDescription>
+                  Управляйте связанными аккаунтами
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <span className="text-green-600 dark:text-green-400 text-sm">✓</span>
+                </div>
+                <div>
+                  <p className="font-medium">Email</p>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+              <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded">
+                Привязан
+              </span>
+            </div>
+
+            {isConnectedViaTelegram ? (
+              <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <span className="text-blue-600 dark:text-blue-400 text-sm">T</span>
+                  </div>
+                  <div>
+                    <p className="font-medium">Telegram</p>
+                    <p className="text-sm text-muted-foreground">Аккаунт привязан</p>
+                  </div>
+                </div>
+                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
+                  Привязан
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-3 border border-dashed border-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                    <span className="text-muted-foreground text-sm">T</span>
+                  </div>
+                  <div>
+                    <p className="font-medium">Telegram</p>
+                    <p className="text-sm text-muted-foreground">Доступно только в Telegram</p>
+                  </div>
+                </div>
+                <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
+                  Не доступно
+                </span>
+              </div>
+            )}
+
+            <div className="border-t pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="newEmail">Привязать дополнительный email</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="newEmail"
+                    type="email"
+                    placeholder="email@example.com"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                  />
+                  <Button 
+                    onClick={handleLinkEmail} 
+                    disabled={!newEmail.trim() || isSaving}
+                  >
+                    Привязать
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Информация профиля</CardTitle>
@@ -112,8 +195,8 @@ export default function Settings() {
                   <Label htmlFor="displayName">Отображаемое имя</Label>
                   <Input
                     id="displayName"
-                    value={settings.profile.displayName}
-                    onChange={(e) => updateSetting('profile', 'displayName', e.target.value)}
+                    value={settings.profile.display_name || ""}
+                    onChange={(e) => updateSetting('profile', 'display_name', e.target.value)}
                     placeholder="Ваше отображаемое имя"
                   />
                 </div>
@@ -123,7 +206,7 @@ export default function Settings() {
                 <Label htmlFor="bio">Биография</Label>
                 <Textarea
                   id="bio"
-                  value={settings.profile.bio}
+                  value={settings.profile.bio || ""}
                   onChange={(e) => updateSetting('profile', 'bio', e.target.value)}
                   placeholder="Расскажите о себе и вашей музыке..."
                   className="min-h-[100px] resize-none"
@@ -134,8 +217,8 @@ export default function Settings() {
                 <Label htmlFor="avatarUrl">URL аватара</Label>
                 <Input
                   id="avatarUrl"
-                  value={settings.profile.avatarUrl}
-                  onChange={(e) => updateSetting('profile', 'avatarUrl', e.target.value)}
+                  value={settings.profile.avatar_url || ""}
+                  onChange={(e) => updateSetting('profile', 'avatar_url', e.target.value)}
                   placeholder="https://example.com/avatar.jpg"
                 />
               </div>
@@ -167,8 +250,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="emailNotifications"
-                    checked={settings.notifications.emailNotifications}
-                    onCheckedChange={(checked) => updateSetting('notifications', 'emailNotifications', checked)}
+                    checked={settings.notifications.email_notifications}
+                    onCheckedChange={(checked) => updateSetting('notifications', 'email_notifications', checked)}
                   />
                 </div>
 
@@ -183,8 +266,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="pushNotifications"
-                    checked={settings.notifications.pushNotifications}
-                    onCheckedChange={(checked) => updateSetting('notifications', 'pushNotifications', checked)}
+                    checked={settings.notifications.push_notifications}
+                    onCheckedChange={(checked) => updateSetting('notifications', 'push_notifications', checked)}
                   />
                 </div>
 
@@ -199,8 +282,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="aiGenerationComplete"
-                    checked={settings.notifications.aiGenerationComplete}
-                    onCheckedChange={(checked) => updateSetting('notifications', 'aiGenerationComplete', checked)}
+                    checked={settings.notifications.ai_generation_complete}
+                    onCheckedChange={(checked) => updateSetting('notifications', 'ai_generation_complete', checked)}
                   />
                 </div>
 
@@ -213,8 +296,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="projectUpdates"
-                    checked={settings.notifications.projectUpdates}
-                    onCheckedChange={(checked) => updateSetting('notifications', 'projectUpdates', checked)}
+                    checked={settings.notifications.project_updates}
+                    onCheckedChange={(checked) => updateSetting('notifications', 'project_updates', checked)}
                   />
                 </div>
 
@@ -227,8 +310,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="weeklyDigest"
-                    checked={settings.notifications.weeklyDigest}
-                    onCheckedChange={(checked) => updateSetting('notifications', 'weeklyDigest', checked)}
+                    checked={settings.notifications.weekly_digest}
+                    onCheckedChange={(checked) => updateSetting('notifications', 'weekly_digest', checked)}
                   />
                 </div>
               </div>
@@ -260,8 +343,8 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="autoSaveProjects"
-                    checked={settings.preferences.autoSaveProjects}
-                    onCheckedChange={(checked) => updateSetting('preferences', 'autoSaveProjects', checked)}
+                    checked={settings.preferences.auto_save_projects}
+                    onCheckedChange={(checked) => updateSetting('preferences', 'auto_save_projects', checked)}
                   />
                 </div>
 
@@ -269,16 +352,24 @@ export default function Settings() {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="darkMode">Темная тема</Label>
+                    <Label htmlFor="theme">Тема</Label>
                     <p className="text-sm text-muted-foreground">
-                      Использовать темную тему в приложении
+                      Выберите тему приложения
                     </p>
                   </div>
-                  <Switch
-                    id="darkMode"
-                    checked={settings.preferences.darkMode}
-                    onCheckedChange={(checked) => updateSetting('preferences', 'darkMode', checked)}
-                  />
+                  <Select 
+                    value={settings.preferences.theme} 
+                    onValueChange={(value) => updateSetting('preferences', 'theme', value)}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Светлая</SelectItem>
+                      <SelectItem value="dark">Темная</SelectItem>
+                      <SelectItem value="system">Системная</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

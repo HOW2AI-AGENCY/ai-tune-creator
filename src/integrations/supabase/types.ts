@@ -796,6 +796,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_preferences: {
+        Row: {
+          ai_settings: Json | null
+          created_at: string | null
+          id: string
+          notifications: Json | null
+          preferences: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_settings?: Json | null
+          created_at?: string | null
+          id?: string
+          notifications?: Json | null
+          preferences?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_settings?: Json | null
+          created_at?: string | null
+          id?: string
+          notifications?: Json | null
+          preferences?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_at: string

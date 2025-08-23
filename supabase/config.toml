@@ -60,6 +60,9 @@ enable_confirmations = false
 enabled = true
 port = 54327
 
+[functions.delete-track]
+verify_jwt = true
+
 [functions.sync-track-storage]
 verify_jwt = true
 
