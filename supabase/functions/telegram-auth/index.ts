@@ -150,14 +150,38 @@ serve(async (req) => {
       throw new Error('Service configuration error')
     }
 
+    // Log incoming auth data for debugging
+    console.log(`Processing Telegram auth for user ${authData.telegramId}`, {
+      firstName: authData.firstName,
+      initDataLength: authData.initData.length,
+      hasInitData: !!authData.initData
+    });
+
     // Валидируем данные от Telegram
     const validation = await validateTelegramAuth(authData.initData, botToken);
     if (!validation.valid) {
       console.log(`Invalid Telegram auth for ${authData.telegramId}: ${validation.error}`);
+      
+      // Return more specific error messages
+      let errorMessage = 'Ошибка аутентификации Telegram';
+      let errorCode = 'INVALID_TELEGRAM_DATA';
+      
+      if (validation.error?.includes('expired')) {
+        errorMessage = 'Данные Telegram устарели. Перезапустите мини-приложение.';
+        errorCode = 'TELEGRAM_DATA_EXPIRED';
+      } else if (validation.error?.includes('Invalid signature')) {
+        errorMessage = 'Неверная подпись Telegram. Проверьте настройки бота.';
+        errorCode = 'INVALID_TELEGRAM_SIGNATURE';
+      } else if (validation.error?.includes('Missing')) {
+        errorMessage = 'Отсутствуют обязательные данные Telegram.';
+        errorCode = 'MISSING_TELEGRAM_DATA';
+      }
+      
       return new Response(
         JSON.stringify({ 
-          error: `Authentication failed: ${validation.error}`,
-          code: 'INVALID_TELEGRAM_DATA'
+          error: errorMessage,
+          code: errorCode,
+          details: validation.error
         }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -199,6 +223,7 @@ serve(async (req) => {
           email: telegramEmail,
           password: randomPassword,
           isNewUser: false,
+          message: 'Успешный вход через Telegram',
           user: {
             id: existingUser.user.id,
             telegramId: authData.telegramId,
@@ -237,6 +262,7 @@ serve(async (req) => {
           email: telegramEmail,
           password: randomPassword,
           isNewUser: true,
+          message: 'Аккаунт создан через Telegram',
           user: {
             id: newUser.user?.id,
             telegramId: authData.telegramId,

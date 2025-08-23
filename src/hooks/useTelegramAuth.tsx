@@ -60,7 +60,8 @@ export const useTelegramAuth = () => {
     const authData = getTelegramAuthData();
     
     if (!authData) {
-      setAuthError('Telegram authentication data not available');
+      console.log('Telegram Auth: No auth data available');
+      setAuthError('Данные Telegram недоступны');
       return false;
     }
 
@@ -69,10 +70,17 @@ export const useTelegramAuth = () => {
 
     try {
       console.log('Telegram Auth: Starting authentication process...');
+      console.log('Telegram Auth: Auth data:', {
+        telegramId: authData.telegramId,
+        firstName: authData.firstName,
+        initDataLength: authData.initData.length
+      });
       
       const { data, error } = await supabase.functions.invoke('telegram-auth', {
         body: { authData }
       });
+
+      console.log('Telegram Auth: Edge function response:', { data, error });
 
       if (error) {
         console.error('Telegram Auth: Error from edge function:', error);
@@ -81,11 +89,11 @@ export const useTelegramAuth = () => {
         const msg = error.message || '';
         if (msg.includes('Too many')) {
           setAuthError('Слишком много попыток входа. Подождите и попробуйте снова.');
-        } else if (msg.includes('expired')) {
+        } else if (msg.includes('expired') || msg.includes('устарели')) {
           setAuthError('Сессия Telegram устарела. Перезапустите мини‑приложение.');
           setAutoAuthDisabled(true);
           sessionStorage.setItem('tg_auto_auth_disabled', '1');
-        } else if (msg.includes('Invalid signature')) {
+        } else if (msg.includes('Invalid signature') || msg.includes('подпись')) {
           setAuthError('Не удалось подтвердить данные Telegram. Перезапустите мини‑приложение.');
           setAutoAuthDisabled(true);
           sessionStorage.setItem('tg_auto_auth_disabled', '1');
@@ -116,8 +124,8 @@ export const useTelegramAuth = () => {
       console.log('Telegram Auth: Successfully authenticated user');
       
       toast({
-        title: "Welcome from Telegram!",
-        description: data.isNewUser ? "Account created successfully" : "Successfully signed in",
+        title: "Добро пожаловать!",
+        description: data.message || (data.isNewUser ? "Аккаунт создан через Telegram" : "Вход выполнен через Telegram"),
       });
 
       return true;
@@ -172,6 +180,12 @@ export const useTelegramAuth = () => {
     isAuthenticating,
     authError,
     authenticateWithTelegram,
-    clearError: () => setAuthError(null)
+    clearError: () => setAuthError(null),
+    autoAuthDisabled,
+    resetAutoAuth: () => {
+      setAutoAuthDisabled(false);
+      sessionStorage.removeItem('tg_auto_auth_disabled');
+      attemptRef.current = 0;
+    }
   };
 };
