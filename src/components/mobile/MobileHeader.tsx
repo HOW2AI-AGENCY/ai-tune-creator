@@ -60,7 +60,6 @@ export function MobileHeader({
     <header className={cn(
       "sticky top-0 z-50 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
       "border-b border-border/20",
-      "pt-safe-top",
       className
     )}>
       {/* Единый компактный ряд */}
