@@ -216,116 +216,130 @@ export default function MobileGeneration() {
 
   return (
     <TelegramPageLayout>
-      {/* Enhanced Telegram Header */}
-      <TelegramSection padding="md">
+      {/* Compact Header */}
+      <div className="bg-[--tg-theme-bg-color] border-b border-[--tg-separator-color] px-4 py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {!isInTelegram && (
-              <TelegramNativeButton
-                variant="ghost"
-                size="sm"
-                onClick={handleCancel}
-                className="h-9 w-9 p-0 rounded-full"
-                hapticFeedback="light"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </TelegramNativeButton>
-            )}
-            <div>
-              <h1 className="text-lg font-semibold text-[--tg-text]">Generated Music</h1>
-              <p className="text-sm text-[--tg-hint]">
-                {generatedTracks.length} track{generatedTracks.length !== 1 ? 's' : ''}
-              </p>
-            </div>
+          <div>
+            <h1 className="text-lg font-semibold text-[--tg-text] leading-tight">AI Studio</h1>
+            <p className="text-sm text-[--tg-hint] leading-tight">
+              {generatedTracks.length} треков
+            </p>
           </div>
-          
-          <TelegramNativeButton
-            onClick={handleNewGeneration}
-            size="sm"
-            className="gap-2"
-            hapticFeedback="medium"
-          >
-            <Wand2 className="h-4 w-4" />
-            New
-          </TelegramNativeButton>
+          <div className="flex items-center gap-2">
+            <button className="w-8 h-8 rounded-full bg-[--tg-button-color] text-[--tg-button-text-color] flex items-center justify-center">
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-      </TelegramSection>
+      </div>
+
+      {/* Search Bar */}
+      <div className="px-4 py-3 bg-[--tg-theme-bg-color] border-b border-[--tg-separator-color]">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Поиск треков..."
+            className="w-full bg-[--tg-theme-secondary-bg-color] text-[--tg-text] placeholder-[--tg-hint] rounded-lg px-3 py-2 text-sm border-none outline-none"
+          />
+        </div>
+      </div>
 
       {/* Track List */}
-      <div className="flex-1 overflow-auto scrollbar-hide">
+      <div className="flex-1 overflow-auto bg-[--tg-theme-bg-color]">
         {tracksLoading ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="text-center">
-              <div className="relative mb-4">
-                <div className="w-12 h-12 mx-auto rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                  <Music className="h-6 w-6 text-primary animate-pulse" />
-                </div>
+              <div className="w-12 h-12 mx-auto rounded-lg bg-[--tg-button-color]/20 flex items-center justify-center mb-4">
+                <Music className="h-6 w-6 text-[--tg-button-color] animate-pulse" />
               </div>
-              <h3 className="font-medium mb-2">Загружаем ваши треки...</h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <h3 className="font-medium mb-2 text-[--tg-text]">Загружаем ваши треки...</h3>
+              <p className="text-sm text-[--tg-hint] mb-4">
                 Подождите, идет загрузка музыкальной библиотеки
               </p>
-              <div className="w-16 h-1 bg-secondary rounded-full mx-auto overflow-hidden">
-                <div className="w-full h-full bg-primary rounded-full animate-pulse" />
-              </div>
             </div>
           </div>
         ) : generatedTracks.length > 0 ? (
-          <div className="divide-y divide-border/50">
+          <div className="divide-y divide-[--tg-separator-color]">
             {generatedTracks.map((track) => (
               <div
                 key={track.id}
-                className={cn(
-                  "flex items-center gap-3 py-3 px-4 tap-highlight",
-                  "active:bg-muted/50 transition-colors",
-                  currentTrack?.id === track.id && "bg-primary/5 border-l-2 border-l-primary"
-                )}
+                className="flex items-center gap-3 p-4 tap-highlight active:bg-[--tg-theme-secondary-bg-color]/50 transition-colors"
                 onClick={() => handleTrackSelect(track)}
               >
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0">
-                  <Music className="h-5 w-5 text-primary" />
+                {/* Track Icon */}
+                <div className="w-12 h-12 rounded-lg bg-[--tg-button-color] flex items-center justify-center flex-shrink-0">
+                  <Music className="h-6 w-6 text-[--tg-button-text-color]" />
                 </div>
                 
+                {/* Track Info */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate">{track.title}</h3>
-                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                     <span className="truncate">
-                       AI Composer
-                     </span>
-                     <span>•</span>
-                     <span>
-                       {Math.floor((track.duration || 0) / 60)}:{((track.duration || 0) % 60).toString().padStart(2, '0')}
-                     </span>
-                   </div>
+                  <h3 className="font-medium text-[--tg-text] truncate text-sm leading-tight">
+                    {track.title}
+                  </h3>
+                  <div className="flex items-center gap-1 text-xs text-[--tg-hint] mt-1">
+                    <span>AI Generated</span>
+                    <span>•</span>
+                    <span>Inbox</span>
+                    <span>•</span>
+                    <span>
+                      {Math.floor((track.duration || 0) / 60)}:{((track.duration || 0) % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
                 </div>
 
-                {currentTrack?.id === track.id && (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                    <span className="text-xs font-medium text-primary">Playing</span>
-                  </div>
-                )}
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button 
+                    className="w-8 h-8 rounded-full bg-[--tg-button-color] text-[--tg-button-text-color] flex items-center justify-center"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTrackSelect(track);
+                    }}
+                  >
+                    <div className="w-0 h-0 border-l-[3px] border-l-current border-y-[2px] border-y-transparent ml-0.5" />
+                  </button>
+                  <button 
+                    className="w-8 h-8 rounded-full text-[--tg-hint] flex items-center justify-center"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(track);
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="text-center">
-              <div className="relative mb-4">
-                <div className="w-12 h-12 mx-auto rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                  <Music className="h-6 w-6 text-primary animate-pulse" />
-                </div>
+              <div className="w-12 h-12 mx-auto rounded-lg bg-[--tg-button-color]/20 flex items-center justify-center mb-4">
+                <Music className="h-6 w-6 text-[--tg-button-color]" />
               </div>
-              <h3 className="font-medium mb-2">Загружаем ваши треки...</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Подождите, идет загрузка музыкальной библиотеки
+              <h3 className="font-medium mb-2 text-[--tg-text]">Нет треков</h3>
+              <p className="text-sm text-[--tg-hint] mb-4">
+                Создайте свой первый трек с помощью ИИ
               </p>
-              <div className="w-16 h-1 bg-secondary rounded-full mx-auto overflow-hidden">
-                <div className="w-full h-full bg-primary rounded-full animate-pulse" />
-              </div>
+              <button 
+                onClick={handleNewGeneration}
+                className="bg-[--tg-button-color] text-[--tg-button-text-color] px-6 py-2 rounded-lg text-sm font-medium"
+              >
+                Создать трек
+              </button>
             </div>
           </div>
         )}
+      </div>
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-20 right-4 z-50">
+        <button
+          onClick={handleNewGeneration}
+          className="w-14 h-14 bg-[--tg-button-color] text-[--tg-button-text-color] rounded-full shadow-lg flex items-center justify-center tap-highlight"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
       </div>
 
       {/* Mobile Player */}
