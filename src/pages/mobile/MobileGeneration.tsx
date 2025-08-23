@@ -13,7 +13,7 @@ import { useTelegramTheme } from "@/hooks/useTelegramTheme";
 import { useTelegramShare } from "@/hooks/useTelegramShare";
 import { TelegramGenerationProgress } from "@/components/mobile/TelegramGenerationProgress";
 import { useUnifiedGeneration } from "@/features/ai-generation/hooks/useUnifiedGeneration";
-import { Wand2, Music, ArrowLeft, Plus, Share2, Download } from "lucide-react";
+import { Wand2, Music, ArrowLeft, Plus, Share2, Download, Heart, MoreHorizontal, Search, Filter, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface GenerationFormData {
@@ -216,21 +216,29 @@ export default function MobileGeneration() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[--tg-theme-bg-color]">
+    <div className="flex flex-col h-full bg-[--tg-theme-bg-color] relative">
       <MobileHeader
-        title="AI Studio"
-        subtitle={`${generatedTracks.length} треков`}
-        className="h-auto py-2"
-      >
-        <div className="flex justify-end pt-2">
-          <button 
-            onClick={handleNewGeneration}
-            className="w-8 h-8 rounded-full bg-[--tg-button-color] text-[--tg-button-text-color] flex items-center justify-center"
-          >
-            <Plus className="w-4 h-4" />
+        title="Generate Music"
+        subtitle="Create amazing music with AI"
+        className="border-b border-[--tg-separator-color]"
+      />
+
+      {/* Search Bar */}
+      <div className="p-3 bg-[--tg-theme-bg-color] border-b border-[--tg-separator-color]">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[--tg-hint]" />
+            <input
+              type="text"
+              placeholder="Поиск треков..."
+              className="w-full pl-10 pr-4 py-2 bg-[--tg-theme-secondary-bg-color] text-[--tg-text] placeholder-[--tg-hint] rounded-lg border-0 focus:outline-none text-sm"
+            />
+          </div>
+          <button className="w-9 h-9 bg-[--tg-button-color] text-[--tg-button-text-color] rounded-lg flex items-center justify-center">
+            <Filter className="h-4 w-4" />
           </button>
         </div>
-      </MobileHeader>
+      </div>
 
       {/* Track List */}
       <div className="flex-1 overflow-auto">
@@ -247,28 +255,31 @@ export default function MobileGeneration() {
             </div>
           </div>
         ) : generatedTracks.length > 0 ? (
-          <div className="divide-y divide-[--tg-separator-color]">
+          <div className="p-2">
             {generatedTracks.map((track) => (
               <div
                 key={track.id}
-                className="flex items-center gap-3 p-4 tap-highlight active:bg-[--tg-theme-secondary-bg-color]/50 transition-colors"
+                className="flex items-center gap-3 p-3 mb-2 bg-[--tg-theme-secondary-bg-color] rounded-lg tap-highlight active:opacity-80 transition-opacity"
                 onClick={() => handleTrackSelect(track)}
               >
                 {/* Track Icon */}
-                <div className="w-12 h-12 rounded-lg bg-[--tg-button-color] flex items-center justify-center flex-shrink-0">
-                  <Music className="h-6 w-6 text-[--tg-button-text-color]" />
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                  <Music className="h-6 w-6 text-white" />
                 </div>
                 
                 {/* Track Info */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-[--tg-text] truncate text-sm leading-tight">
+                  <h3 className="font-medium text-[--tg-text] truncate text-sm mb-1">
                     {track.title}
                   </h3>
-                  <div className="flex items-center gap-1 text-xs text-[--tg-hint] mt-1">
-                    <span>AI Generated</span>
+                  <div className="flex items-center gap-1 text-xs text-[--tg-hint]">
+                    <span>DIGGY</span>
                     <span>•</span>
                     <span>Inbox</span>
-                    <span>•</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-[--tg-hint] mt-1">
+                    <span>energetic</span>
+                    <Clock className="h-3 w-3" />
                     <span>
                       {Math.floor((track.duration || 0) / 60)}:{((track.duration || 0) % 60).toString().padStart(2, '0')}
                     </span>
@@ -276,7 +287,15 @@ export default function MobileGeneration() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button 
+                    className="w-8 h-8 rounded-full text-[--tg-hint] hover:text-red-500 flex items-center justify-center transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <Heart className="w-4 h-4" />
+                  </button>
                   <button 
                     className="w-8 h-8 rounded-full bg-[--tg-button-color] text-[--tg-button-text-color] flex items-center justify-center"
                     onClick={(e) => {
@@ -294,6 +313,14 @@ export default function MobileGeneration() {
                     }}
                   >
                     <Download className="w-4 h-4" />
+                  </button>
+                  <button 
+                    className="w-8 h-8 rounded-full text-[--tg-hint] flex items-center justify-center"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -320,6 +347,13 @@ export default function MobileGeneration() {
         )}
       </div>
 
+      {/* Floating Action Button */}
+      <button
+        onClick={handleNewGeneration}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-50 tap-highlight active:scale-95 transition-transform"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
 
       {/* Mobile Player */}
       {currentTrack && (
