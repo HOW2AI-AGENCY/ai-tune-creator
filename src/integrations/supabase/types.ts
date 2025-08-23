@@ -713,6 +713,9 @@ export type Database = {
           lyrics: string | null
           metadata: Json | null
           project_id: string
+          storage_metadata: Json | null
+          storage_path: string | null
+          storage_status: string | null
           style_prompt: string | null
           title: string
           track_number: number
@@ -730,6 +733,9 @@ export type Database = {
           lyrics?: string | null
           metadata?: Json | null
           project_id: string
+          storage_metadata?: Json | null
+          storage_path?: string | null
+          storage_status?: string | null
           style_prompt?: string | null
           title: string
           track_number: number
@@ -747,6 +753,9 @@ export type Database = {
           lyrics?: string | null
           metadata?: Json | null
           project_id?: string
+          storage_metadata?: Json | null
+          storage_path?: string | null
+          storage_status?: string | null
           style_prompt?: string | null
           title?: string
           track_number?: number
@@ -904,6 +913,18 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: number
       }
+      get_tracks_needing_storage_upload: {
+        Args: { p_user_id: string }
+        Returns: {
+          created_at: string
+          external_id: string
+          external_url: string
+          generation_id: string
+          service: string
+          title: string
+          track_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -947,6 +968,15 @@ export type Database = {
       }
       release_operation_lock: {
         Args: { _key: string }
+        Returns: undefined
+      }
+      update_track_storage_status: {
+        Args: {
+          p_status: string
+          p_storage_metadata?: Json
+          p_storage_path?: string
+          p_track_id: string
+        }
         Returns: undefined
       }
       validate_track_metadata: {

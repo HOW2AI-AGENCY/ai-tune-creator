@@ -20,7 +20,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
-import { ManualUploadLastTwo } from "@/components/dev/ManualUploadLastTwo";
+import { TrackStorageManager } from "@/components/dev/TrackStorageManager";
 import { useEventListener } from "@/lib/events/event-bus";
 
 // Import components directly to avoid lazy loading issues
@@ -493,9 +493,9 @@ export default function AIGenerationStudio() {
           <TaskQueuePanel />
         </Suspense>
 
-        {showRecoveryTools && <div className="p-4">
-            <ManualUploadLastTwo />
-          </div>}
+          {showRecoveryTools && <div className="p-4">
+              <TrackStorageManager />
+            </div>}
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">

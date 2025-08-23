@@ -55,11 +55,18 @@ export default function MobileGeneration() {
   // Apply Telegram theme
   useTelegramTheme();
   const { generateTrack, activeGenerations } = useUnifiedGeneration();
-  const { tracks: userTracks = [], isLoading: tracksLoading, refetch: refreshTracks } = useTracks();
+  const { tracks: userTracks = [], isLoading: tracksLoading, isFetching: tracksFetching, refetch: refreshTracks } = useTracks();
 
   const [currentTrack, setCurrentTrack] = useState<TrackData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showForm, setShowForm] = useState(true);
+
+  // Refresh tracks when background downloads complete
+  useEffect(() => {
+    const handler = () => refreshTracks();
+    window.addEventListener('tracks-updated', handler as EventListener);
+    return () => window.removeEventListener('tracks-updated', handler as EventListener);
+  }, [refreshTracks]);
 
   // Use actual user tracks instead of local state
   const generatedTracks = userTracks;
@@ -242,7 +249,7 @@ export default function MobileGeneration() {
 
       {/* Track List */}
       <div className="flex-1 overflow-auto">
-        {tracksLoading ? (
+        {(tracksLoading || tracksFetching) ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="text-center">
               <div className="w-12 h-12 mx-auto rounded-lg bg-[--tg-button-color]/20 flex items-center justify-center mb-4">

@@ -362,17 +362,16 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
             description: "Трек успешно создан и сохранен в библиотеку"
           });
 
-          // Auto-remove completed task after 5 seconds and refresh tracks
+          // Auto-remove completed task after 2 seconds and refresh tracks
           setTimeout(() => {
             setActiveGenerations(prev => {
               const newMap = new Map(prev);
               newMap.delete(generationId);
               return newMap;
             });
-            
             // Emit tracks updated event
             eventBus.emit('tracks-updated');
-          }, 5000);
+          }, 2000);
         } else if (data?.status === 'FAILED' || data?.failed) {
           updateProgress(generationId, { status: 'failed', overallProgress: 0 });
           updateStep(generationId, 'generate', { status: 'error' });

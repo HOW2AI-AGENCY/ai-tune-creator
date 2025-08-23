@@ -17,7 +17,7 @@ import { Sparkles } from "lucide-react";
 import { SunoTrackRecovery } from '@/components/dev/SunoTrackRecovery';
 import { UserDataReset } from '@/components/dev/UserDataReset';
 import { AIGenerationAudit } from '@/components/dev/AIGenerationAudit';
-import { ManualUploadLastTwo } from '@/components/dev/ManualUploadLastTwo';
+import { TrackStorageManager } from '@/components/dev/TrackStorageManager';
 
 
 interface Option { id: string; name: string }
@@ -543,7 +543,7 @@ export default function AIGeneration() {
 
                 <TabsContent value="recovery" className="space-y-6">
                   <UserDataReset />
-                  <ManualUploadLastTwo />
+                  <TrackStorageManager />
                   <SunoTrackRecovery />
                 </TabsContent>
 
