@@ -240,9 +240,7 @@ serve(async (req) => {
     }
 
     // SECURITY FIX: Verify the caller owns this generation/track
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    if (authError) {
       console.error('[SECURITY] Authentication failed for download request:', authError);
       await supabase.rpc('release_operation_lock', { p_key: lockKey });
       return new Response(JSON.stringify({ 
