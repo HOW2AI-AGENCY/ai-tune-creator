@@ -32,7 +32,8 @@ describe('API Validation', () => {
       ];
 
       invalidFunctions.forEach(func => {
-        expect(func).not.toMatch(/^[a-z][a-z0-9-]*[a-z0-9]$/); // Valid pattern
+        // Valid pattern: lowercase, numbers, hyphens, 3-64 chars, no leading/trailing hyphen
+        expect(func).not.toMatch(/^[a-z][a-z0-9-]{1,62}[a-z0-9]$/);
       });
     });
   });
