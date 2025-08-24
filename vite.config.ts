@@ -30,46 +30,50 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         // Manual chunks для оптимизации bundle size
-        manualChunks: {
-          // Основные React библиотеки
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+        manualChunks: (id: string) => {
+          // React и основные библиотеки
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router')) {
+            return 'vendor-react';
+          }
           
           // UI библиотеки Radix
-          'vendor-ui': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-select',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-tooltip',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-accordion',
-            '@radix-ui/react-alert-dialog',
-            '@radix-ui/react-avatar',
-            '@radix-ui/react-checkbox',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-slider'
-          ],
+          if (id.includes('@radix-ui/')) {
+            return 'vendor-ui';
+          }
           
           // State management и формы
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-form': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          if (id.includes('@tanstack/react-query')) {
+            return 'vendor-query';
+          }
           
-          // Supabase и БД
-          'vendor-supabase': ['@supabase/supabase-js'],
+          if (id.includes('react-hook-form') || id.includes('zod') || id.includes('@hookform/')) {
+            return 'vendor-form';
+          }
+          
+          // Supabase
+          if (id.includes('@supabase/')) {
+            return 'vendor-supabase';
+          }
           
           // Утилиты и иконки
-          'vendor-utils': [
-            'clsx', 
-            'tailwind-merge', 
-            'class-variance-authority',
-            'lucide-react',
-            'date-fns'
-          ],
+          if (id.includes('lucide-react') || id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority') || id.includes('date-fns')) {
+            return 'vendor-utils';
+          }
           
-          // AI Generation модуль (если большой)
-          'ai-generation': [
-            './src/features/ai-generation/index.ts'
-          ]
+          // AI Generation модуль
+          if (id.includes('src/features/ai-generation/')) {
+            return 'ai-generation';
+          }
+          
+          // Mobile компоненты
+          if (id.includes('src/components/mobile/') || id.includes('src/pages/mobile/')) {
+            return 'mobile';
+          }
+          
+          // Остальные node_modules
+          if (id.includes('node_modules/')) {
+            return 'vendor';
+          }
         }
       }
     }

@@ -11,10 +11,10 @@ import { useAccountLinking } from "@/hooks/useAccountLinking";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 
 interface UserProfile {
-  telegram_id?: string;
-  telegram_username?: string;
-  telegram_first_name?: string;
-  telegram_last_name?: string;
+  telegram_id?: string | null;
+  telegram_username?: string | null;
+  telegram_first_name?: string | null;
+  telegram_last_name?: string | null;
 }
 
 export const AccountLinkedInfo = () => {
@@ -41,7 +41,7 @@ export const AccountLinkedInfo = () => {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
         console.error('Error fetching profile:', error);
       } else {
         setProfile(data || {});
@@ -59,7 +59,7 @@ export const AccountLinkedInfo = () => {
     }
 
     const success = await linkTelegramAccount({
-      telegram_id: authData.telegramId.toString(),
+      telegram_id: String(authData.telegramId),
       telegram_username: authData.username,
       telegram_first_name: authData.firstName,
       telegram_last_name: authData.lastName,

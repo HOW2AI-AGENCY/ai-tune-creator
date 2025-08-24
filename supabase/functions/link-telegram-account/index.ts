@@ -47,9 +47,9 @@ serve(async (req) => {
 
     const { telegram_id, telegram_username, telegram_first_name, telegram_last_name, action }: LinkAccountRequest = await req.json();
 
-    if (!telegram_id) {
+    if (!telegram_id && action === 'link') {
       return new Response(
-        JSON.stringify({ error: 'telegram_id is required' }),
+        JSON.stringify({ error: 'telegram_id is required for linking' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -61,7 +61,7 @@ serve(async (req) => {
         .select('user_id')
         .eq('telegram_id', telegram_id)
         .neq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found
         console.error('Error checking existing link:', checkError);
