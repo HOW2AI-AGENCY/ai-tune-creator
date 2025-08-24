@@ -1,12 +1,13 @@
-import { useState } from "react";
-import { User, Bell, Palette, Shield, Database, Save, Bot, Sparkles, Link2 } from "lucide-react";
+import { AccountLinkedInfo } from "@/components/auth/AccountLinkedInfo";
+import { User, Bell, Palette, Shield, Database, Save, Bot, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,29 +20,11 @@ export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation();
-  const { settings, isLoading, isSaving, updateSetting, saveSettings, linkAccount, isConnectedViaTelegram } = useUserSettings();
-  
-  const [newEmail, setNewEmail] = useState("");
+  const { settings, isLoading, isSaving, updateSetting, saveSettings } = useUserSettings();
 
   const handleSave = async (section: string) => {
     const sectionKey = section.toLowerCase() as keyof typeof settings;
     await saveSettings(sectionKey);
-  };
-
-  const handleLinkEmail = async () => {
-    if (!newEmail.trim()) {
-      toast({
-        title: "Ошибка",
-        description: "Введите email адрес",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const success = await linkAccount('email', { email: newEmail.trim() });
-    if (success) {
-      setNewEmail("");
-    }
   };
 
   if (isLoading) {
@@ -60,6 +43,9 @@ export default function Settings() {
         <h1 className="text-3xl font-bold">{t("settingsTitle")}</h1>
         <p className="text-muted-foreground">Управляйте настройками вашего аккаунта и приложения</p>
       </div>
+
+      {/* Account Linking Section */}
+      <AccountLinkedInfo />
 
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full grid-cols-5">
@@ -84,91 +70,8 @@ export default function Settings() {
             <span className="sr-only">Безопасность</span>
           </TabsTrigger>
         </TabsList>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Link2 className="h-5 w-5 text-primary" />
-              <div>
-                <CardTitle>Привязка аккаунтов</CardTitle>
-                <CardDescription>
-                  Управляйте связанными аккаунтами
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 border border-border rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <span className="text-green-600 dark:text-green-400 text-sm">✓</span>
-                </div>
-                <div>
-                  <p className="font-medium">Email</p>
-                  <p className="text-sm text-muted-foreground">{user?.email}</p>
-                </div>
-              </div>
-              <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded">
-                Привязан
-              </span>
-            </div>
-
-            {isConnectedViaTelegram ? (
-              <div className="flex items-center justify-between p-3 border border-border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                    <span className="text-blue-600 dark:text-blue-400 text-sm">T</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">Telegram</p>
-                    <p className="text-sm text-muted-foreground">Аккаунт привязан</p>
-                  </div>
-                </div>
-                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
-                  Привязан
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between p-3 border border-dashed border-border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                    <span className="text-muted-foreground text-sm">T</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">Telegram</p>
-                    <p className="text-sm text-muted-foreground">Доступно только в Telegram</p>
-                  </div>
-                </div>
-                <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
-                  Не доступно
-                </span>
-              </div>
-            )}
-
-            <div className="border-t pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="newEmail">Привязать дополнительный email</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="newEmail"
-                    type="email"
-                    placeholder="email@example.com"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                  />
-                  <Button 
-                    onClick={handleLinkEmail} 
-                    disabled={!newEmail.trim() || isSaving}
-                  >
-                    Привязать
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <TabsContent value="notifications" className="space-y-6">
+        
+        <TabsContent value="profile" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Информация профиля</CardTitle>
@@ -195,7 +98,7 @@ export default function Settings() {
                   <Label htmlFor="displayName">Отображаемое имя</Label>
                   <Input
                     id="displayName"
-                    value={settings.profile.display_name || ""}
+                    value={settings.profile?.display_name || ""}
                     onChange={(e) => updateSetting('profile', 'display_name', e.target.value)}
                     placeholder="Ваше отображаемое имя"
                   />
@@ -206,7 +109,7 @@ export default function Settings() {
                 <Label htmlFor="bio">Биография</Label>
                 <Textarea
                   id="bio"
-                  value={settings.profile.bio || ""}
+                  value={settings.profile?.bio || ""}
                   onChange={(e) => updateSetting('profile', 'bio', e.target.value)}
                   placeholder="Расскажите о себе и вашей музыке..."
                   className="min-h-[100px] resize-none"
@@ -217,15 +120,15 @@ export default function Settings() {
                 <Label htmlFor="avatarUrl">URL аватара</Label>
                 <Input
                   id="avatarUrl"
-                  value={settings.profile.avatar_url || ""}
+                  value={settings.profile?.avatar_url || ""}
                   onChange={(e) => updateSetting('profile', 'avatar_url', e.target.value)}
                   placeholder="https://example.com/avatar.jpg"
                 />
               </div>
 
-              <Button onClick={() => handleSave('профиля')}>
+              <Button onClick={() => handleSave('профиля')} disabled={isSaving}>
                 <Save className="mr-2 h-4 w-4" />
-                Сохранить профиль
+                {isSaving ? "Сохранение..." : "Сохранить профиль"}
               </Button>
             </CardContent>
           </Card>
@@ -250,7 +153,7 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="emailNotifications"
-                    checked={settings.notifications.email_notifications}
+                    checked={settings.notifications?.email_notifications || false}
                     onCheckedChange={(checked) => updateSetting('notifications', 'email_notifications', checked)}
                   />
                 </div>
@@ -266,7 +169,7 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="pushNotifications"
-                    checked={settings.notifications.push_notifications}
+                    checked={settings.notifications?.push_notifications || false}
                     onCheckedChange={(checked) => updateSetting('notifications', 'push_notifications', checked)}
                   />
                 </div>
@@ -282,7 +185,7 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="aiGenerationComplete"
-                    checked={settings.notifications.ai_generation_complete}
+                    checked={settings.notifications?.ai_generation_complete || false}
                     onCheckedChange={(checked) => updateSetting('notifications', 'ai_generation_complete', checked)}
                   />
                 </div>
@@ -296,7 +199,7 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="projectUpdates"
-                    checked={settings.notifications.project_updates}
+                    checked={settings.notifications?.project_updates || false}
                     onCheckedChange={(checked) => updateSetting('notifications', 'project_updates', checked)}
                   />
                 </div>
@@ -310,15 +213,15 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="weeklyDigest"
-                    checked={settings.notifications.weekly_digest}
+                    checked={settings.notifications?.weekly_digest || false}
                     onCheckedChange={(checked) => updateSetting('notifications', 'weekly_digest', checked)}
                   />
                 </div>
               </div>
 
-              <Button onClick={() => handleSave('уведомлений')}>
+              <Button onClick={() => handleSave('уведомлений')} disabled={isSaving}>
                 <Save className="mr-2 h-4 w-4" />
-                Сохранить уведомления
+                {isSaving ? "Сохранение..." : "Сохранить уведомления"}
               </Button>
             </CardContent>
           </Card>
@@ -343,7 +246,7 @@ export default function Settings() {
                   </div>
                   <Switch
                     id="autoSaveProjects"
-                    checked={settings.preferences.auto_save_projects}
+                    checked={settings.preferences?.auto_save_projects || false}
                     onCheckedChange={(checked) => updateSetting('preferences', 'auto_save_projects', checked)}
                   />
                 </div>
@@ -358,7 +261,7 @@ export default function Settings() {
                     </p>
                   </div>
                   <Select 
-                    value={settings.preferences.theme} 
+                    value={settings.preferences?.theme || 'system'} 
                     onValueChange={(value) => updateSetting('preferences', 'theme', value)}
                   >
                     <SelectTrigger className="w-32">
@@ -373,9 +276,9 @@ export default function Settings() {
                 </div>
               </div>
 
-              <Button onClick={() => handleSave('предпочтений')}>
+              <Button onClick={() => handleSave('предпочтений')} disabled={isSaving}>
                 <Save className="mr-2 h-4 w-4" />
-                Сохранить предпочтения
+                {isSaving ? "Сохранение..." : "Сохранить предпочтения"}
               </Button>
             </CardContent>
           </Card>

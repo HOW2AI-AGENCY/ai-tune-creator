@@ -39,9 +39,9 @@ export const AccountLinkedInfo = () => {
         .from('user_profiles')
         .select('telegram_id, telegram_username, telegram_first_name, telegram_last_name')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+      if (error && error.code !== 'PGRST116') {
         console.error('Error fetching profile:', error);
       } else {
         setProfile(data || {});
@@ -59,7 +59,7 @@ export const AccountLinkedInfo = () => {
     }
 
     const success = await linkTelegramAccount({
-      telegram_id: authData.telegramId,
+      telegram_id: authData.telegramId.toString(),
       telegram_username: authData.username,
       telegram_first_name: authData.firstName,
       telegram_last_name: authData.lastName,
