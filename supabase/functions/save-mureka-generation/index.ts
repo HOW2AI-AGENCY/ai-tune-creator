@@ -1,13 +1,85 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+// Define types for better readability and maintenance
+interface TrackData {
+  title?: string;
+  audio_url: string;
+  duration?: number;
+  lyrics?: string;
+  genre_tags?: string[];
+  style_prompt?: string;
+  model?: string;
+  mureka_choice_id?: string;
+  track_variant?: number;
+  total_variants?: number;
+}
+
+interface GenerationMetadata {
+  [key: string]: any; // Allow other properties
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+/**
+ * Gets the next available track number for a given project.
+ * Note: It's better to use the `get_next_track_number` RPC function in the database if it exists.
+ */
+async function getNextTrackNumber(supabase: SupabaseClient, projectId: string | null): Promise<number> {
+  if (!projectId) {
+    console.log('[TRACK_NUMBER] No project_id provided, defaulting to 1.');
+    return 1;
+  }
+
+  const { data, error } = await supabase
+    .from('tracks')
+    .select('track_number')
+    .eq('project_id', projectId)
+    .order('track_number', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') { // Ignore 'range not found' for empty projects
+    console.error(`[TRACK_NUMBER] Error fetching max track number for project ${projectId}:`, error);
+    // Fallback to 1 in case of error
+    return 1;
+  }
+
+  const nextNumber = (data?.track_number || 0) + 1;
+  console.log(`[TRACK_NUMBER] Next track number for project ${projectId} is ${nextNumber}.`);
+  return nextNumber;
+}
+
+
+/**
+ * Initiates a background download of the track from the external URL.
+ */
+async function startBackgroundDownload(supabase: SupabaseClient, generationId: string, trackId: string, audioUrl: string) {
+  try {
+    console.log(`[DOWNLOAD] Invoking 'download-and-save-track' for track ${trackId}`);
+    const { data, error } = await supabase.functions.invoke('download-and-save-track', {
+      body: {
+        generation_id: generationId,
+        external_url: audioUrl,
+        filename: `mureka_${generationId.slice(0, 8)}.mp3`,
+        track_id: trackId
+      }
+    });
+
+    if (error) {
+      console.error(`[DOWNLOAD] Background download failed for track ${trackId}:`, error);
+    } else {
+      console.log(`[DOWNLOAD] Background download successful for track ${trackId}:`, data);
+    }
+  } catch (e) {
+    console.error(`[DOWNLOAD] Background download exception for track ${trackId}:`, e.message);
+  }
+}
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -16,79 +88,61 @@ serve(async (req) => {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    );
 
-    const { generationId, trackData, projectId, artistId } = await req.json()
+    const { generationId, trackData, projectId, artistId }: {
+      generationId: string;
+      trackData: TrackData;
+      projectId?: string;
+      artistId?: string;
+    } = await req.json();
 
-    console.log('Saving Mureka generation:', { generationId, trackData })
+    console.log('Processing Mureka generation save request:', { generationId });
 
-    // TODO: КРИТИЧЕСКАЯ ОШИБКА - колонка title не существует в ai_generations
-    // FIXME: Использовать правильные колонки из схемы БД
-    
-    // Get user from generation record
+    // 1. Get generation details
     const { data: generation, error: genError } = await supabase
       .from('ai_generations')
-      .select('user_id, prompt, metadata')  // FIXME: убрал несуществующую колонку title
+      .select('user_id, prompt, metadata')
       .eq('id', generationId)
-      .single()
+      .single();
 
     if (genError || !generation) {
-      console.error('Error getting generation:', genError)
-      return new Response(
-        JSON.stringify({ success: false, error: 'Generation not found' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      console.error('Error fetching generation record:', genError);
+      return new Response(JSON.stringify({ error: 'Generation not found' }), {
+        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // TODO: ИСПРАВИТЬ - проблема с поиском проекта и artist_id
-    // FIXME: Улучшить логику поиска Inbox проекта
-    
-    // Найти проект для сохранения трека
+    // 2. Determine the project to save the track to.
+    // This logic for finding the inbox project can be complex and error-prone.
+    // A dedicated database function `get_user_inbox_project(user_id)` would be a more robust solution.
     let targetProjectId = projectId;
     if (!targetProjectId) {
-      console.log('[PROJECT] Поиск Inbox проекта для пользователя:', generation.user_id);
-      
-      // Сначала найти artist пользователя, если не передан
+      console.log(`[PROJECT] Attempting to find Inbox project for user: ${generation.user_id}`);
       let finalArtistId = artistId;
       if (!finalArtistId) {
-        const { data: userArtist } = await supabase
-          .from('artists')
-          .select('id')
-          .eq('user_id', generation.user_id)
-          .limit(1)
-          .single();
-        
+        const { data: userArtist } = await supabase.from('artists').select('id').eq('user_id', generation.user_id).single();
         finalArtistId = userArtist?.id;
-        console.log('[PROJECT] Найден artist пользователя:', finalArtistId);
+        console.log(`[PROJECT] Artist ID found for user: ${finalArtistId}`);
       }
       
       if (finalArtistId) {
-        // Получить проект Inbox пользователя
-        const { data: inboxProject } = await supabase
-          .from('projects')
-          .select('id')
-          .eq('is_inbox', true)
-          .eq('artist_id', finalArtistId)
-          .single();
-        
+        const { data: inboxProject } = await supabase.from('projects').select('id').eq('is_inbox', true).eq('artist_id', finalArtistId).single();
         targetProjectId = inboxProject?.id;
-        console.log('[PROJECT] Найден Inbox проект:', targetProjectId);
+        console.log(`[PROJECT] Inbox project found: ${targetProjectId}`);
       }
     }
 
-    // Create track record with immediate audio URL
+    // 3. Create the new track record
     const trackRecord = {
       id: crypto.randomUUID(),
       project_id: targetProjectId,
       title: trackData.title || 'AI Generated Track',
-      audio_url: trackData.audio_url, // Direct audio URL from Mureka
+      audio_url: trackData.audio_url,
       duration: trackData.duration || 120,
       lyrics: trackData.lyrics || '',
       genre_tags: trackData.genre_tags || ['ai-generated', 'mureka'],
-      track_number: await getNextTrackNumber(targetProjectId),
+      track_number: await getNextTrackNumber(supabase, targetProjectId || null),
       style_prompt: trackData.style_prompt || generation.prompt,
       metadata: {
         service: 'mureka',
@@ -101,51 +155,28 @@ serve(async (req) => {
         mureka_choice_id: trackData.mureka_choice_id,
         track_variant: trackData.track_variant || 1,
         total_variants: trackData.total_variants || 1,
-        original_data: trackData
+        original_data: trackData,
       }
-    }
+    };
 
-    // TODO: Вынести функцию из тела основной функции
-    // FIXME: Использовать существующую функцию get_next_track_number из БД
-    
-    // Функция для получения следующего номера трека
-    async function getNextTrackNumber(projectId: string) {
-      if (!projectId) {
-        console.log('[TRACK_NUMBER] Нет project_id, используем номер 1');
-        return 1;
-      }
-      
-      const { data } = await supabase
-        .from('tracks')
-        .select('track_number')
-        .eq('project_id', projectId)
-        .order('track_number', { ascending: false })
-        .limit(1);
-      
-      const nextNumber = (data?.[0]?.track_number || 0) + 1;
-      console.log('[TRACK_NUMBER] Следующий номер трека:', nextNumber);
-      return nextNumber;
-    }
-
-    // Save track to database
-    const { data: savedTrack, error: trackError } = await supabase
-      .from('tracks')
-      .insert(trackRecord)
-      .select()
-      .single()
+    const { data: savedTrack, error: trackError } = await supabase.from('tracks').insert(trackRecord).select().single();
 
     if (trackError) {
-      console.error('Error saving track:', trackError)
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to save track', details: trackError }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+      console.error('Error inserting new track:', trackError);
+      return new Response(JSON.stringify({ error: 'Failed to save track', details: trackError }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // Update generation status to completed
+    // 4. Update the generation status
+    const updatedMetadata: GenerationMetadata = {
+      ...(generation.metadata as GenerationMetadata || {}),
+      ...trackData,
+      saved_track_id: savedTrack.id,
+      track_saved: true,
+      skip_sync: true
+    };
+
     const { error: updateError } = await supabase
       .from('ai_generations')
       .update({
@@ -153,91 +184,38 @@ serve(async (req) => {
         result_url: trackData.audio_url,
         track_id: savedTrack.id,
         completed_at: new Date().toISOString(),
-        metadata: {
-          ...((generation.metadata as any) || {}),  // TODO: Типизировать metadata правильно
-          ...trackData,
-          saved_track_id: savedTrack.id,
-          track_saved: true,
-          skip_sync: true
-        }
+        metadata: updatedMetadata,
       })
-      .eq('id', generationId)
-
-    // TODO: FIXME - Improve background download with better error handling
-    if (trackData.audio_url && trackData.audio_url !== 'undefined' && trackData.audio_url.startsWith('http')) {
-      console.log('[SAVE-MUREKA] Starting background download...');
-      console.log('[SAVE-MUREKA] URL for download:', trackData.audio_url);
-      
-      // Используем EdgeRuntime.waitUntil для фонового процесса
-      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
-        EdgeRuntime.waitUntil(
-          supabase.functions.invoke('download-and-save-track', {
-            body: {
-              generation_id: generationId,
-              external_url: trackData.audio_url,
-              filename: `mureka_${generationId.slice(0, 8)}.mp3`,
-              track_id: savedTrack.id
-            }
-          }).then(result => {
-            if (result.error) {
-              console.error('[SAVE-MUREKA] Background download failed:', result.error);
-            } else {
-              console.log('[SAVE-MUREKA] Background download successful:', result.data);
-            }
-          }).catch(error => {
-            console.error('[SAVE-MUREKA] Background download exception:', error.message);
-          })
-        );
-      } else {
-        // Fallback без waitUntil
-        supabase.functions.invoke('download-and-save-track', {
-          body: {
-            generation_id: generationId,
-            external_url: trackData.audio_url,
-            filename: `mureka_${generationId.slice(0, 8)}.mp3`,
-            track_id: savedTrack.id
-          }
-        }).catch(error => {
-          console.error('[SAVE-MUREKA] Background download failed (fallback):', error);
-        });
-      }
-      
-      console.log('[SAVE-MUREKA] Background download initiated');
-    } else {
-      console.warn('[SAVE-MUREKA] Invalid audio URL for download:', trackData.audio_url);
-    }
+      .eq('id', generationId);
 
     if (updateError) {
-      console.error('Error updating generation:', updateError)
-      // Don't fail the request if track was saved successfully
+      // Log the error but don't fail the request, as the track was saved.
+      console.error('Error updating generation status:', updateError);
     }
 
-    console.log('Mureka track saved successfully:', savedTrack.id)
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        track: savedTrack,
-        message: 'Track saved successfully'
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    // 5. Start background download
+    if (trackData.audio_url && trackData.audio_url.startsWith('http')) {
+      // Use waitUntil if available in the environment
+      if (typeof Deno.waitUntil === 'function') {
+         Deno.waitUntil(startBackgroundDownload(supabase, generationId, savedTrack.id, trackData.audio_url));
+      } else {
+         startBackgroundDownload(supabase, generationId, savedTrack.id, trackData.audio_url);
       }
-    )
+      console.log(`[DOWNLOAD] Background download initiated for track ${savedTrack.id}.`);
+    } else {
+      console.warn(`[DOWNLOAD] Invalid or missing audio URL for track ${savedTrack.id}, skipping download.`);
+    }
+
+    console.log(`Mureka track saved successfully with ID: ${savedTrack.id}`);
+
+    return new Response(JSON.stringify({ success: true, track: savedTrack, message: 'Track saved successfully' }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
-    console.error('Error in save-mureka-generation:', error)
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: 'Internal server error',
-        details: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    console.error('Critical error in save-mureka-generation handler:', error);
+    return new Response(JSON.stringify({ error: 'Internal Server Error', details: error.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 })

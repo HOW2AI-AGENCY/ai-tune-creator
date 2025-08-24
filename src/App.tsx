@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,17 +13,19 @@ import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useIsMobile } from "@/hooks/use-mobile";
-import Dashboard from "./pages/Dashboard";
-import Projects from "./pages/Projects"; 
-import Artists from "./pages/Artists";
-import AIGeneration from "./pages/AIGeneration";
-import AIGenerationStudio from "./pages/AIGenerationStudio";
+import { RefreshCw } from "lucide-react";
 
-import Tracks from "./pages/Tracks";
-import Settings from "./pages/Settings";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
-import TrackDetailsDemo from "./pages/TrackDetailsDemo";
+// Lazy load page components for better code splitting
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Projects = lazy(() => import("./pages/Projects"));
+const Artists = lazy(() => import("./pages/Artists"));
+const AIGeneration = lazy(() => import("./pages/AIGeneration"));
+const AIGenerationStudio = lazy(() => import("./pages/AIGenerationStudio"));
+const Tracks = lazy(() => import("./pages/Tracks"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Auth = lazy(() => import("./pages/Auth"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const TrackDetailsDemo = lazy(() => import("./pages/TrackDetailsDemo"));
 
 /**
  * Optimized QueryClient configuration для AI Music Platform
@@ -54,31 +56,39 @@ function AppContent() {
   const isMobile = useIsMobile();
   const Layout = isMobile ? MobileLayout : AppLayout;
 
+  const PageLoader = () => (
+    <div className="flex h-full w-full items-center justify-center">
+      <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+
   return (
-    <Routes>
-      <Route path="/auth" element={
-        <ProtectedRoute requireAuth={false}>
-          <Auth />
-        </ProtectedRoute>
-      } />
-      <Route path="/*" element={
-        <ProtectedRoute requireAuth={true}>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/tracks" element={<Tracks />} />
-              <Route path="/artists" element={<Artists />} />
-              <Route path="/generate" element={<AIGenerationStudio />} />
-              <Route path="/generate-old" element={<AIGeneration />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/demo/track-details" element={<TrackDetailsDemo />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Layout>
-        </ProtectedRoute>
-      } />
-    </Routes>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/auth" element={
+          <ProtectedRoute requireAuth={false}>
+            <Auth />
+          </ProtectedRoute>
+        } />
+        <Route path="/*" element={
+          <ProtectedRoute requireAuth={true}>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/tracks" element={<Tracks />} />
+                <Route path="/artists" element={<Artists />} />
+                <Route path="/generate" element={<AIGenerationStudio />} />
+                <Route path="/generate-old" element={<AIGeneration />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/demo/track-details" element={<TrackDetailsDemo />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          </ProtectedRoute>
+        } />
+      </Routes>
+    </Suspense>
   );
 }
 

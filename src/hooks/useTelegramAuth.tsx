@@ -60,8 +60,14 @@ export const useTelegramAuth = () => {
     const authData = getTelegramAuthData();
     
     if (!authData) {
-      console.log('Telegram Auth: No auth data available');
-      setAuthError('Данные Telegram недоступны');
+      const errorMsg = 'Данные Telegram недоступны. Попробуйте перезапустить приложение.';
+      console.warn('Telegram Auth: No auth data available.');
+      setAuthError(errorMsg);
+      toast({
+        title: 'Ошибка входа',
+        description: errorMsg,
+        variant: 'destructive',
+      });
       return false;
     }
 
@@ -80,32 +86,56 @@ export const useTelegramAuth = () => {
         body: { authData }
       });
 
-      console.log('Telegram Auth: Edge function response:', { data, error });
+      console.log('Telegram Auth: Edge function response:', { data, error: error?.message });
 
       if (error) {
-        console.error('Telegram Auth: Error from edge function:', error);
+        console.error('Telegram Auth: Error from edge function:', {
+          message: error.message,
+          details: (error as any).context?.details,
+          code: (error as any).context?.code,
+        });
 
-        // Handle specific error types
+        // More user-friendly error handling
+        let userMessage = `Произошла ошибка аутентификации.`;
         const msg = error.message || '';
-        if (msg.includes('Too many')) {
-          setAuthError('Слишком много попыток входа. Подождите и попробуйте снова.');
-        } else if (msg.includes('expired') || msg.includes('устарели')) {
-          setAuthError('Сессия Telegram устарела. Перезапустите мини‑приложение.');
-          setAutoAuthDisabled(true);
-          sessionStorage.setItem('tg_auto_auth_disabled', '1');
-        } else if (msg.includes('Invalid signature') || msg.includes('подпись')) {
-          setAuthError('Не удалось подтвердить данные Telegram. Перезапустите мини‑приложение.');
-          setAutoAuthDisabled(true);
-          sessionStorage.setItem('tg_auto_auth_disabled', '1');
+        const errorCode = (error as any).context?.code;
+
+        if (errorCode === 'TELEGRAM_DATA_EXPIRED' || msg.includes('expired')) {
+          userMessage = 'Сессия Telegram устарела. Пожалуйста, перезапустите мини-приложение.';
+        } else if (errorCode === 'INVALID_TELEGRAM_SIGNATURE' || msg.includes('Invalid signature')) {
+          userMessage = 'Не удалось подтвердить данные Telegram. Это может быть проблема с конфигурацией сервиса. Пожалуйста, перезапустите приложение.';
+        } else if (msg.includes('Too many')) {
+          userMessage = 'Слишком много попыток входа. Пожалуйста, подождите минуту и попробуйте снова.';
+        } else if (msg.includes('Service temporarily unavailable')) {
+          userMessage = 'Сервис временно недоступен. Вероятно, не настроен токен Telegram бота на сервере.';
         } else {
-          setAuthError(`Ошибка аутентификации: ${msg}`);
+          userMessage = `Ошибка сервера: ${msg}. Попробуйте позже.`;
         }
+
+        setAuthError(userMessage);
+        toast({
+          title: 'Ошибка входа через Telegram',
+          description: userMessage,
+          variant: 'destructive',
+        });
+
+        if (errorCode === 'TELEGRAM_DATA_EXPIRED' || errorCode === 'INVALID_TELEGRAM_SIGNATURE') {
+          setAutoAuthDisabled(true);
+          sessionStorage.setItem('tg_auto_auth_disabled', '1');
+        }
+
         return false;
       }
 
       if (!data?.email || !data?.password) {
-        console.error('Telegram Auth: Invalid response format', data);
-        setAuthError('Неверный ответ сервера. Попробуйте еще раз.');
+        console.error('Telegram Auth: Invalid response format from edge function', data);
+        const errorMsg = 'Неверный ответ от сервера аутентификации. Пожалуйста, попробуйте еще раз.';
+        setAuthError(errorMsg);
+        toast({
+          title: 'Ошибка входа',
+          description: errorMsg,
+          variant: 'destructive',
+        });
         return false;
       }
 
@@ -116,23 +146,35 @@ export const useTelegramAuth = () => {
       });
       
       if (signInError) {
-        console.error('Telegram Auth: Error signing in:', signInError);
-        setAuthError('Ошибка входа в систему. Попробуйте еще раз.');
+        console.error('Telegram Auth: Supabase signInWithPassword failed:', signInError);
+        const errorMsg = 'Не удалось войти в систему после верификации. Пожалуйста, попробуйте еще раз.';
+        setAuthError(errorMsg);
+        toast({
+          title: 'Ошибка входа',
+          description: errorMsg,
+          variant: 'destructive',
+        });
         return false;
       }
 
-      console.log('Telegram Auth: Successfully authenticated user');
+      console.log('Telegram Auth: Successfully authenticated user via Telegram.');
       
       toast({
         title: "Добро пожаловать!",
-        description: data.isNewUser ? "Аккаунт успешно создан" : "Вход выполнен успешно",
+        description: data.isNewUser ? "Ваш аккаунт был успешно создан через Telegram." : "Вы успешно вошли в систему.",
       });
 
       return true;
 
     } catch (error) {
-      console.error('Telegram Auth: Exception during authentication:', error);
-      setAuthError('Произошла ошибка. Попробуйте еще раз.');
+      console.error('Telegram Auth: Exception during authentication process:', error);
+      const errorMsg = 'Произошла непредвиденная ошибка. Пожалуйста, проверьте ваше интернет-соединение и попробуйте снова.';
+      setAuthError(errorMsg);
+      toast({
+        title: 'Критическая ошибка',
+        description: errorMsg,
+        variant: 'destructive',
+      });
       return false;
     } finally {
       setIsAuthenticating(false);
