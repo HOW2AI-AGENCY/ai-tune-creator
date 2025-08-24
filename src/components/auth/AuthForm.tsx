@@ -307,7 +307,7 @@ export const AuthForm = () => {
             )}
           </div>
           
-          <div className="mt-6">
+          <div className="mt-6 space-y-4">
             <ConnectionDiagnostics />
           </div>
         </CardContent>

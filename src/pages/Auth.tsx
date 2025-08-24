@@ -113,8 +113,8 @@ const Auth = () => {
           </div>
         )}
 
-        {/* Regular Auth Form for non-Telegram users */}
-        {!isInTelegram && <AuthForm />}
+        {/* Regular Auth Form - always shown, with Telegram integration if available */}
+        <AuthForm />
       </div>
     </div>
   );
