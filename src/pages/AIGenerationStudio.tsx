@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Suspense, startTransition } from "react";
+import React, { useState, useEffect, useMemo, Suspense, startTransition, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { useTrackSync } from "@/hooks/useTrackSync";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { GenerationParams } from "@/features/ai-generation/types";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -25,11 +25,11 @@ import { useEventListener } from "@/lib/events/event-bus";
 import { lazy } from "react";
 
 // Lazily import heavy components to improve initial load time
-const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel"));
-const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel"));
-const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid"));
-const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer"));
-const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette"));
+const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel").then(module => ({ default: module.GenerationContextPanel })));
+const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel").then(module => ({ default: module.TaskQueuePanel })));
+const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid").then(module => ({ default: module.TrackResultsGrid })));
+const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer").then(module => ({ default: module.TrackDetailsDrawer })));
+const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette").then(module => ({ default: module.CommandPalette })));
 const FloatingPlayer = lazy(() =>
   import("@/features/ai-generation/components/FloatingPlayer")
   .then(module => ({ default: module.FloatingPlayer }))
@@ -104,13 +104,6 @@ export default function AIGenerationStudio() {
     console.log('📢 Received tracks-updated event, refreshing tracks...');
     fetchTracks();
   });
-
-  // Listen for play-track events from other components
-  useEventListener('play-track', (data) => {
-    if (data?.track) {
-      handlePlayTrack(data.track as Track);
-    }
-  }, [handlePlayTrack]);
 
   // Core State
   const [searchQuery, setSearchQuery] = useState("");
@@ -274,7 +267,7 @@ export default function AIGenerationStudio() {
         console.error('[AIGenerationStudio] Error fetching tracks:', error);
         toast({
           title: "Ошибка загрузки треков",
-          description: error.message,
+          description: getErrorMessage(error),
           variant: "destructive"
         });
         return;
@@ -326,7 +319,7 @@ export default function AIGenerationStudio() {
       console.error('[AIGenerationStudio] Unexpected error fetching tracks:', error);
       toast({
         title: "Ошибка загрузки",
-        description: "Произошла неожиданная ошибка при загрузке треков",
+        description: getErrorMessage(error),
         variant: "destructive"
       });
     }
@@ -349,7 +342,7 @@ export default function AIGenerationStudio() {
       console.error('❌ Sync error:', error);
       toast({
         title: 'Ошибка синхронизации',
-        description: `Не удалось обновить список треков: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`,
+        description: getErrorMessage(error),
         variant: 'destructive'
       });
     }
@@ -380,7 +373,7 @@ export default function AIGenerationStudio() {
       console.error('Generation error:', error);
       toast({
         title: t('generationError'),
-        description: error.message || t('generationErrorDesc'),
+        description: getErrorMessage(error),
         variant: "destructive"
       });
     }
@@ -409,6 +402,13 @@ export default function AIGenerationStudio() {
     // Close track details drawer when starting playback
     setIsTrackDetailsOpen(false);
   }, [currentPlayingTrack, isPlaying, toast]);
+
+  // Listen for play-track events from other components
+  useEventListener('play-track', (data) => {
+    if (data?.track) {
+      handlePlayTrack(data.track as Track);
+    }
+  }, [handlePlayTrack]);
   const handlePlayerPlayPause = (playing: boolean) => {
     setIsPlaying(playing);
   };
