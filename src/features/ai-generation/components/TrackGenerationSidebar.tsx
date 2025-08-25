@@ -518,7 +518,7 @@ export function TrackGenerationSidebar({
             instrumental={instrumental}
             onInstrumentalChange={setInstrumental}
             voiceStyle={voiceStyle}
-            onVoiceStyle_change={setVoiceStyle}
+            onVoiceStyleChange={setVoiceStyle}
             language={language}
             onLanguageChange={setLanguage}
             stylePrompt={stylePrompt}
@@ -550,7 +550,7 @@ export function TrackGenerationSidebar({
                     <div className="flex items-center gap-2">
                       <Music2 className="h-3 w-3" />
                       <span>Mureka</span>
-                      <Badge variant="outline" className="text-xs">Экспериментальное</Badge>
+                      <Badge variant="outline" className="text-xs">Креатив</Badge>
                     </div>
                   </SelectItem>
                 </SelectContent>
