@@ -1,210 +1,28 @@
-/**
- * @fileoverview Optimized React Query hook для Projects domain с auto-creation support
- * @version 0.01.033
- * @author Claude Code Assistant
- * @see {@link ../../../docs/architecture-diagrams.md#-projects-module-300-lines-each}
- * 
- * DOMAIN FOCUS: Projects как организационная сущность для треков
- * AUTO-CREATION: Автоматическое создание проектов при генерации треков
- * CACHING STRATEGY: Level 1 (React Query) + Level 2 (Global Context) integration
- * 
- * FEATURES:
- * - Project types (single/EP/album) с умными дефолтами
- * - Auto-creation при создании несвязанных треков
- * - AI concept generation для проектов
- * - Cover generation integration
- */
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppData } from '@/providers/AppDataProvider';
 import { useToast } from '@/hooks/use-toast';
-import type { AppProject } from '@/providers/AppDataProvider';
+import {
+  getProjects,
+  getProjectById,
+  createProject,
+  updateProject,
+  deleteProject,
+  Project,
+  CreateProjectData,
+  UpdateProjectData,
+} from '@/lib/api/projects';
 
 // ====================================
-// 🧮 UTILITY FUNCTIONS
+// 🎯 QUERY KEYS
 // ====================================
 
-/**
- * PERFORMANCE: Рассчитывает статистику проекта на основе связанных треков
- * 
- * @param projectId - ID проекта
- * @param projectData - Данные проекта (опционально для оптимизации)
- * @returns Статистика проекта
- */
-async function calculateProjectStats(projectId: string, projectData?: any) {
-  try {
-    console.log(`[calculateProjectStats] Calculating stats for project ${projectId}`);
-    
-    // Получаем все треки проекта с метаданными
-    const { data: tracks, error } = await supabase
-      .from('tracks')
-      .select('id, duration, metadata, audio_url')
-      .eq('project_id', projectId);
-    
-    if (error) {
-      console.warn('[calculateProjectStats] Error fetching tracks:', error);
-      return {
-        tracks_count: 0,
-        total_duration: 0,
-        completion_percentage: 0,
-        last_activity: projectData?.updated_at || new Date().toISOString(),
-      };
-    }
-    
-    const tracksData = tracks || [];
-    
-    // CALCULATION: Общая продолжительность в секундах
-    const totalDuration = tracksData.reduce((sum, track) => {
-      return sum + (track.duration || 0);
-    }, 0);
-    
-    // CALCULATION: Процент завершенности на основе наличия audio_url или AI generation context
-    const completedTracks = tracksData.filter(track => {
-      // Трек считается завершенным если:
-      // 1. Есть audio_url (готовая запись)
-      // 2. Есть AI generation context с generation_id (успешная генерация)
-      const hasAudio = !!track.audio_url;
-      const hasAIGeneration = !!(track.metadata as any)?.ai_context?.generation_id;
-      return hasAudio || hasAIGeneration;
-    }).length;
-    
-    const completionPercentage = tracksData.length > 0 
-      ? Math.round((completedTracks / tracksData.length) * 100)
-      : 0;
-    
-    const stats = {
-      tracks_count: tracksData.length,
-      total_duration: totalDuration,
-      completion_percentage: completionPercentage,
-      last_activity: projectData?.updated_at || new Date().toISOString(),
-    };
-    
-    console.log(`[calculateProjectStats] Project ${projectId} stats:`, stats);
-    return stats;
-    
-  } catch (error) {
-    console.error('[calculateProjectStats] Unexpected error:', error);
-    return {
-      tracks_count: 0,
-      total_duration: 0,
-      completion_percentage: 0,
-      last_activity: projectData?.updated_at || new Date().toISOString(),
-    };
-  }
-}
-
-// ====================================
-// 🎯 TYPE DEFINITIONS
-// ====================================
-
-/**
- * Enhanced Project interface с generation context
- * 
- * DOMAIN MODEL: Projects как container для треков с AI поддержкой
- * AUTO_CREATION: Tracking источника создания проекта
- */
-export interface EnhancedProject extends AppProject {
-  /** 🎨 Project Details */
-  details: {
-    concept: string;                      // AI-generated или user concept  
-    target_audience: string;              // Целевая аудитория
-    release_strategy: string;             // Стратегия релиза
-    marketing_notes: string;              // Маркетинговые заметки
-    mood_description: string;             // Описание настроения
-    genre_primary: string;                // Основной жанр
-    genre_secondary?: string[];           // Дополнительные жанры
-  };
-  
-  /** 📊 Project Statistics */
-  stats?: {
-    tracks_count: number;
-    total_duration: number;              // Total duration in seconds
-    completion_percentage: number;        // Project completion (0-100)
-    last_activity: string;               // Last modification timestamp
-  };
-  
-  /** 🤖 AI Generation Context */
-  ai_context?: {
-    auto_created: boolean;               // Was created automatically
-    source_track_id?: string;            // Original track ID if auto-created
-    generation_quality: number;          // AI generation quality (0-1)  
-    concept_generated: boolean;          // Was concept AI-generated
-    regeneration_count: number;          // How many times regenerated
-  };
-  
-  /** 🎨 Cover Art Context */
-  cover_context?: {
-    provider: 'sunoapi' | 'stability' | 'dalle3' | 'midjourney';
-    prompt_used: string;                 // Last used prompt
-    generation_metadata: Record<string, unknown>;
-    variants: string[];                  // Available cover variants
-  };
-}
-
-/**
- * Project creation/update payload with intelligent defaults
- */
-interface ProjectMutationPayload {
-  title: string;
-  type?: 'single' | 'ep' | 'album';
-  artist_id: string;
-  description?: string;
-  
-  /** 🤖 Auto-creation context */
-  auto_creation?: {
-    source: 'track_generation' | 'user_creation';
-    source_track_id?: string;
-    track_title?: string;                // For naming project after track
-  };
-  
-  /** 🎨 AI Generation Options */
-  ai_generation?: {
-    generate_concept: boolean;
-    artist_context?: string;             // Artist style context
-    genre_preference?: string;
-    mood_preference?: string;
-    target_audience?: string;
-  };
-  
-  /** 🖼️ Cover Generation Options */
-  cover_generation?: {
-    auto_generate: boolean;
-    provider?: 'sunoapi' | 'stability' | 'dalle3';
-    custom_prompt?: string;
-    style_reference?: string;
-  };
-}
-
-// ====================================
-// 🎯 QUERY KEYS & CONFIGURATION
-// ====================================
-
-/**
- * Hierarchical query keys для efficient invalidation
- */
 export const projectsQueryKeys = {
   all: ['projects'] as const,
   lists: () => [...projectsQueryKeys.all, 'list'] as const,
   list: (userId: string) => [...projectsQueryKeys.lists(), userId] as const,
-  byArtist: (artistId: string) => [...projectsQueryKeys.all, 'by-artist', artistId] as const,
   details: () => [...projectsQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...projectsQueryKeys.details(), id] as const,
-  stats: (id: string) => [...projectsQueryKeys.detail(id), 'stats'] as const,
-  tracks: (id: string) => [...projectsQueryKeys.detail(id), 'tracks'] as const,
-};
-
-/**
- * Performance-optimized query configuration
- */
-const projectsQueryConfig = {
-  staleTime: 5 * 60 * 1000,         // 5 minutes - projects change less frequently
-  gcTime: 30 * 60 * 1000,        // 30 minutes cache
-  refetchOnWindowFocus: false,
-  refetchOnReconnect: true,
-  retry: 2,
-  retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
 };
 
 // ====================================
@@ -212,112 +30,33 @@ const projectsQueryConfig = {
 // ====================================
 
 /**
- * Get all projects for current user
- * 
- * OPTIMIZATION: Integration с AppDataProvider для reduced server calls
- * PREFETCHING: Preload related artists data
+ * Hook to fetch all projects for the current user.
+ * Delegates data fetching to the centralized API service.
  */
 export function useProjects() {
   const { user } = useAuth();
   const { state, dispatch } = useAppData();
-  const queryClient = useQueryClient();
-  
+
   const query = useQuery({
     queryKey: projectsQueryKeys.list(user?.id || ''),
-    queryFn: async (): Promise<EnhancedProject[]> => {
+    queryFn: async (): Promise<Project[]> => {
       if (!user) throw new Error('User not authenticated');
-      
-      console.log('[useProjects] Fetching projects from database...');
-      
-      const { data, error }: { data: any; error: any } = await supabase
-        .from('projects')
-        .select(`
-          id,
-          title,
-          type,
-          status,
-          artist_id,
-          cover_url,
-          description,
-          metadata,
-          created_at,
-          updated_at,
-          artists!inner (
-            id,
-            name,
-            avatar_url
-          )
-        `)
-        .eq('artists.user_id', user.id)
-        .order('updated_at', { ascending: false });
-      
-      if (error) {
-        console.error('[useProjects] Database error:', error);
-        throw error;
-      }
-      
-      // TRANSFORM: Convert database format к domain model
-      const enhancedProjects: EnhancedProject[] = (data || []).map(project => ({
-        id: project.id,
-        title: project.title,
-        type: (project.type as 'single' | 'ep' | 'album') || 'single',
-        status: (project.status as 'draft' | 'published' | 'archived') || 'draft',
-        artist_id: project.artist_id,
-        cover_url: project.cover_url,
-        description: project.description,
-        auto_generated: (project.metadata as any)?.auto_generated || false,
-        generation_context: (project.metadata as any)?.generation_context,
-        details: {
-          concept: (project.metadata as any)?.details?.concept || '',
-          target_audience: (project.metadata as any)?.details?.target_audience || '',
-          release_strategy: (project.metadata as any)?.details?.release_strategy || '',
-          marketing_notes: (project.metadata as any)?.details?.marketing_notes || '',
-          mood_description: (project.metadata as any)?.details?.mood_description || '',
-          genre_primary: (project.metadata as any)?.details?.genre_primary || '',
-          genre_secondary: (project.metadata as any)?.details?.genre_secondary || [],
-        },
-        ai_context: (project.metadata as any)?.ai_context,
-        cover_context: (project.metadata as any)?.cover_context,
-        _cached_at: Date.now(),
-        _cache_ttl: 30 * 60 * 1000,
-      }));
-      
-      // SYNC: Update global state
-      dispatch({ type: 'PROJECTS_SUCCESS', payload: enhancedProjects });
-      
-      // PREFETCHING: Load related artists data в background
-      const artistIds = [...new Set(enhancedProjects.map(p => p.artist_id))];
-      artistIds.forEach(artistId => {
-        queryClient.prefetchQuery({
-          queryKey: ['artists', 'detail', artistId],
-          queryFn: async () => {
-            const { data } = await supabase
-              .from('artists')
-              .select('*')
-              .eq('id', artistId)
-              .single();
-            return data;
-          },
-          staleTime: projectsQueryConfig.staleTime,
-        });
-      });
-      
-      return enhancedProjects;
+      const projects = await getProjects(user.id);
+      // Sync with global state for other components to use
+      dispatch({ type: 'PROJECTS_SUCCESS', payload: projects });
+      return projects;
     },
     enabled: !!user,
-    ...projectsQueryConfig,
-    
-    // OPTIMIZATION: Use global state as initial data
+    staleTime: 5 * 60 * 1000, // 5 minutes
     initialData: () => {
+      // Use global state for initial data to avoid flickering
       if (state.projects.items.length > 0 && !state.projects.loading) {
-        console.log('[useProjects] Using cached data from global state');
-        return state.projects.items as EnhancedProject[];
+        return state.projects.items as Project[];
       }
       return undefined;
     },
-    
   });
-  
+
   return {
     projects: query.data || [],
     isLoading: query.isLoading,
@@ -325,408 +64,148 @@ export function useProjects() {
     error: query.error,
     refetch: query.refetch,
     isFetching: query.isFetching,
-    
-    // PERFORMANCE: Cache statistics
-    cacheStats: {
-      lastFetch: state.projects.lastFetch,
-      version: state.projects.version,
-      cacheHit: !!query.data && !query.isFetching,
-    },
   };
 }
 
 /**
- * Get projects by artist ID
- * 
- * OPTIMIZATION: Leverage main projects cache если possible
+ * Hook to fetch a single project by its ID.
+ */
+export function useProject(projectId: string) {
+  return useQuery<Project | null>({
+    queryKey: projectsQueryKeys.detail(projectId),
+    queryFn: () => getProjectById(projectId),
+    enabled: !!projectId,
+    staleTime: 10 * 60 * 1000, // 10 minutes for detailed views
+  });
+}
+
+/**
+ * Get projects by artist ID by filtering the main projects list.
+ * This is an efficient way to avoid extra network requests.
  */
 export function useProjectsByArtist(artistId: string) {
-  const { projects } = useProjects();
+  const { projects, isLoading } = useProjects();
   
-  // OPTIMIZATION: Filter from cached data instead of separate query
   const filteredProjects = projects.filter(p => p.artist_id === artistId);
   
   return {
     projects: filteredProjects,
-    isLoading: false, // Already loaded from main cache
+    isLoading, // Reflects the loading state of the main hook
     count: filteredProjects.length,
   };
 }
 
-/**
- * Get single project by ID с enhanced details
- */
-export function useProject(projectId: string) {
-  const query = useQuery({
-    queryKey: projectsQueryKeys.detail(projectId),
-    queryFn: async (): Promise<EnhancedProject | null> => {
-      console.log(`[useProject] Fetching project ${projectId}...`);
-      
-      const { data, error } = await supabase
-        .from('projects')
-        .select(`
-          *,
-          artists (id, name, avatar_url),
-          tracks (count)
-        `)
-        .eq('id', projectId)
-        .single();
-      
-      if (error) {
-        if (error.code === 'PGRST116') return null; // Not found
-        throw error;
-      }
-      
-      // ENHANCEMENT: Add computed statistics
-      const enhanced: EnhancedProject = {
-        ...data,
-        type: (data.type as 'single' | 'ep' | 'album') || 'single',
-        status: (data.status as 'draft' | 'published' | 'archived') || 'draft',
-        details: (data.metadata as any)?.details || {
-          concept: '',
-          target_audience: '',
-          release_strategy: '',
-          marketing_notes: '',
-          mood_description: '',
-          genre_primary: '',
-          genre_secondary: [],
-        },
-        stats: await calculateProjectStats(projectId, data),
-        ai_context: (data.metadata as any)?.ai_context,
-        cover_context: (data.metadata as any)?.cover_context,
-        _cached_at: Date.now(),
-      };
-      
-      return enhanced;
-    },
-    enabled: !!projectId,
-    ...projectsQueryConfig,
-  });
-  
-  return {
-    project: query.data,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    error: query.error,
-    refetch: query.refetch,
-  };
-}
 
 // ====================================
 // 🔄 MUTATION HOOKS
 // ====================================
 
 /**
- * Create new project с AI generation support и auto-creation logic
- * 
- * FEATURES:
- * - Auto-creation при track generation без проекта
- * - AI concept generation
- * - Cover generation integration
- * - Optimistic updates
+ * Hook to create a new project.
+ * Handles optimistic updates for a smooth user experience.
  */
 export function useCreateProject() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { dispatch } = useAppData();
   const { toast } = useToast();
-  
+
   return useMutation({
-    mutationFn: async (payload: ProjectMutationPayload): Promise<EnhancedProject> => {
+    mutationFn: (payload: CreateProjectData): Promise<Project> => {
       if (!user) throw new Error('User not authenticated');
-      
-      console.log('[useCreateProject] Creating project:', payload.title);
-      
-      // STEP 1: Determine project type based on creation context
-      let projectType = payload.type || 'single';
-      
-      if (payload.auto_creation?.source === 'track_generation') {
-        // AUTO-CREATION: Default to single for track-generated projects
-        projectType = 'single';
-        console.log('[useCreateProject] Auto-creating project for track generation');
-      }
-      
-      // STEP 2: Create basic project record
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .insert({
-          title: payload.title,
-          type: projectType,
-          status: 'draft',
-          artist_id: payload.artist_id,
-          description: payload.description,
-          metadata: {
-            auto_generated: !!payload.auto_creation,
-            generation_context: payload.auto_creation ? {
-              source: payload.auto_creation.source,
-              original_track_id: payload.auto_creation.source_track_id,
-            } : undefined,
-            ai_context: payload.ai_generation ? {
-              auto_created: true,
-              generation_quality: 0,
-              concept_generated: false,
-              regeneration_count: 0,
-            } : undefined,
-          },
-        })
-        .select()
-        .single();
-      
-      if (projectError) throw projectError;
-      
-      // STEP 3: AI Concept Generation если requested
-      if (payload.ai_generation?.generate_concept) {
-        try {
-          console.log('[useCreateProject] Generating AI concept...');
-          
-          const { data: aiData, error: aiError } = await supabase.functions.invoke(
-            'generate-project-concept',
-            {
-              body: {
-                projectTitle: payload.title,
-                projectType: projectType,
-                artistContext: payload.ai_generation.artist_context,
-                genrePreference: payload.ai_generation.genre_preference,
-                moodPreference: payload.ai_generation.mood_preference,
-                targetAudience: payload.ai_generation.target_audience,
-              },
-            }
-          );
-          
-          if (aiError) {
-            console.warn('[useCreateProject] AI concept generation failed:', aiError);
-          } else if (aiData?.success) {
-            // Update project с AI-generated concept
-            await supabase
-              .from('projects')
-              .update({
-                metadata: {
-                  ...(projectData.metadata as any),
-                  details: aiData.data.concept,
-                  ai_context: {
-                    ...(projectData.metadata as any)?.ai_context,
-                    concept_generated: true,
-                    generation_quality: aiData.data.quality_score || 0.8,
-                  },
-                },
-              })
-              .eq('id', projectData.id);
-          }
-        } catch (aiError) {
-          console.warn('[useCreateProject] AI concept generation error:', aiError);
-          // Continue без AI concept - graceful degradation
-        }
-      }
-      
-      // STEP 4: Cover Generation если requested
-      if (payload.cover_generation?.auto_generate) {
-        try {
-          console.log('[useCreateProject] Generating project cover...');
-          
-          const { data: coverData, error: coverError } = await supabase.functions.invoke(
-            'generate-cover-image',
-            {
-              body: {
-                title: payload.title,
-                type: 'project',
-                provider: payload.cover_generation.provider || 'sunoapi',
-                customPrompt: payload.cover_generation.custom_prompt,
-                styleReference: payload.cover_generation.style_reference,
-                projectType: projectType,
-              },
-            }
-          );
-          
-          if (coverError) {
-            console.warn('[useCreateProject] Cover generation failed:', coverError);
-          } else if (coverData?.success) {
-            // Update project с generated cover
-            await supabase
-              .from('projects')
-              .update({
-                cover_url: coverData.data.cover_url,
-                metadata: {
-                  ...(projectData.metadata as any),
-                  cover_context: {
-                    provider: payload.cover_generation.provider || 'sunoapi',
-                    prompt_used: coverData.data.prompt_used,
-                    generation_metadata: coverData.data.metadata,
-                    variants: coverData.data.variants || [],
-                  },
-                },
-              })
-              .eq('id', projectData.id);
-          }
-        } catch (coverError) {
-          console.warn('[useCreateProject] Cover generation error:', coverError);
-          // Continue без cover - graceful degradation
-        }
-      }
-      
-      // TRANSFORM: Return enhanced project
-      const enhancedProject: EnhancedProject = {
-        id: projectData.id,
-        title: projectData.title,
-        type: (projectData.type as 'single' | 'ep' | 'album') || 'single',
-        status: (projectData.status as 'draft' | 'published' | 'archived') || 'draft',
-        artist_id: projectData.artist_id,
-        cover_url: projectData.cover_url,
-        description: projectData.description,
-        auto_generated: (projectData.metadata as any)?.auto_generated || false,
-        generation_context: (projectData.metadata as any)?.generation_context,
-        details: (projectData.metadata as any)?.details || {
-          concept: '',
-          target_audience: '',
-          release_strategy: '',
-          marketing_notes: '',
-          mood_description: '',
-          genre_primary: '',
-          genre_secondary: [],
-        },
-        ai_context: (projectData.metadata as any)?.ai_context,
-        cover_context: (projectData.metadata as any)?.cover_context,
-        _cached_at: Date.now(),
-      };
-      
-      return enhancedProject;
+      return createProject(payload);
     },
-    
-    // OPTIMISTIC UPDATES: Immediate UI feedback
-    onMutate: async (payload) => {
-      // Cancel outgoing queries
-      await queryClient.cancelQueries({ queryKey: projectsQueryKeys.all });
-      
-      // Create optimistic project
-      const optimisticProject: EnhancedProject = {
+    onMutate: async (newData) => {
+      await queryClient.cancelQueries({ queryKey: projectsQueryKeys.lists() });
+      const previousProjects = queryClient.getQueryData<Project[]>(projectsQueryKeys.list(user!.id));
+
+      // Create an optimistic project object
+      const optimisticProject: Project = {
         id: `temp-${Date.now()}`,
-        title: payload.title,
-        type: payload.type || 'single',
+        title: newData.title,
+        artist_id: newData.artist_id,
+        type: newData.type || 'single',
         status: 'draft',
-        artist_id: payload.artist_id,
-        description: payload.description,
-        auto_generated: !!payload.auto_creation,
-        generation_context: payload.auto_creation ? {
-          source: 'user_creation' as const,
-          original_track_id: payload.auto_creation.source_track_id,
-        } : undefined,
-        details: {
-          concept: '',
-          target_audience: '',
-          release_strategy: '',
-          marketing_notes: '',
-          mood_description: '',
-          genre_primary: '',
-          genre_secondary: [],
-        },
-        _cached_at: Date.now(),
+        description: newData.description || null,
+        cover_url: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        metadata: {},
       };
-      
-      // Update cache optimistically
-      const previousProjects = queryClient.getQueryData<EnhancedProject[]>(
-        projectsQueryKeys.list(user?.id || '')
+
+      // Optimistically update the cache
+      queryClient.setQueryData(
+        projectsQueryKeys.list(user!.id),
+        (old) => [optimisticProject, ...(old || [])]
       );
       
-      if (previousProjects) {
-        queryClient.setQueryData(
-          projectsQueryKeys.list(user?.id || ''),
-          [optimisticProject, ...previousProjects]
-        );
-      }
-      
-      // Update global state optimistically
       dispatch({ type: 'PROJECT_UPDATE', payload: optimisticProject });
-      
+
       return { previousProjects };
     },
-    
-    // SUCCESS: Update cache с real data
-    onSuccess: (newProject) => {
-      // Update list cache
-      const previousData = queryClient.getQueryData<EnhancedProject[]>(
-        projectsQueryKeys.list(user?.id || '')
-      );
-      
-      if (previousData) {
-        const updatedData = previousData.map(project =>
-          project.id.startsWith('temp-') ? newProject : project
-        );
-        
-        queryClient.setQueryData(
-          projectsQueryKeys.list(user?.id || ''),
-          updatedData
-        );
-      }
-      
-      // Set individual project cache
-      queryClient.setQueryData(
-        projectsQueryKeys.detail(newProject.id),
-        newProject
-      );
-      
-      // Update global state
-      dispatch({ type: 'PROJECT_UPDATE', payload: newProject });
-      
-      const creationType = newProject.auto_generated ? 'автоматически создан' : 'создан';
+    onSuccess: (result) => {
       toast({
         title: "✅ Проект создан",
-        description: `${newProject.title} ${creationType}`,
+        description: `${result.title} был успешно создан.`,
       });
+      // The onSettled handler will invalidate queries to get the final data.
     },
-    
-    // ERROR: Rollback optimistic updates
-    onError: (error, payload, context) => {
-      console.error('[useCreateProject] Mutation failed:', error);
-      
+    onError: (error, newData, context) => {
+      // Rollback to the previous state on error
       if (context?.previousProjects) {
-        queryClient.setQueryData(
-          projectsQueryKeys.list(user?.id || ''),
-          context.previousProjects
-        );
+        queryClient.setQueryData(projectsQueryKeys.list(user!.id), context.previousProjects);
       }
-      
       dispatch({ type: 'PROJECTS_ERROR', payload: error.message });
-      
       toast({
-        title: "❌ Ошибка создания",
-        description: `Не удалось создать проект: ${error.message}`,
+        title: "❌ Ошибка создания проекта",
+        description: error.message,
         variant: "destructive",
       });
     },
-    
-    // CLEANUP: Invalidate related queries
     onSettled: () => {
+      // Invalidate all project queries to ensure data consistency
       queryClient.invalidateQueries({ queryKey: projectsQueryKeys.all });
     },
   });
 }
 
 /**
- * РЕАЛИЗОВАНО: useUpdateProject hook - обновление проектов с оптимистичными обновлениями
- * РЕАЛИЗОВАНО: useDeleteProject hook - удаление проектов с каскадными опциями
- * TODO: Add project analytics hooks
- * TODO: Add bulk operations support
+ * Hook to update an existing project.
+ * (Placeholder - to be implemented)
  */
+export function useUpdateProject() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateProjectData }) => updateProject(id, data),
+    onSuccess: (updatedProject) => {
+      queryClient.invalidateQueries({ queryKey: projectsQueryKeys.all });
+      queryClient.setQueryData(projectsQueryKeys.detail(updatedProject.id), updatedProject);
+      toast({ title: 'Проект обновлен' });
+    },
+    onError: (error) => {
+      toast({ title: 'Ошибка обновления', description: error.message, variant: 'destructive' });
+    }
+  });
+}
 
 /**
- * PERFORMANCE NOTES:
- * 
- * 1. AUTO-CREATION PATTERN:
- *    - Seamless project creation для tracks без проекта
- *    - Smart defaults based на track metadata
- *    - AI concept generation для enhanced projects
- * 
- * 2. CACHING OPTIMIZATIONS:
- *    - Artist data prefetching для project displays
- *    - Global state integration для immediate access
- *    - Optimistic updates для instant feedback
- * 
- * 3. AI INTEGRATION:
- *    - Optional concept generation с quality scoring
- *    - Graceful degradation если AI services unavailable
- *    - Context preservation для future enhancements
- * 
- * 4. COVER GENERATION:
- *    - Multi-provider support (SunoAPI, Stability, DALL-E)
- *    - Default auto-generation с custom override options
- *    - Metadata tracking для regeneration support
+ * Hook to delete a project.
+ * (Placeholder - to be implemented)
  */
+export function useDeleteProject() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteProject(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: projectsQueryKeys.all });
+      toast({ title: 'Проект удален' });
+    },
+    onError: (error) => {
+      toast({ title: 'Ошибка удаления', description: error.message, variant: 'destructive' });
+    }
+  });
+}

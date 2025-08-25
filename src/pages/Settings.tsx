@@ -10,6 +10,10 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NotificationSettingRow } from "@/components/settings/NotificationSettingRow";
+import { SettingsInput } from "@/components/settings/SettingsInput";
+import { SettingsTextarea } from "@/components/settings/SettingsTextarea";
+import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -81,50 +85,39 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    value={user?.email || ""}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Email нельзя изменить здесь. Обратитесь в поддержку при необходимости.
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="displayName">Отображаемое имя</Label>
-                  <Input
-                    id="displayName"
-                    value={settings.profile?.display_name || ""}
-                    onChange={(e) => updateSetting('profile', 'display_name', e.target.value)}
-                    placeholder="Ваше отображаемое имя"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio">Биография</Label>
-                <Textarea
-                  id="bio"
-                  value={settings.profile?.bio || ""}
-                  onChange={(e) => updateSetting('profile', 'bio', e.target.value)}
-                  placeholder="Расскажите о себе и вашей музыке..."
-                  className="min-h-[100px] resize-none"
+                <SettingsInput
+                  id="email"
+                  label="Email"
+                  value={user?.email || ""}
+                  disabled
+                  className="bg-muted"
+                  description="Email нельзя изменить здесь. Обратитесь в поддержку при необходимости."
+                />
+                <SettingsInput
+                  id="displayName"
+                  label="Отображаемое имя"
+                  value={settings.profile?.display_name || ""}
+                  onChange={(e) => updateSetting('profile', 'display_name', e.target.value)}
+                  placeholder="Ваше отображаемое имя"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="avatarUrl">URL аватара</Label>
-                <Input
-                  id="avatarUrl"
-                  value={settings.profile?.avatar_url || ""}
-                  onChange={(e) => updateSetting('profile', 'avatar_url', e.target.value)}
-                  placeholder="https://example.com/avatar.jpg"
-                />
-              </div>
+              <SettingsTextarea
+                id="bio"
+                label="Биография"
+                value={settings.profile?.bio || ""}
+                onChange={(e) => updateSetting('profile', 'bio', e.target.value)}
+                placeholder="Расскажите о себе и вашей музыке..."
+                className="min-h-[100px] resize-none"
+              />
+
+              <SettingsInput
+                id="avatarUrl"
+                label="URL аватара"
+                value={settings.profile?.avatar_url || ""}
+                onChange={(e) => updateSetting('profile', 'avatar_url', e.target.value)}
+                placeholder="https://example.com/avatar.jpg"
+              />
 
               <Button onClick={() => handleSave('профиля')} disabled={isSaving}>
                 <Save className="mr-2 h-4 w-4" />
@@ -144,79 +137,43 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="emailNotifications">Email уведомления</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Получать уведомления по электронной почте
-                    </p>
-                  </div>
-                  <Switch
-                    id="emailNotifications"
-                    checked={settings.notifications?.email_notifications || false}
-                    onCheckedChange={(checked) => updateSetting('notifications', 'email_notifications', checked)}
-                  />
-                </div>
-
+                <NotificationSettingRow
+                  id="emailNotifications"
+                  title="Email уведомления"
+                  description="Получать уведомления по электронной почте"
+                  checked={settings.notifications?.email_notifications || false}
+                  onCheckedChange={(checked) => updateSetting('notifications', 'email_notifications', checked)}
+                />
                 <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="pushNotifications">Push уведомления</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Получать push-уведомления в браузере
-                    </p>
-                  </div>
-                  <Switch
-                    id="pushNotifications"
-                    checked={settings.notifications?.push_notifications || false}
-                    onCheckedChange={(checked) => updateSetting('notifications', 'push_notifications', checked)}
-                  />
-                </div>
-
+                <NotificationSettingRow
+                  id="pushNotifications"
+                  title="Push уведомления"
+                  description="Получать push-уведомления в браузере"
+                  checked={settings.notifications?.push_notifications || false}
+                  onCheckedChange={(checked) => updateSetting('notifications', 'push_notifications', checked)}
+                />
                 <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="aiGenerationComplete">ИИ генерация завершена</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Уведомлять когда генерация музыки ИИ завершена
-                    </p>
-                  </div>
-                  <Switch
-                    id="aiGenerationComplete"
-                    checked={settings.notifications?.ai_generation_complete || false}
-                    onCheckedChange={(checked) => updateSetting('notifications', 'ai_generation_complete', checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="projectUpdates">Обновления проектов</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Уведомлять об изменениях проектов и коллаборациях
-                    </p>
-                  </div>
-                  <Switch
-                    id="projectUpdates"
-                    checked={settings.notifications?.project_updates || false}
-                    onCheckedChange={(checked) => updateSetting('notifications', 'project_updates', checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="weeklyDigest">Еженедельная сводка</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Получать еженедельную сводку вашей активности
-                    </p>
-                  </div>
-                  <Switch
-                    id="weeklyDigest"
-                    checked={settings.notifications?.weekly_digest || false}
-                    onCheckedChange={(checked) => updateSetting('notifications', 'weekly_digest', checked)}
-                  />
-                </div>
+                <NotificationSettingRow
+                  id="aiGenerationComplete"
+                  title="ИИ генерация завершена"
+                  description="Уведомлять когда генерация музыки ИИ завершена"
+                  checked={settings.notifications?.ai_generation_complete || false}
+                  onCheckedChange={(checked) => updateSetting('notifications', 'ai_generation_complete', checked)}
+                />
+                <NotificationSettingRow
+                  id="projectUpdates"
+                  title="Обновления проектов"
+                  description="Уведомлять об изменениях проектов и коллаборациях"
+                  checked={settings.notifications?.project_updates || false}
+                  onCheckedChange={(checked) => updateSetting('notifications', 'project_updates', checked)}
+                />
+                <NotificationSettingRow
+                  id="weeklyDigest"
+                  title="Еженедельная сводка"
+                  description="Получать еженедельную сводку вашей активности"
+                  checked={settings.notifications?.weekly_digest || false}
+                  onCheckedChange={(checked) => updateSetting('notifications', 'weekly_digest', checked)}
+                />
               </div>
 
               <Button onClick={() => handleSave('уведомлений')} disabled={isSaving}>
@@ -237,43 +194,18 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="autoSaveProjects">Автосохранение проектов</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Автоматически сохранять изменения в проектах
-                    </p>
-                  </div>
-                  <Switch
-                    id="autoSaveProjects"
-                    checked={settings.preferences?.auto_save_projects || false}
-                    onCheckedChange={(checked) => updateSetting('preferences', 'auto_save_projects', checked)}
-                  />
-                </div>
-
+                <NotificationSettingRow
+                  id="autoSaveProjects"
+                  title="Автосохранение проектов"
+                  description="Автоматически сохранять изменения в проектах"
+                  checked={settings.preferences?.auto_save_projects || false}
+                  onCheckedChange={(checked) => updateSetting('preferences', 'auto_save_projects', checked)}
+                />
                 <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="theme">Тема</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Выберите тему приложения
-                    </p>
-                  </div>
-                  <Select 
-                    value={settings.preferences?.theme || 'system'} 
-                    onValueChange={(value) => updateSetting('preferences', 'theme', value)}
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light">Светлая</SelectItem>
-                      <SelectItem value="dark">Темная</SelectItem>
-                      <SelectItem value="system">Системная</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <ThemeSelector
+                  theme={settings.preferences?.theme || 'system'}
+                  onThemeChange={(value) => updateSetting('preferences', 'theme', value)}
+                />
               </div>
 
               <Button onClick={() => handleSave('предпочтений')} disabled={isSaving}>
