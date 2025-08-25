@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -12,17 +12,18 @@ import { useToast } from "@/hooks/use-toast";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Sparkles, Loader2 } from "lucide-react";
+import { useCreateArtist, useUpdateArtist, Artist } from "@/hooks/data/useArtists";
 
 const createArtistSchema = z.object({
   name: z.string().min(1, "Название артиста обязательно"),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
   metadata: z.object({
     genre: z.string().optional(),
     location: z.string().optional(),
     background: z.string().optional(),
     style: z.string().optional(),
     influences: z.array(z.string()).optional(),
-  }).optional()
+  }).optional(),
 });
 
 type CreateArtistForm = z.infer<typeof createArtistSchema>;
@@ -31,7 +32,7 @@ interface CreateArtistDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onArtistCreated?: () => void;
-  editingArtist?: any;
+  editingArtist?: Artist;
 }
 
 export function CreateArtistDialog({ open: controlledOpen, onOpenChange, onArtistCreated, editingArtist }: CreateArtistDialogProps) {
@@ -47,20 +48,57 @@ export function CreateArtistDialog({ open: controlledOpen, onOpenChange, onArtis
     folder: 'artists'
   });
 
+  const createArtistMutation = useCreateArtist();
+  const updateArtistMutation = useUpdateArtist();
+
+  const isSubmitting = createArtistMutation.isPending || updateArtistMutation.isPending;
+
   const form = useForm<CreateArtistForm>({
     resolver: zodResolver(createArtistSchema),
     defaultValues: {
-      name: editingArtist?.name || "",
-      description: editingArtist?.description || "",
+      name: "",
+      description: "",
       metadata: {
-        genre: editingArtist?.metadata?.genre || "",
-        location: editingArtist?.metadata?.location || "",
-        background: editingArtist?.metadata?.background || "",
-        style: editingArtist?.metadata?.style || "",
-        influences: editingArtist?.metadata?.influences || []
+        genre: "",
+        location: "",
+        background: "",
+        style: "",
+        influences: []
       }
     }
   });
+
+  useEffect(() => {
+    if (editingArtist) {
+      form.reset({
+        name: editingArtist.name || "",
+        description: editingArtist.description || "",
+        metadata: {
+          genre: editingArtist.metadata?.genre || "",
+          location: editingArtist.metadata?.location || "",
+          background: editingArtist.metadata?.background || "",
+          style: editingArtist.metadata?.style || "",
+          influences: editingArtist.metadata?.influences || [],
+        },
+      });
+      if (editingArtist.avatar_url) {
+        setAvatarPreview(editingArtist.avatar_url);
+      }
+    } else {
+      form.reset({
+        name: "",
+        description: "",
+        metadata: {
+          genre: "",
+          location: "",
+          background: "",
+          style: "",
+          influences: []
+        },
+      });
+      setAvatarPreview("");
+    }
+  }, [editingArtist, form]);
 
   const handleFileSelect = (file: File | null) => {
     setAvatarFile(file);
@@ -71,7 +109,7 @@ export function CreateArtistDialog({ open: controlledOpen, onOpenChange, onArtis
       };
       reader.readAsDataURL(file);
     } else {
-      setAvatarPreview("");
+      setAvatarPreview(editingArtist?.avatar_url || "");
     }
   };
 
@@ -169,77 +207,37 @@ export function CreateArtistDialog({ open: controlledOpen, onOpenChange, onArtis
     }
   };
 
-  const onSubmit = async (data: CreateArtistForm) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Ошибка",
-          description: "Пользователь не авторизован",
-          variant: "destructive"
-        });
-        return;
+  const onSubmit = async (formData: CreateArtistForm) => {
+    let avatarUrl = editingArtist?.avatar_url || null;
+
+    if (avatarFile) {
+      const uploadedUrl = await uploadFile(avatarFile);
+      if (!uploadedUrl) {
+        return; // Error is handled by the useFileUpload hook
       }
+      avatarUrl = uploadedUrl;
+    }
 
-      let avatarUrl = null;
+    const submissionData = {
+      ...formData,
+      avatar_url: avatarUrl,
+    };
 
-      // Upload avatar if provided
-      if (avatarFile) {
-        avatarUrl = await uploadFile(avatarFile);
-        if (!avatarUrl) {
-          return; // Error handling is done in uploadFile
-        }
-      }
-
-      // Create or update artist
-      let error;
-      if (editingArtist) {
-        const { error: updateError } = await supabase
-          .from('artists')
-          .update({
-            name: data.name,
-            description: data.description || null,
-            avatar_url: avatarUrl || editingArtist.avatar_url,
-            metadata: data.metadata || {}
-          })
-          .eq('id', editingArtist.id);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('artists')
-          .insert({
-            user_id: user.id,
-            name: data.name,
-            description: data.description || null,
-            avatar_url: avatarUrl,
-            metadata: data.metadata || {}
-          });
-        error = insertError;
-      }
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Успешно",
-        description: editingArtist ? "Артист обновлен" : "Артист создан"
-      });
-
-      // Reset form and close dialog
+    const handleSuccess = () => {
       form.reset();
       setAvatarFile(null);
       setAvatarPreview("");
       setOpen(false);
       onArtistCreated?.();
+    };
 
-    } catch (error: any) {
-      console.error('Create artist error:', error);
-      toast({
-        title: "Ошибка",
-        description: error.message || "Произошла ошибка при создании артиста",
-        variant: "destructive"
-      });
+    if (editingArtist) {
+      updateArtistMutation.mutate(
+        { id: editingArtist.id, data: submissionData },
+        { onSuccess: handleSuccess }
+      );
+    } else {
+      createArtistMutation.mutate(submissionData, { onSuccess: handleSuccess });
     }
   };
 
@@ -424,10 +422,10 @@ export function CreateArtistDialog({ open: controlledOpen, onOpenChange, onArtis
               </Button>
               <Button 
                 type="submit" 
-                disabled={uploading || form.formState.isSubmitting}
+                disabled={uploading || isSubmitting}
                 className="flex-1"
               >
-                {uploading || form.formState.isSubmitting ? (editingArtist ? "Обновление..." : "Создание...") : (editingArtist ? "Обновить" : "Создать")}
+                {uploading ? "Загрузка..." : (isSubmitting ? (editingArtist ? "Обновление..." : "Создание...") : (editingArtist ? "Обновить" : "Создать"))}
               </Button>
             </div>
           </form>
