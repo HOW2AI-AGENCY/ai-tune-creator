@@ -231,30 +231,6 @@ export function TrackGenerationSidebar({
     }
   };
 
-  const handleConfirmCoverGeneration = async () => {
-    if (!uploadedAudioUrl || !coverPrompt.trim()) return;
-
-    toast({ title: "Запуск трансформации аудио...", description: "Отправляем запрос в Suno API." });
-    try {
-        const { data, error } = await supabase.functions.invoke('upload-cover-suno-track', {
-            body: {
-                audio_url: uploadedAudioUrl,
-                prompt: coverPrompt,
-                title: `Cover of ${uploadedAudioUrl.split('/').pop()}`,
-                projectId: selectedProjectId !== "none" ? selectedProjectId : undefined,
-                artistId: selectedArtistId !== "none" ? selectedArtistId : undefined,
-            },
-        });
-
-        if (error) throw error;
-
-        toast({ title: "Успех!", description: `Задача создана с ID: ${data.taskId}` });
-    } catch (e: any) {
-        console.error("Cover generation error:", e);
-        toast({ title: "Ошибка", description: e.message, variant: "destructive" });
-    }
-  };
-
   const handleEditPreview = () => {
     setShowPreview(false);
   };

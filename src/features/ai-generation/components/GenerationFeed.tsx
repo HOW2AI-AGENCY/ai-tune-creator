@@ -10,9 +10,10 @@ import { useTrackGenerationWithProgress } from '../hooks/useTrackGenerationWithP
 interface GenerationFeedProps {
   onPlay?: (url: string) => void;
   onDownload?: (url: string, filename: string) => void;
+  onRetry?: (generation: AIGeneration) => void;
 }
 
-export function GenerationFeed({ onPlay, onDownload }: GenerationFeedProps) {
+export function GenerationFeed({ onPlay, onDownload, onRetry }: GenerationFeedProps) {
   const { 
     generations, 
     isLoading, 
@@ -122,6 +123,7 @@ export function GenerationFeed({ onPlay, onDownload }: GenerationFeedProps) {
           onPlay={onPlay}
           onDownload={onDownload || handleDownload}
           isRefreshing={isRefreshing}
+          onRetry={onRetry}
         />
       ))}
     </div>

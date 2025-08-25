@@ -48,7 +48,7 @@ export default function AIGeneration() {
   const [currentTrack, setCurrentTrack] = useState<any | null>(null);
 
   // Polling hook для отслеживания прогресса
-  const { generateTrack, isGenerating, generationProgress } = useTrackGenerationWithProgress();
+  const { generateTrack, isGenerating, generationProgress, retryGeneration } = useTrackGenerationWithProgress();
 
   const fetchGenerations = async () => {
     if (!user) return;
@@ -538,6 +538,7 @@ export default function AIGeneration() {
                       link.click();
                       document.body.removeChild(link);
                     }}
+                    onRetry={retryGeneration}
                   />
                 </TabsContent>
 
