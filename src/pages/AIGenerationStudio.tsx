@@ -22,14 +22,16 @@ import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/u
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { TrackStorageManager } from "@/components/dev/TrackStorageManager";
 import { useEventListener } from "@/lib/events/event-bus";
+import { lazy } from "react";
 
-// Import components directly to avoid lazy loading issues
-import { GenerationContextPanel } from "@/features/ai-generation/components/GenerationContextPanel";
-import { TaskQueuePanel } from "@/features/ai-generation/components/TaskQueuePanel";
-import { TrackResultsGrid } from "@/features/ai-generation/components/TrackResultsGrid";
-import { TrackDetailsDrawer } from "@/features/ai-generation/components/TrackDetailsDrawer";
-import { CommandPalette } from "@/features/ai-generation/components/CommandPalette";
-import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
+// Lazily import heavy components to improve initial load time
+const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel"));
+const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel"));
+const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid"));
+const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer"));
+const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette"));
+const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer"));
+
 interface Track {
   id: string;
   title: string;
