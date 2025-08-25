@@ -340,8 +340,31 @@ export function useTrackGenerationWithProgress() {
     }
   }, [toast, startPolling, updateProgress, resetProgress]);
 
+  const retryGeneration = useCallback(async (generation: { parameters?: GenerationParams }): Promise<any> => {
+    if (!generation.parameters) {
+      toast({
+        title: "Ошибка повтора",
+        description: "Не найдены параметры для повторной генерации.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('Retrying generation with params:', generation.parameters);
+    toast({
+      title: "Повтор генерации",
+      description: "Запускаем генерацию с предыдущими параметрами..."
+    });
+
+    // Очищаем старую запись о генерации, если нужно (опционально)
+    // await supabase.from('ai_generations').delete().eq('id', generation.id);
+
+    return await generateTrack(generation.parameters);
+  }, [generateTrack, toast]);
+
   return {
     generateTrack,
+    retryGeneration,
     isGenerating,
     generationProgress,
     currentTask,

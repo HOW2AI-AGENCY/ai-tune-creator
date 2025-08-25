@@ -105,6 +105,13 @@ export default function AIGenerationStudio() {
     fetchTracks();
   });
 
+  // Listen for play-track events from other components
+  useEventListener('play-track', (data) => {
+    if (data?.track) {
+      handlePlayTrack(data.track as Track);
+    }
+  }, [handlePlayTrack]);
+
   // Core State
   const [searchQuery, setSearchQuery] = useState("");
   const [tasks, setTasks] = useState<GenerationTask[]>([]);
@@ -378,7 +385,7 @@ export default function AIGenerationStudio() {
       });
     }
   };
-  const handlePlayTrack = (track: Track) => {
+  const handlePlayTrack = useCallback((track: Track) => {
     console.log('🎵 handlePlayTrack called with:', {
       id: track.id,
       title: track.title,
@@ -401,7 +408,7 @@ export default function AIGenerationStudio() {
     }
     // Close track details drawer when starting playback
     setIsTrackDetailsOpen(false);
-  };
+  }, [currentPlayingTrack, isPlaying, toast]);
   const handlePlayerPlayPause = (playing: boolean) => {
     setIsPlaying(playing);
   };

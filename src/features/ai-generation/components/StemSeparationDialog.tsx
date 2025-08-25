@@ -68,6 +68,7 @@ export function StemSeparationDialog({ open, onOpenChange, track }: StemSeparati
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [stems, setStems] = useState<StemUrls | null>(null);
+  const [zipUrl, setZipUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
   const [downloadingStems, setDownloadingStems] = useState<Set<string>>(new Set());
@@ -81,6 +82,7 @@ export function StemSeparationDialog({ open, onOpenChange, track }: StemSeparati
     if (!open) {
       // Reset state when dialog closes
       setStems(null);
+      setZipUrl(null);
       setTaskId(null);
       setProgress(0);
       setIsProcessing(false);
@@ -137,18 +139,19 @@ export function StemSeparationDialog({ open, onOpenChange, track }: StemSeparati
 
         if (error) throw error;
 
-        setProgress(50);
-        setStems({
-          original: track.audio_url,
-          ...data.urls
-        });
-        setProgress(100);
-        setIsProcessing(false);
+        if (data.success && data.data.zip_url) {
+          setProgress(50);
+          setZipUrl(data.data.zip_url);
+          setProgress(100);
+          setIsProcessing(false);
 
-        toast({
-          title: "✅ Stem separation completed",
-          description: "All stems are ready for download"
-        });
+          toast({
+            title: "✅ Stem separation completed",
+            description: "A ZIP file with all stems is ready for download."
+          });
+        } else {
+          throw new Error(data.error || 'Mureka separation failed to return a zip URL.');
+        }
 
       } else {
         throw new Error('Stem separation is only available for Suno and Mureka tracks');
@@ -430,48 +433,63 @@ export function StemSeparationDialog({ open, onOpenChange, track }: StemSeparati
           )}
 
           {/* Results */}
-          {stems && (
+          {(stems || zipUrl) && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-lg flex items-center gap-2">
                   <Music2 className="h-5 w-5" />
                   Separated Stems
                 </h3>
-                <Button onClick={downloadAllStems} variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Download All
-                </Button>
-              </div>
-
-              <div className="grid gap-3">
-                {/* Primary stems first */}
-                {renderStemPlayer(stems.vocals, "Vocals", "vocals")}
-                {renderStemPlayer(stems.instrumental, "Instrumental", "instrumental")}
-                
-                {/* Secondary stems */}
-                {(stems.backingVocals || stems.drums || stems.bass || stems.guitar || 
-                  stems.keyboard || stems.percussion || stems.strings || stems.synth || 
-                  stems.fx || stems.brass || stems.woodwinds) && (
-                  <>
-                    <Separator />
-                    {renderStemPlayer(stems.backingVocals, "Backing Vocals", "backing_vocals")}
-                    {renderStemPlayer(stems.drums, "Drums", "drums")}
-                    {renderStemPlayer(stems.bass, "Bass", "bass")}
-                    {renderStemPlayer(stems.guitar, "Guitar", "guitar")}
-                    {renderStemPlayer(stems.keyboard, "Keyboard", "keyboard")}
-                    {renderStemPlayer(stems.percussion, "Percussion", "percussion")}
-                    {renderStemPlayer(stems.strings, "Strings", "strings")}
-                    {renderStemPlayer(stems.synth, "Synthesizer", "synth")}
-                    {renderStemPlayer(stems.brass, "Brass", "brass")}
-                    {renderStemPlayer(stems.woodwinds, "Woodwinds", "woodwinds")}
-                    {renderStemPlayer(stems.fx, "Effects", "fx")}
-                  </>
+                {stems && (
+                  <Button onClick={downloadAllStems} variant="outline" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Download All
+                  </Button>
                 )}
               </div>
+
+              {zipUrl && (
+                <div className="bg-muted/30 p-4 rounded-lg flex items-center justify-between">
+                  <p className="font-medium">All stems ready in a ZIP file.</p>
+                  <Button onClick={() => downloadStem(zipUrl, 'stems.zip')} className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Download ZIP
+                  </Button>
+                </div>
+              )}
+
+              {stems && (
+                <div className="grid gap-3">
+                  {/* Primary stems first */}
+                  {renderStemPlayer(stems.vocals, "Vocals", "vocals")}
+                  {renderStemPlayer(stems.instrumental, "Instrumental", "instrumental")}
+
+                  {/* Secondary stems */}
+                  {(stems.backingVocals || stems.drums || stems.bass || stems.guitar ||
+                    stems.keyboard || stems.percussion || stems.strings || stems.synth ||
+                    stems.fx || stems.brass || stems.woodwinds) && (
+                    <>
+                      <Separator />
+                      {renderStemPlayer(stems.backingVocals, "Backing Vocals", "backing_vocals")}
+                      {renderStemPlayer(stems.drums, "Drums", "drums")}
+                      {renderStemPlayer(stems.bass, "Bass", "bass")}
+                      {renderStemPlayer(stems.guitar, "Guitar", "guitar")}
+                      {renderStemPlayer(stems.keyboard, "Keyboard", "keyboard")}
+                      {renderStemPlayer(stems.percussion, "Percussion", "percussion")}
+                      {renderStemPlayer(stems.strings, "Strings", "strings")}
+                      {renderStemPlayer(stems.synth, "Synthesizer", "synth")}
+                      {renderStemPlayer(stems.brass, "Brass", "brass")}
+                      {renderStemPlayer(stems.woodwinds, "Woodwinds", "woodwinds")}
+                      {renderStemPlayer(stems.fx, "Effects", "fx")}
+                    </>
+                  )}
+                </div>
+              )}
 
               <Button 
                 onClick={() => {
                   setStems(null);
+                  setZipUrl(null);
                   setTaskId(null);
                   setProgress(0);
                 }}

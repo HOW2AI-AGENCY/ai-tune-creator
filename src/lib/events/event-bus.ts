@@ -16,7 +16,8 @@ export type AppEvent =
   | 'generation-failed'
   | 'projects-updated'
   | 'artists-updated'
-  | 'errors-updated';
+  | 'errors-updated'
+  | 'play-track';
 
 export type EventData = Record<string, any>;
 

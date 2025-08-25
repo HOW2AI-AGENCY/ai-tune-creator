@@ -21,6 +21,7 @@ interface GenerationTrackCardProps {
   onPlay?: (url: string) => void;
   onDownload?: (url: string, filename: string) => void;
   isRefreshing: boolean;
+  onRetry?: (generation: AIGeneration) => void;
 }
 
 export function GenerationTrackCard({ 
@@ -28,7 +29,8 @@ export function GenerationTrackCard({
   onCheckStatus, 
   onPlay, 
   onDownload,
-  isRefreshing 
+  isRefreshing,
+  onRetry
 }: GenerationTrackCardProps) {
   const [progress, setProgress] = useState(generation.progress || 0);
 
@@ -345,13 +347,7 @@ export function GenerationTrackCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  // TODO: implement retry logic
-                  toast({
-                    title: "Информация",
-                    description: "Повтор генерации пока не реализован"
-                  });
-                }}
+                onClick={() => onRetry?.(generation)}
               >
                 <RefreshCw className="h-4 w-4" />
                 Повторить

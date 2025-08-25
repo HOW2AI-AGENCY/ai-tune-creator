@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { eventBus } from '@/lib/events/event-bus';
 
 interface TaskQueuePanelProps {
   className?: string;
@@ -204,9 +205,19 @@ const TaskQueuePanelComponent = function TaskQueuePanel({ className }: TaskQueue
     return date.toLocaleDateString();
   }, []);
 
-  const handlePlay = useCallback((url: string) => {
-    // TODO: Integrate with audio player
-    window.open(url, '_blank');
+  const handlePlay = useCallback((task: GenerationTask) => {
+    if (!task.result_url) return;
+
+    // Создаем объект трека для плеера
+    const trackToPlay = {
+      id: task.track_id || task.id,
+      title: task.prompt,
+      audio_url: task.result_url,
+      metadata: task.metadata,
+      created_at: task.created_at,
+    };
+
+    eventBus.emit('play-track', { track: trackToPlay });
   }, []);
 
   const handleDownload = useCallback((url: string, prompt: string) => {
@@ -348,7 +359,7 @@ const TaskQueuePanelComponent = function TaskQueuePanel({ className }: TaskQueue
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handlePlay(task.result_url!)}
+                        onClick={() => handlePlay(task)}
                         className="h-8 w-8 p-0"
                       >
                         <Play className="h-3 w-3" />
