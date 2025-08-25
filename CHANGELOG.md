@@ -227,9 +227,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- **Dependencies**: Updated several dependencies to their latest patch/minor versions to improve stability and security, including `@types/react`, `@supabase/supabase-js`, and `lucide-react`.
-
 ### Enhanced
 - **Artist CRUD Functionality**: Finalized the complete CRUD (Create, Read, Update, Delete) operations for Artists. The feature was refactored to use a centralized API service and React Query hooks (`useGetArtists`, `useCreateArtist`, `useUpdateArtist`, `useDeleteArtist`), improving maintainability, and aligning with the project's architecture.
 
