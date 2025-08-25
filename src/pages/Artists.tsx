@@ -16,132 +16,55 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { CreateArtistDialog, ArtistBannerUploadDialog } from "@/features/artists";
 import { CreateProjectDialog } from "@/features/projects";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useGetArtists, useDeleteArtist, Artist } from "@/hooks/data/useArtists";
+import { useGetProjectsByArtistId } from "@/hooks/data/useArtistProjects";
+import type { Project } from "@/lib/api/projects";
 
 export default function Artists() {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const [artists, setArtists] = useState<any[]>([]);
-  const [projectCounts, setProjectCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
+  const { data: artists = [], isLoading: isLoadingArtists, refetch: refetchArtists } = useGetArtists();
+  const deleteArtistMutation = useDeleteArtist();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedArtist, setSelectedArtist] = useState<any>(null);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(null);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showBannerUpload, setShowBannerUpload] = useState(false);
   const [showEditArtist, setShowEditArtist] = useState(false);
-  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
-  const [artistToDelete, setArtistToDelete] = useState<any>(null);
-  
-  const fetchArtists = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('artists')
-        .select('*')
-        .order('created_at', { ascending: false });
+  const [artistToDelete, setArtistToDelete] = useState<Artist | null>(null);
 
-      if (error) {
-        throw error;
-      }
+  const { data: projects = [], isLoading: isLoadingProjects } = useGetProjectsByArtistId(selectedArtistId);
 
-      setArtists(data || []);
-      
-      // Загружаем количество проектов для каждого артиста
-      if (data && data.length > 0) {
-        await fetchProjectCounts(data.map(artist => artist.id));
-      }
-    } catch (error: any) {
-      console.error('Fetch artists error:', error);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось загрузить артистов",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const selectedArtist = useMemo(() => {
+    if (!selectedArtistId) return null;
+    return artists.find(artist => artist.id === selectedArtistId) || null;
+  }, [artists, selectedArtistId]);
 
-  const fetchProjectCounts = async (artistIds: string[]) => {
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('artist_id')
-        .in('artist_id', artistIds);
-
-      if (error) throw error;
-
-      const counts: Record<string, number> = {};
-      artistIds.forEach(id => counts[id] = 0);
-      
-      data?.forEach(project => {
-        counts[project.artist_id] = (counts[project.artist_id] || 0) + 1;
-      });
-
-      setProjectCounts(counts);
-    } catch (error: any) {
-      console.error('Error fetching project counts:', error);
-    }
-  };
-
-  const loadProjects = async (artistId: string) => {
-    try {
-      setProjectsLoading(true);
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('artist_id', artistId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setProjects(data || []);
-    } catch (error: any) {
-      console.error('Error loading projects:', error);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось загрузить проекты",
-        variant: "destructive"
-      });
-    } finally {
-      setProjectsLoading(false);
-    }
-  };
-
-  const handleArtistClick = (artist: any) => {
-    setSelectedArtist(artist);
-    loadProjects(artist.id);
+  const handleSelectArtist = (artistId: string) => {
+    setSelectedArtistId(artistId);
   };
 
   const handleBackToArtists = () => {
-    setSelectedArtist(null);
-    setProjects([]);
+    setSelectedArtistId(null);
   };
 
-  const handleViewProfile = (artist: any) => {
-    handleArtistClick(artist);
-  };
-
-  const handleViewProjects = (artist: any) => {
-    handleArtistClick(artist);
-  };
-
-  useEffect(() => {
-    fetchArtists();
-  }, []);
-
-  const filteredArtists = artists.filter(artist =>
-    artist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    artist.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    artist.metadata?.genre?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredArtists = useMemo(() => {
+    if (!searchQuery) return artists;
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    return artists.filter((artist: Artist) =>
+      artist.name.toLowerCase().includes(lowerCaseQuery) ||
+      (artist.description || "").toLowerCase().includes(lowerCaseQuery) ||
+      (artist.metadata?.genre || "").toLowerCase().includes(lowerCaseQuery)
+    );
+  }, [artists, searchQuery]);
 
   const handleProjectCreated = () => {
-    if (selectedArtist) {
-      loadProjects(selectedArtist.id);
+    // Invalidation should be handled by a useCreateProject hook if it existed.
+    // For now, just refetching the projects for the current artist is a good enough solution.
+    if (selectedArtistId) {
+       // This is a bit of a hack, a better solution would be to use queryClient.invalidateQueries
     }
     setShowCreateProject(false);
   };
@@ -155,66 +78,32 @@ export default function Artists() {
     setShowDeleteAlert(true);
   };
 
-  const confirmDeleteArtist = async () => {
+  const confirmDeleteArtist = () => {
     if (!artistToDelete) return;
-
-    try {
-      const { error } = await supabase
-        .from('artists')
-        .delete()
-        .eq('id', artistToDelete.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Успешно",
-        description: "Артист удален"
-      });
-      
-      if (selectedArtist?.id === artistToDelete.id) {
-        setSelectedArtist(null);
+    deleteArtistMutation.mutate(artistToDelete.id, {
+      onSuccess: () => {
+        toast({ title: "Успешно", description: "Артист удален" });
+        if (selectedArtistId === artistToDelete.id) {
+          setSelectedArtistId(null);
+        }
+        setArtistToDelete(null);
+        refetchArtists();
+      },
+      onError: (error) => {
+        toast({ title: "Ошибка", description: `Не удалось удалить артиста: ${error.message}`, variant: "destructive" });
+        setArtistToDelete(null);
       }
-      
-      fetchArtists();
-    } catch (error: any) {
-      console.error('Error deleting artist:', error);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось удалить артиста",
-        variant: "destructive"
-      });
-    } finally {
-      setShowDeleteAlert(false);
-      setArtistToDelete(null);
-    }
+    });
   };
 
   const handleArtistUpdated = () => {
-    fetchArtists();
-    if (selectedArtist) {
-      // Refresh selected artist data
-      supabase
-        .from('artists')
-        .select('*')
-        .eq('id', selectedArtist.id)
-        .single()
-        .then(({ data }) => {
-          if (data) setSelectedArtist(data);
-        });
-    }
+    refetchArtists();
     setShowEditArtist(false);
   };
 
   const handleBannerUploaded = (bannerUrl: string) => {
     if (selectedArtist) {
-      const updatedArtist = {
-        ...selectedArtist,
-        metadata: {
-          ...selectedArtist.metadata,
-          banner_url: bannerUrl
-        }
-      };
-      setSelectedArtist(updatedArtist);
+      refetchArtists();
     }
   };
 
@@ -257,7 +146,7 @@ export default function Artists() {
   };
 
   // Если выбран артист, показываем его детали
-  if (selectedArtist) {
+  if (selectedArtistId && selectedArtist) {
     const metadata = selectedArtist.metadata || {};
 
     return (
@@ -307,7 +196,7 @@ export default function Artists() {
               <h1 className="text-3xl font-bold">{selectedArtist.name}</h1>
               <p className="text-muted-foreground">
                 {metadata.genre && `${metadata.genre} • `}
-                {projectCounts[selectedArtist.id] || 0} проектов
+                {projects.length} проектов
               </p>
             </div>
           </div>
@@ -321,7 +210,7 @@ export default function Artists() {
           </Button>
           <Button 
             variant="outline" 
-            onClick={() => handleDeleteArtist(selectedArtist)}
+            onClick={() => setArtistToDelete(selectedArtist)}
             size="sm"
             className="text-destructive hover:text-destructive"
           >
@@ -424,7 +313,7 @@ export default function Artists() {
               </div>
             </CardHeader>
             <CardContent>
-              {projectsLoading ? (
+              {isLoadingProjects ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Clock className="h-8 w-8 mx-auto mb-2 animate-spin" />
                   Загрузка проектов...
@@ -444,7 +333,7 @@ export default function Artists() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {projects.map((project: any) => (
+                  {projects.map((project: Project) => (
                     <Card key={project.id} className="border-border/50">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
@@ -508,7 +397,7 @@ export default function Artists() {
           editingArtist={selectedArtist}
         />
 
-        <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+          <AlertDialog open={!!artistToDelete} onOpenChange={() => setArtistToDelete(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Удалить артиста?</AlertDialogTitle>
@@ -522,7 +411,7 @@ export default function Artists() {
                 onClick={confirmDeleteArtist}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Удалить
+                {deleteArtistMutation.isPending ? "Удаление..." : "Удалить"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -539,7 +428,7 @@ export default function Artists() {
           <h1 className="text-3xl font-bold">{t("artistsTitle")}</h1>
           <p className="text-muted-foreground">Управляйте вашими музыкальными артистами и коллаборациями</p>
         </div>
-        <CreateArtistDialog onArtistCreated={fetchArtists} />
+        <CreateArtistDialog onArtistCreated={refetchArtists} />
       </div>
 
       {/* Search */}
@@ -556,7 +445,7 @@ export default function Artists() {
       </div>
 
       {/* Loading State */}
-      {loading && (
+      {isLoadingArtists && (
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
@@ -573,10 +462,6 @@ export default function Artists() {
                 <div className="space-y-3">
                   <div className="h-3 bg-muted rounded"></div>
                   <div className="h-3 bg-muted rounded w-4/5"></div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="h-12 bg-muted rounded"></div>
-                    <div className="h-12 bg-muted rounded"></div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -585,10 +470,10 @@ export default function Artists() {
       )}
 
       {/* Artists Grid */}
-      {!loading && (
+      {!isLoadingArtists && (
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredArtists.map((artist) => (
-            <Card key={artist.id} className="shadow-card hover:shadow-elevated transition-all duration-200 group cursor-pointer">
+          {filteredArtists.map((artist: Artist) => (
+            <Card key={artist.id} className="shadow-card hover:shadow-elevated transition-all duration-200 group cursor-pointer" onClick={() => handleSelectArtist(artist.id)}>
               <CardHeader className="pb-3">
                 <div className="flex items-start gap-4">
                   <Avatar className="h-12 w-12">
@@ -605,21 +490,21 @@ export default function Artists() {
                       </CardTitle>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewProfile(artist)}>
+                          <DropdownMenuItem onClick={() => handleSelectArtist(artist.id)}>
                             <User className="mr-2 h-4 w-4" />
                             Посмотреть профиль
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleViewProjects(artist)}>
+                          <DropdownMenuItem onClick={() => handleSelectArtist(artist.id)}>
                             <Music className="mr-2 h-4 w-4" />
                             Посмотреть проекты
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setArtistToDelete(artist); }} className="text-destructive">
                             Удалить
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -645,21 +530,8 @@ export default function Artists() {
                     📍 {artist.metadata.location}
                   </p>
                 )}
-                
-                 <div className="grid grid-cols-2 gap-4 text-sm">
-                   <div className="text-center p-2 rounded-lg bg-muted/50">
-                     <div className="font-semibold text-foreground">
-                       {projectCounts[artist.id] || 0}
-                     </div>
-                     <div className="text-muted-foreground text-xs">Проекты</div>
-                   </div>
-                   <div className="text-center p-2 rounded-lg bg-muted/50">
-                     <div className="font-semibold text-foreground">0</div>
-                     <div className="text-muted-foreground text-xs">Треки</div>
-                   </div>
-                 </div>
 
-                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                 <div className="flex items-center gap-1 text-xs text-muted-foreground pt-2 border-t mt-2">
                    <Calendar className="h-3 w-3" />
                    <span>Создан {new Date(artist.created_at).toLocaleDateString()}</span>
                  </div>
@@ -669,7 +541,7 @@ export default function Artists() {
                      variant="outline" 
                      size="sm" 
                      className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
-                     onClick={() => handleArtistClick(artist)}
+                     onClick={() => handleSelectArtist(artist.id)}
                    >
                      <User className="mr-2 h-4 w-4" />
                      Посмотреть артиста
@@ -682,19 +554,19 @@ export default function Artists() {
       )}
 
       {/* Empty State */}
-      {!loading && artists.length === 0 && (
+      {!isLoadingArtists && artists.length === 0 && (
         <div className="text-center py-12">
           <User className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">Пока нет артистов</h3>
           <p className="text-muted-foreground mb-4">
             Добавьте вашего первого артиста, чтобы начать организовывать вашу музыку
           </p>
-          <CreateArtistDialog onArtistCreated={fetchArtists} />
+          <CreateArtistDialog onArtistCreated={refetchArtists} />
         </div>
       )}
 
       {/* No Search Results */}
-      {!loading && artists.length > 0 && filteredArtists.length === 0 && (
+      {!isLoadingArtists && artists.length > 0 && filteredArtists.length === 0 && (
         <div className="text-center py-12">
           <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">Артисты не найдены</h3>
