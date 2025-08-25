@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -169,9 +170,6 @@ export function GenerationTrackCard({
     }
 
     try {
-      // Import supabase directly for the download call
-      const { supabase } = await import('@/integrations/supabase/client');
-      
       const { data, error } = await supabase.functions.invoke('download-and-save-track', {
         body: {
           generation_id: generation.id,
