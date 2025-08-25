@@ -1,0 +1,2 @@
+-- Placeholder for T-005: Create promo_materials table
+-- This migration will be implemented later.
