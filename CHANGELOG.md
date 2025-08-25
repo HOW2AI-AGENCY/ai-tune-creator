@@ -234,6 +234,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Architectural Inconsistency**: Resolved architectural debt by refactoring the Artist management feature away from component-level state and direct Supabase calls to use the standardized React Query-based data-fetching layer.
 
 ### Added
+- **Suno API: Upload and Cover Audio**: Начата работа над реализацией функции трансформации аудио (`/api/v1/upload-and-cover/audio`). Создана задача T-075.
 - Multi-provider AI integration (OpenAI, Anthropic, DeepSeek)
 - AI settings configuration in user preferences
 - Custom prompts for different generation types
