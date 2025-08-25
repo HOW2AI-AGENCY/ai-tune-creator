@@ -8,7 +8,7 @@ export const BUCKET_USER_UPLOADS = 'user-uploads';
 
 // Storage configuration  
 export const AUDIO_CONTENT_TYPE = 'audio/mpeg';
-export const AUDIO_CACHE_CONTROL = 'private, max-age=31536000, immutable'; // Changed to private for security
+export const AUDIO_CACHE_CONTROL = 'private, max-age=31536000, immutable'; // Private for security
 
 // Build safe storage path with timestamp and random suffix
 export function buildStoragePath(

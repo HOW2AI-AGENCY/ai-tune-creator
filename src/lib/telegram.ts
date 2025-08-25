@@ -69,8 +69,8 @@ export const TELEGRAM_WEB_APP_SCRIPT = `
 
 // Конфигурация для интеграции с Telegram Bot
 export const TELEGRAM_BOT_CONFIG = {
-  // Webhook URL для обработки команд от бота
-  webhookUrl: process.env.REACT_APP_TELEGRAM_WEBHOOK_URL || '',
+  // Webhook URL для обработки команд от бота (server-side only)
+  webhookUrl: '', // Moved to server-side for security
   
   // Команды бота
   commands: [
@@ -98,20 +98,10 @@ export const TELEGRAM_BOT_CONFIG = {
 };
 
 // Утилиты для работы с Telegram Bot API
+// SECURITY NOTE: Bot token access moved to server-side Edge Functions
 export function sendToTelegramBot(method: string, data: any) {
-  const botToken = process.env.REACT_APP_TELEGRAM_BOT_TOKEN;
-  if (!botToken) {
-    console.warn('Telegram Bot Token not configured');
-    return;
-  }
-  
-  return fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
+  console.warn('Client-side bot token access removed for security. Use Edge Functions for bot operations.');
+  return Promise.reject(new Error('Bot operations must be performed server-side'));
 }
 
 // Отправка уведомления пользователю через бота

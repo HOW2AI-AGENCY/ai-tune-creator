@@ -15,9 +15,37 @@ interface GenerationRecord {
 }
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS
+  // Handle CORS - restricted for service calls
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Origin': 'https://zwbhlfhwymbmvioaikvs.supabase.co',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
+      }
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Verify cron secret for security (since this is a background job)
+  const cronSecret = Deno.env.get('CRON_SECRET');
+  const providedSecret = req.headers.get('X-Cron-Secret');
+  
+  if (!cronSecret || !providedSecret || cronSecret !== providedSecret) {
+    console.log('Cron authentication failed - invalid secret');
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }), 
+      { 
+        status: 401, 
+        headers: { 'Content-Type': 'application/json' } 
+      }
+    );
   }
 
   try {

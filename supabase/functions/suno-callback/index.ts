@@ -79,6 +79,21 @@ serve(async (req) => {
     });
   }
 
+  // Verify webhook secret for security
+  const webhookSecret = Deno.env.get('SUNO_WEBHOOK_SECRET');
+  const providedSecret = req.headers.get('X-Webhook-Secret');
+  
+  if (!webhookSecret || !providedSecret || webhookSecret !== providedSecret) {
+    console.log('Webhook authentication failed - invalid secret');
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }), 
+      { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',

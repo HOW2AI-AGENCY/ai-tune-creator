@@ -386,12 +386,17 @@ serve(async (req) => {
     console.log('File uploaded to storage:', uploadData.path);
     console.log('Provider URL preserved for debugging:', external_url);
 
-    // Get public URL (idempotent; safe if exists)
-    const { data: publicUrlData } = supabase.storage
+    // Create a signed URL for private access (24 hours)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from(BUCKET_AUDIO)
-      .getPublicUrl(storagePath);
+      .createSignedUrl(storagePath, 86400); // 24 hours
 
-    const localAudioUrl = publicUrlData.publicUrl;
+    if (signedUrlError) {
+      console.error('Signed URL error:', signedUrlError);
+      throw new Error(`Failed to create signed URL: ${signedUrlError.message}`);
+    }
+
+    const localAudioUrl = signedUrlData.signedUrl;
 
     // Update generation with local storage info and mark skip_sync to avoid re-import
     const { error: genUpdateError } = await supabase
