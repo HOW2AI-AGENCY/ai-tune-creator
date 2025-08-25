@@ -518,7 +518,7 @@ export function TrackGenerationSidebar({
             instrumental={instrumental}
             onInstrumentalChange={setInstrumental}
             voiceStyle={voiceStyle}
-            onVoiceStyleChange={setVoiceStyle}
+            onVoiceStyle_change={setVoiceStyle}
             language={language}
             onLanguageChange={setLanguage}
             stylePrompt={stylePrompt}
