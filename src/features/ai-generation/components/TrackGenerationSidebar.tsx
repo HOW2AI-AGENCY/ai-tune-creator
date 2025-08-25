@@ -7,17 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Sparkles, Mic, Music2, Settings, Zap, Sliders, FileText, MessageSquare } from "lucide-react";
+import { Sparkles, Mic, Music2, Settings, Zap, Sliders, FileText, MessageSquare, UploadCloud } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import OperationLoader from "@/components/ui/operation-loader";
 import { QuickPresetsGrid } from "./QuickPresetsGrid";
 import { CustomModePanel } from "./CustomModePanel";
+import { UploadCoverPanel } from "./UploadCoverPanel";
 import { GenerationParametersPreview } from "./GenerationParametersPreview";
 import { ErrorHandler } from "./ErrorHandler";
 import { AIServiceStatusPanel } from "./AIServiceStatusPanel";
 import { quickPresets } from "../data/presets";
 import { GenerationParams, Option, QuickPreset } from "../types";
 import { useAIPromptProfiles } from "@/hooks/useAIPromptProfiles";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TrackGenerationSidebarProps {
   projects: Option[];
@@ -53,7 +55,7 @@ export function TrackGenerationSidebar({
   onErrorDismiss
 }: TrackGenerationSidebarProps) {
   // Основные состояния
-  const [mode, setMode] = useState<'quick' | 'custom'>('quick');
+  const [mode, setMode] = useState<'quick' | 'custom' | 'cover'>('quick');
   const [prompt, setPrompt] = useState("");
   const [selectedService, setSelectedService] = useState<'suno' | 'mureka'>('suno');
   const [selectedProjectId, setSelectedProjectId] = useState<string>("none");
@@ -74,6 +76,10 @@ export function TrackGenerationSidebar({
   const [voiceStyle, setVoiceStyle] = useState("none");
   const [language, setLanguage] = useState("ru");
   const [stylePrompt, setStylePrompt] = useState("");
+
+  // Состояния для режима "Cover"
+  const [coverPrompt, setCoverPrompt] = useState("");
+  const [uploadedAudioUrl, setUploadedAudioUrl] = useState("");
   
   // Состояния для preview и UX
   const [showPreview, setShowPreview] = useState(false);
@@ -101,6 +107,20 @@ export function TrackGenerationSidebar({
   };
 
   const validateAndShowPreview = () => {
+    if (mode === 'cover') {
+      if (!uploadedAudioUrl) {
+        toast({ title: "Загрузите аудиофайл", description: "Необходимо выбрать и загрузить аудио для трансформации.", variant: "destructive" });
+        return;
+      }
+      if (!coverPrompt.trim()) {
+        toast({ title: "Опишите стиль", description: "Введите промпт, описывающий желаемый стиль кавера.", variant: "destructive" });
+        return;
+      }
+      // Для режима cover, onGenerate будет вызываться напрямую, минуя preview
+      handleConfirmCoverGeneration();
+      return;
+    }
+
     // Валидация в зависимости от режима
     if (mode === 'quick' && !prompt.trim()) {
       toast({
@@ -176,6 +196,30 @@ export function TrackGenerationSidebar({
       onGenerate(finalParams);
       setShowPreview(false);
       setPreviewParams(null);
+    }
+  };
+
+  const handleConfirmCoverGeneration = async () => {
+    if (!uploadedAudioUrl || !coverPrompt.trim()) return;
+
+    toast({ title: "Запуск трансформации аудио...", description: "Отправляем запрос в Suno API." });
+    try {
+        const { data, error } = await supabase.functions.invoke('upload-cover-suno-track', {
+            body: {
+                audio_url: uploadedAudioUrl,
+                prompt: coverPrompt,
+                title: `Cover of ${uploadedAudioUrl.split('/').pop()}`,
+                projectId: selectedProjectId !== "none" ? selectedProjectId : undefined,
+                artistId: selectedArtistId !== "none" ? selectedArtistId : undefined,
+            },
+        });
+
+        if (error) throw error;
+
+        toast({ title: "Успех!", description: `Задача создана с ID: ${data.taskId}` });
+    } catch (e: any) {
+        console.error("Cover generation error:", e);
+        toast({ title: "Ошибка", description: e.message, variant: "destructive" });
     }
   };
 
@@ -294,8 +338,8 @@ export function TrackGenerationSidebar({
       </Card>
 
       {/* Режимы генерации */}
-      <Tabs value={mode} onValueChange={(v) => setMode(v as 'quick' | 'custom')} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs value={mode} onValueChange={(v) => setMode(v as 'quick' | 'custom' | 'cover')} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="quick" className="flex items-center gap-2">
             <Zap className="h-3 w-3" />
             Быстро
@@ -303,6 +347,10 @@ export function TrackGenerationSidebar({
           <TabsTrigger value="custom" className="flex items-center gap-2">
             <Sliders className="h-3 w-3" />
             Кастом
+          </TabsTrigger>
+          <TabsTrigger value="cover" className="flex items-center gap-2">
+            <UploadCloud className="h-3 w-3" />
+            Трансформация
           </TabsTrigger>
         </TabsList>
 
@@ -518,6 +566,14 @@ export function TrackGenerationSidebar({
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="cover" className="space-y-4">
+          <UploadCoverPanel
+            prompt={coverPrompt}
+            onPromptChange={setCoverPrompt}
+            onUploadComplete={setUploadedAudioUrl}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* Предварительный просмотр параметров */}
@@ -534,7 +590,7 @@ export function TrackGenerationSidebar({
       {!showPreview && (
         <Button 
           onClick={validateAndShowPreview}
-          disabled={isGenerating}
+          disabled={isGenerating || (mode === 'cover' && (!uploadedAudioUrl || !coverPrompt.trim()))}
           className="w-full"
           size="lg"
         >
@@ -546,7 +602,7 @@ export function TrackGenerationSidebar({
           ) : (
             <>
               <Sparkles className="h-4 w-4 mr-2" />
-              {mode === 'quick' ? 'Предварительный просмотр' : 'Просмотр настроек'}
+              {mode === 'cover' ? 'Запустить трансформацию' : (mode === 'quick' ? 'Предварительный просмотр' : 'Просмотр настроек')}
             </>
           )}
         </Button>
