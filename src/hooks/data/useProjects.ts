@@ -30,41 +30,32 @@ export const projectsQueryKeys = {
 // ====================================
 
 /**
- * Hook to fetch all projects for the current user.
- * Delegates data fetching to the centralized API service.
+ * Hook to fetch all projects for the current user with infinite scrolling.
+ * It uses the paginated getProjects API.
  */
 export function useProjects() {
   const { user } = useAuth();
-  const { state, dispatch } = useAppData();
 
-  const query = useQuery({
+  return useInfiniteQuery({
     queryKey: projectsQueryKeys.list(user?.id || ''),
-    queryFn: async (): Promise<Project[]> => {
+    queryFn: async ({ pageParam = 1 }) => {
       if (!user) throw new Error('User not authenticated');
-      const projects = await getProjects(user.id);
-      // Sync with global state for other components to use
-      dispatch({ type: 'PROJECTS_SUCCESS', payload: projects });
+      // The API function now expects an object with userId, page, and pageSize
+      const projects = await getProjects({ userId: user.id, page: pageParam, pageSize: 10 });
       return projects;
     },
+    getNextPageParam: (lastPage, allPages) => {
+      // If the last page had less than 10 items, there are no more pages.
+      if (lastPage.length < 10) {
+        return undefined;
+      }
+      // Otherwise, the next page is the current page number + 1.
+      return allPages.length + 1;
+    },
+    initialPageParam: 1,
     enabled: !!user,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    initialData: () => {
-      // Use global state for initial data to avoid flickering
-      if (state.projects.items.length > 0 && !state.projects.loading) {
-        return state.projects.items as Project[];
-      }
-      return undefined;
-    },
   });
-
-  return {
-    projects: query.data || [],
-    isLoading: query.isLoading,
-    isError: query.isError,
-    error: query.error,
-    refetch: query.refetch,
-    isFetching: query.isFetching,
-  };
 }
 
 /**
