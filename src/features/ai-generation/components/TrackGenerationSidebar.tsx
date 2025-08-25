@@ -176,6 +176,38 @@ export function TrackGenerationSidebar({
     setShowPreview(true);
   };
 
+  /**
+   * @description Обрабатывает запуск генерации в режиме "Upload and Cover".
+   * Вызывает соответствующую Edge Function и отображает уведомления.
+   */
+  const handleConfirmCoverGeneration = async () => {
+    if (!uploadedAudioUrl || !coverPrompt.trim()) return;
+
+    toast({ title: "Запуск трансформации аудио...", description: "Отправляем запрос в Suno API." });
+    try {
+        const { data, error } = await supabase.functions.invoke('upload-cover-suno-track', {
+            body: {
+                audio_url: uploadedAudioUrl,
+                prompt: coverPrompt,
+                title: `Cover of ${uploadedAudioUrl.split('/').pop()?.slice(0, 20) || 'track'}`.trim(),
+                projectId: selectedProjectId !== "none" ? selectedProjectId : undefined,
+                artistId: selectedArtistId !== "none" ? selectedArtistId : undefined,
+            },
+        });
+
+        if (error) throw error;
+
+        if (data.error) {
+          throw new Error(data.details || data.error);
+        }
+
+        toast({ title: "Успех!", description: `Задача создана с ID: ${data.taskId}` });
+    } catch (e: any) {
+        console.error("Cover generation error:", e);
+        toast({ title: "Ошибка", description: e.message, variant: "destructive" });
+    }
+  };
+
   const handleConfirmGeneration = () => {
     if (previewParams) {
       // Apply active prompt profile settings if available
@@ -543,7 +575,7 @@ export function TrackGenerationSidebar({
                     <div className="flex items-center gap-2">
                       <Music2 className="h-3 w-3" />
                       <span>Mureka</span>
-                      <Badge variant="outline" className="text-xs">Экспериментальное</Badge>
+                      <Badge variant="outline" className="text-xs">Креатив</Badge>
                     </div>
                   </SelectItem>
                 </SelectContent>

@@ -1,15 +1,4 @@
 /**
- * @fileoverview Edge Function для трансформации аудио треков через Suno AI API.
- * @description Позволяет загрузить аудиофайл и "наложить" на него новый стиль.
- *
- * Endpoint: /api/v1/generate/upload-cover
- *
- * @author Jules
- * @version 1.0.0
- * @last_updated 2025-08-25
- */
-
-/**
  * @fileoverview Edge Function для трансформации аудио треков (Cover) через Suno AI API.
  * @description Принимает URL аудиофайла и текстовый промпт, чтобы создать новую
  *              музыкальную композицию в указанном стиле.
