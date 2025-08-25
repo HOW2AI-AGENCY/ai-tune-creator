@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Suspense, startTransition } from "react";
+import React, { useState, useEffect, useMemo, Suspense, startTransition, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,11 +25,11 @@ import { useEventListener } from "@/lib/events/event-bus";
 import { lazy } from "react";
 
 // Lazily import heavy components to improve initial load time
-const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel"));
-const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel"));
-const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid"));
-const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer"));
-const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette"));
+const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel").then(module => ({ default: module.GenerationContextPanel })));
+const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel").then(module => ({ default: module.TaskQueuePanel })));
+const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid").then(module => ({ default: module.TrackResultsGrid })));
+const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer").then(module => ({ default: module.TrackDetailsDrawer })));
+const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette").then(module => ({ default: module.CommandPalette })));
 const FloatingPlayer = lazy(() =>
   import("@/features/ai-generation/components/FloatingPlayer")
   .then(module => ({ default: module.FloatingPlayer }))
