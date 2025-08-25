@@ -30,7 +30,10 @@ const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/Ta
 const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid"));
 const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer"));
 const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette"));
-const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer"));
+const FloatingPlayer = lazy(() =>
+  import("@/features/ai-generation/components/FloatingPlayer")
+  .then(module => ({ default: module.FloatingPlayer }))
+);
 
 interface Track {
   id: string;
