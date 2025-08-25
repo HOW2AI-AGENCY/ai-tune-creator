@@ -16,3 +16,16 @@ export function formatDuration(seconds?: number): string {
   
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
+
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error && typeof error === 'object' && 'message' in error && typeof (error as any).message === 'string') {
+    return (error as any).message;
+  }
+  return 'An unknown error occurred';
+}
