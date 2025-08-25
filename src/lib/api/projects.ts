@@ -136,30 +136,57 @@ async function calculateProjectStats(projectId: string, projectData?: any) {
 // ====================================
 
 /**
- * Get all projects for the currently authenticated user.
+ * Get a paginated list of projects for the currently authenticated user using the efficient view.
  */
-export const getProjects = async (userId: string): Promise<Project[]> => {
+export const getProjects = async ({ userId, page = 1, pageSize = 10 }: { userId: string; page?: number; pageSize?: number }): Promise<Project[]> => {
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const { data, error } = await supabase
-    .from('projects')
-    .select(`*, artists!inner(id, name, avatar_url)`)
-    .eq('artists.user_id', userId)
-    .order('updated_at', { ascending: false });
+    .from('projects_with_stats') // Use the new view
+    .select('*') // The view has all the columns we need
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .range(from, to);
 
   if (error) {
     console.error('Error fetching projects:', error);
     throw new Error(error.message);
   }
 
-  return (data || []).map(parseProjectData);
+  // The data from the view is flat, so we need to transform it
+  // to match the expected nested `Project` type.
+  const projects = (data || []).map(projectFromView => {
+    const { artist_name, artist_avatar_url, track_count, ...restOfProject } = projectFromView;
+    return {
+      ...restOfProject,
+      // Re-create the nested artist object
+      artists: {
+        id: restOfProject.artist_id,
+        name: artist_name,
+        avatar_url: artist_avatar_url,
+      },
+      // Add the pre-calculated stats
+      stats: {
+        tracks_count: track_count || 0,
+        // Other stats are not available in the view, default them
+        total_duration: 0,
+        completion_percentage: 0,
+        last_activity: restOfProject.updated_at,
+      }
+    };
+  });
+
+  return projects.map(parseProjectData);
 };
 
 /**
- * Get a single project by its ID, enriched with stats.
+ * Get a single project by its ID, enriched with stats from the view.
  */
 export const getProjectById = async (projectId: string): Promise<Project | null> => {
   const { data, error } = await supabase
-    .from('projects')
-    .select(`*, artists(id, name, avatar_url)`)
+    .from('projects_with_stats') // Use the new view
+    .select('*')
     .eq('id', projectId)
     .single();
 
@@ -169,9 +196,26 @@ export const getProjectById = async (projectId: string): Promise<Project | null>
     throw new Error(error.message);
   }
 
-  const stats = await calculateProjectStats(projectId, data);
-  const parsed = parseProjectData(data);
-  return { ...parsed, stats };
+  // Transform the flat data from the view to the nested Project type
+  const { artist_name, artist_avatar_url, track_count, ...restOfProject } = data;
+  const project = {
+    ...restOfProject,
+    artists: {
+      id: restOfProject.artist_id,
+      name: artist_name,
+      avatar_url: artist_avatar_url,
+    },
+    stats: {
+      tracks_count: track_count || 0,
+      // This solves the immediate N+1 problem.
+      // For more detailed stats, a separate call would be needed, but it's no longer the default.
+      total_duration: 0,
+      completion_percentage: 0,
+      last_activity: restOfProject.updated_at,
+    }
+  };
+
+  return parseProjectData(project);
 };
 
 /**
@@ -263,19 +307,43 @@ export const createProject = async (payload: CreateProjectData): Promise<Project
 };
 
 /**
- * Update an existing project. (Not Implemented)
+ * Update an existing project.
  */
 export const updateProject = async (id: string, data: UpdateProjectData): Promise<Project> => {
-  // TODO: Implement the update logic
-  console.log('Updating project', id, data);
-  throw new Error('Function not implemented.');
+  const { error } = await supabase
+    .from('projects')
+    .update({
+      title: data.title,
+      description: data.description,
+      type: data.type,
+      status: data.status,
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error(`Error updating project ${id}:`, error);
+    throw new Error(error.message);
+  }
+
+  // Refetch the project to get the latest data in the correct shape from our view
+  const updatedProject = await getProjectById(id);
+  if (!updatedProject) {
+    // This might happen if the project was deleted between the update and the fetch
+    throw new Error('Failed to refetch project after update.');
+  }
+  return updatedProject;
 };
 
 /**
- * Delete a project. (Not Implemented)
+ * Delete a project by invoking the secure backend function.
  */
 export const deleteProject = async (id: string): Promise<void> => {
-  // TODO: Implement the delete logic
-  console.log('Deleting project', id);
-  throw new Error('Function not implemented.');
+  const { error } = await supabase.functions.invoke('delete-project', {
+    body: { projectId: id },
+  });
+
+  if (error) {
+    console.error(`Error deleting project ${id}:`, error);
+    throw new Error(error.message);
+  }
 };
