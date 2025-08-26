@@ -62,6 +62,8 @@ supabase/.temp
 coverage
 *.lcov
 .nyc_output
+playwright-report/
+test-results/
 
 # OS files
 Thumbs.db
