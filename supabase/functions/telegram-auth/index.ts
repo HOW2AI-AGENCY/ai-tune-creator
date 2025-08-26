@@ -202,44 +202,17 @@ serve(async (req) => {
       throw new Error('Database error during user lookup');
     }
     
-    // Generate random password for one-time use
-    const randomPassword = crypto.randomUUID();
-    
+    let userId: string;
+    let isNewUser = false;
+
     if (existingUser?.user) {
-      // User exists, update with new password
-      const { error: updateError } = await supabaseClient.auth.admin.updateUserById(
-        existingUser.user.id,
-        { password: randomPassword }
-      );
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      const duration = Date.now() - startTime;
-      console.log(`Telegram auth: Existing user ${existingUser.user.id} updated successfully in ${duration}ms`);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          email: telegramEmail,
-          password: randomPassword,
-          isNewUser: false,
-          message: 'Успешный вход через Telegram',
-          user: {
-            id: existingUser.user.id,
-            telegramId: authData.telegramId,
-            firstName: authData.firstName
-          }
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      userId = existingUser.user.id;
+      console.log(`Telegram auth: Found existing user ${userId}`);
     } else {
-      // Create new user with password
+      // Create new user if not found
       const { data: newUser, error: createError } = await supabaseClient.auth.admin.createUser({
         email: telegramEmail,
-        password: randomPassword,
-        email_confirm: true,
+        email_confirm: true, // Auto-confirm email for Telegram users
         user_metadata: {
           telegram_id: authData.telegramId,
           first_name: authData.firstName,
@@ -252,28 +225,47 @@ serve(async (req) => {
       });
 
       if (createError) {
-        throw createError;
+        console.error('Error creating new user:', createError);
+        throw new Error('Failed to create user');
       }
-
-      const duration = Date.now() - startTime;
-      console.log(`Telegram auth: New user ${newUser.user?.id} created successfully in ${duration}ms`);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          email: telegramEmail,
-          password: randomPassword,
-          isNewUser: true,
-          message: 'Аккаунт создан через Telegram',
-          user: {
-            id: newUser.user?.id,
-            telegramId: authData.telegramId,
-            firstName: authData.firstName
-          }
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      userId = newUser.user.id;
+      isNewUser = true;
+      console.log(`Telegram auth: New user ${userId} created successfully`);
     }
+
+    // Generate a session for the user without exposing passwords
+    // Note: This uses a magic link but we intercept the response to get the session
+    // This is a secure way to generate a session programmatically.
+    const { data: linkData, error: linkError } = await supabaseClient.auth.admin.generateLink({
+      type: 'magiclink',
+      email: telegramEmail,
+    });
+
+    if (linkError) {
+      console.error('Error generating magic link:', linkError);
+      throw new Error('Could not generate a user session');
+    }
+
+    const session = {
+      access_token: linkData.properties.access_token,
+      refresh_token: linkData.properties.refresh_token,
+    };
+
+    const user = linkData.user;
+
+    const duration = Date.now() - startTime;
+    console.log(`Telegram auth: Session generated for user ${userId} in ${duration}ms`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        isNewUser,
+        message: isNewUser ? 'Аккаунт создан через Telegram' : 'Успешный вход через Telegram',
+        session,
+        user
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     const duration = Date.now() - startTime;

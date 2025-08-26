@@ -1,0 +1,3 @@
+ALTER TABLE public.user_profiles
+ADD COLUMN IF NOT EXISTS star_balance BIGINT DEFAULT 0,
+ADD COLUMN IF NOT EXISTS last_purchase_at TIMESTAMPTZ;

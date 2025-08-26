@@ -127,9 +127,9 @@ export const useTelegramAuth = () => {
         return false;
       }
 
-      if (!data?.email || !data?.password) {
-        console.error('Telegram Auth: Invalid response format from edge function', data);
-        const errorMsg = 'Неверный ответ от сервера аутентификации. Пожалуйста, попробуйте еще раз.';
+      if (!data?.session?.access_token || !data?.session?.refresh_token) {
+        console.error('Telegram Auth: Invalid session response from edge function', data);
+        const errorMsg = 'Неверный ответ от сервера аутентификации. Сессия не была создана.';
         setAuthError(errorMsg);
         toast({
           title: 'Ошибка входа',
@@ -139,15 +139,15 @@ export const useTelegramAuth = () => {
         return false;
       }
 
-      // Sign in with generated credentials
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
+      // Set the session directly, which is more secure than using a password
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
       });
-      
-      if (signInError) {
-        console.error('Telegram Auth: Supabase signInWithPassword failed:', signInError);
-        const errorMsg = 'Не удалось войти в систему после верификации. Пожалуйста, попробуйте еще раз.';
+
+      if (sessionError) {
+        console.error('Telegram Auth: Supabase setSession failed:', sessionError);
+        const errorMsg = 'Не удалось установить сессию после верификации. Пожалуйста, попробуйте еще раз.';
         setAuthError(errorMsg);
         toast({
           title: 'Ошибка входа',
