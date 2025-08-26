@@ -20,7 +20,7 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { 
       headers: {
         ...corsHeaders,
-        'Access-Control-Allow-Origin': 'https://zwbhlfhwymbmvioaikvs.supabase.co',
+        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
       }
     });
