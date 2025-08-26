@@ -79,7 +79,7 @@ export interface AppProject {
   readonly id: string;
   readonly title: string;
   readonly type: 'single' | 'ep' | 'album';
-  readonly status: 'draft' | 'published' | 'archived';
+  readonly status: 'draft' | 'published' | 'archived' | 'in_progress';
   readonly artist_id: string;
   readonly cover_url?: string;
   readonly description?: string;

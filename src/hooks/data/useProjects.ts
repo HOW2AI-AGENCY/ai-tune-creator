@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppData } from '@/providers/AppDataProvider';
 import { useToast } from '@/hooks/use-toast';
@@ -75,9 +75,10 @@ export function useProject(projectId: string) {
  * This is an efficient way to avoid extra network requests.
  */
 export function useProjectsByArtist(artistId: string) {
-  const { projects, isLoading } = useProjects();
+  const { data, isLoading } = useProjects();
   
-  const filteredProjects = projects.filter(p => p.artist_id === artistId);
+  const allProjects = data?.pages?.flat() || [];
+  const filteredProjects = allProjects.filter(p => p.artist_id === artistId);
   
   return {
     projects: filteredProjects,
@@ -127,7 +128,10 @@ export function useCreateProject() {
       // Optimistically update the cache
       queryClient.setQueryData(
         projectsQueryKeys.list(user!.id),
-        (old) => [optimisticProject, ...(old || [])]
+        (old: any) => ({
+          pages: old?.pages ? [[optimisticProject], ...old.pages] : [[optimisticProject]],
+          pageParams: old?.pageParams || [1]
+        })
       );
       
       dispatch({ type: 'PROJECT_UPDATE', payload: optimisticProject });

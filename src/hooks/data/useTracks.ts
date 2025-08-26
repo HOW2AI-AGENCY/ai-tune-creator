@@ -400,15 +400,18 @@ export function useCreateTrack() {
           const projectPayload = {
             title: payload.auto_project.project_title || payload.title,
             type: payload.auto_project.project_type || 'single',
+            status: 'draft' as const,
             artist_id: payload.artist_id,
-            auto_creation: {
-              source: 'track_generation' as const,
-              track_title: payload.title,
-            },
-            ai_generation: payload.auto_project.generate_project_concept ? {
-              generate_concept: true,
-              genre_preference: payload.genre_tags?.[0],
-            } : undefined,
+            metadata: {
+              auto_creation: {
+                source: 'track_generation' as const,
+                track_title: payload.title,
+              },
+              ai_generation: payload.auto_project.generate_project_concept ? {
+                generate_concept: true,
+                genre_preference: payload.genre_tags?.[0],
+              } : undefined,
+            }
           };
           
           const newProject = await createProject.mutateAsync(projectPayload);

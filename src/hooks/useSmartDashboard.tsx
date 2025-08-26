@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useArtists } from '@/hooks/data/useArtists';
+import { useGetArtists } from '@/hooks/data/useArtists';
 import { useProjects } from '@/hooks/data/useProjects';
 import { useTracks } from '@/hooks/data/useTracks';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export function useSmartDashboard() {
   const { user } = useAuth();
-  const artistsQuery = useArtists();
+  const artistsQuery = useGetArtists();
   const projectsQuery = useProjects();
   const tracksQuery = useTracks();
 
@@ -32,9 +32,11 @@ export function useSmartDashboard() {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
+  const allProjects = projectsQuery.data?.pages?.flat() || [];
+  
   const stats = {
     totalArtists: artistsQuery.data?.length || 0,
-    totalProjects: projectsQuery.projects?.length || 0,
+    totalProjects: allProjects.length,
     totalTracks: tracksQuery.tracks?.length || 0,
     activeGenerations: activeGenerations.length,
   };

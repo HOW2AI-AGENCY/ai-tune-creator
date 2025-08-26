@@ -43,307 +43,278 @@ export const projectSchema = z.object({
   artist_id: z.string().uuid(),
   title: z.string().min(1, "Project title is required"),
   description: z.string().nullable().optional(),
-  type: z.enum(['single', 'ep', 'album']).default('single'),
-  status: z.enum(['draft', 'published', 'archived']).default('draft'),
+  type: z.enum(['single', 'ep', 'album']),
+  status: z.enum(['draft', 'published', 'archived', 'in_progress']),
   cover_url: z.string().url().nullable().optional(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
-  metadata: z.any().optional(), // Keep raw metadata
-  details: projectDetailsSchema.optional(),
-  ai_context: aiContextSchema.optional(),
-  cover_context: coverContextSchema.optional(),
-  artists: z.any().optional(),
-  stats: projectStatsSchema.optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+  cover_metadata: z.record(z.string(), z.any()).optional(),
 });
 
+// Инферируем основные типы
 export type Project = z.infer<typeof projectSchema> & {
-  artists?: Artist;
-};
-
-export const createProjectSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  artist_id: z.string().uuid("A valid artist is required"),
-  type: z.enum(['single', 'ep', 'album']).optional(),
-  description: z.string().optional(),
-  auto_creation: z.object({
-    source: z.enum(['track_generation', 'user_creation']),
-    source_track_id: z.string().optional(),
-  }).optional(),
-  ai_generation: z.object({
-    generate_concept: z.boolean(),
-    artist_context: z.string().optional(),
-    genre_preference: z.string().optional(),
-    mood_preference: z.string().optional(),
-    target_audience: z.string().optional(),
-  }).optional(),
-  cover_generation: z.object({
-    auto_generate: z.boolean(),
-    provider: z.enum(['sunoapi', 'stability', 'dalle3']).optional(),
-    custom_prompt: z.string().optional(),
-    style_reference: z.string().optional(),
-  }).optional(),
-});
-
-export type CreateProjectData = z.infer<typeof createProjectSchema>;
-export type UpdateProjectData = Partial<Omit<CreateProjectData, 'artist_id' | 'auto_creation'>>;
-
-// ====================================
-// 🧮 HELPER FUNCTIONS
-// ====================================
-
-const parseProjectData = (project: any): Project => {
-  const metadata = project.metadata || {};
-  return projectSchema.parse({
-    ...project,
-    details: metadata.details,
-    ai_context: metadata.ai_context,
-    cover_context: metadata.cover_context,
-  });
-};
-
-async function calculateProjectStats(projectId: string, projectData?: any) {
-  const { data: tracks, error } = await supabase
-    .from('tracks')
-    .select('id, duration, metadata, audio_url')
-    .eq('project_id', projectId);
-  if (error) {
-    console.warn('[calculateProjectStats] Error fetching tracks:', error);
-    return {
-      tracks_count: 0,
-      total_duration: 0,
-      completion_percentage: 0,
-      last_activity: projectData?.updated_at || new Date().toISOString(),
-    };
-  }
-  const tracksData = tracks || [];
-  const totalDuration = tracksData.reduce((sum, track) => sum + (track.duration || 0), 0);
-  const completedTracks = tracksData.filter(track => {
-    const hasAudio = !!track.audio_url;
-    const hasAIGeneration = !!(track.metadata as any)?.ai_context?.generation_id;
-    return hasAudio || hasAIGeneration;
-  }).length;
-  const completionPercentage = tracksData.length > 0 ? Math.round((completedTracks / tracksData.length) * 100) : 0;
-  return {
-    tracks_count: tracksData.length,
-    total_duration: totalDuration,
-    completion_percentage: completionPercentage,
-    last_activity: projectData?.updated_at || new Date().toISOString(),
+  artists?: Partial<Artist>;
+  stats?: {
+    tracks_count: number;
+    total_duration: number;
+    completion_percentage: number;
+    last_activity: string;
   };
-}
+};
+
+export type CreateProjectData = Omit<z.infer<typeof projectSchema>, 'id' | 'created_at' | 'updated_at'> & {
+  status?: 'draft' | 'published' | 'archived' | 'in_progress';
+  is_inbox?: boolean;
+  metadata?: any;
+  cover_metadata?: any;
+};
+export type UpdateProjectData = Partial<Omit<z.infer<typeof projectSchema>, 'id' | 'created_at' | 'updated_at'>>;
 
 // ====================================
-// 🚀 API SERVICE FUNCTIONS
+// 🎯 API FUNCTIONS
 // ====================================
 
 /**
- * Get a paginated list of projects for the currently authenticated user using the efficient view.
+ * Получить все проекты пользователя с пагинацией и расширенной информацией
  */
 export const getProjects = async ({ userId, page = 1, pageSize = 10 }: { userId: string; page?: number; pageSize?: number }): Promise<Project[]> => {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  // Use regular projects table instead of non-existent view
   const { data, error } = await supabase
-    .from('projects_with_stats') // Use the new view
-    .select('*') // The view has all the columns we need
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false })
-    .range(from, to);
+    .from('projects')
+    .select(`
+      *,
+      artists (
+        id,
+        name,
+        avatar_url
+      )
+    `)
+    .range(from, to)
+    .order('updated_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching projects:', error);
     throw new Error(error.message);
   }
 
-  // The data from the view is flat, so we need to transform it
-  // to match the expected nested `Project` type.
-  const projects = (data || []).map(projectFromView => {
-    const { artist_name, artist_avatar_url, track_count, ...restOfProject } = projectFromView;
-    return {
-      ...restOfProject,
-      // Re-create the nested artist object
-      artists: {
-        id: restOfProject.artist_id,
-        name: artist_name,
-        avatar_url: artist_avatar_url,
-      },
-      // Add the pre-calculated stats
-      stats: {
-        tracks_count: track_count || 0,
-        // Other stats are not available in the view, default them
-        total_duration: 0,
-        completion_percentage: 0,
-        last_activity: restOfProject.updated_at,
-      }
-    };
-  });
-
-  return projects.map(parseProjectData);
+  return (data || []) as Project[];
 };
 
 /**
- * Get a single project by its ID, enriched with stats from the view.
+ * Получить один проект по ID
  */
 export const getProjectById = async (projectId: string): Promise<Project | null> => {
   const { data, error } = await supabase
-    .from('projects_with_stats') // Use the new view
-    .select('*')
+    .from('projects')
+    .select(`
+      *,
+      artists (
+        id,
+        name,
+        avatar_url,
+        bio
+      )
+    `)
     .eq('id', projectId)
     .single();
 
   if (error) {
-    if (error.code === 'PGRST116') return null; // Not found
     console.error(`Error fetching project ${projectId}:`, error);
+    if (error.code === 'PGRST116') {
+      return null;
+    }
     throw new Error(error.message);
   }
 
-  // Transform the flat data from the view to the nested Project type
-  const { artist_name, artist_avatar_url, track_count, ...restOfProject } = data;
-  const project = {
-    ...restOfProject,
-    artists: {
-      id: restOfProject.artist_id,
-      name: artist_name,
-      avatar_url: artist_avatar_url,
-    },
-    stats: {
-      tracks_count: track_count || 0,
-      // This solves the immediate N+1 problem.
-      // For more detailed stats, a separate call would be needed, but it's no longer the default.
-      total_duration: 0,
-      completion_percentage: 0,
-      last_activity: restOfProject.updated_at,
-    }
-  };
-
-  return parseProjectData(project);
+  return data as Project;
 };
 
 /**
- * Create a new project with complex, multi-step logic.
+ * Создать новый проект
  */
-export const createProject = async (payload: CreateProjectData): Promise<Project> => {
-  // Step 1: Create the basic project record
-  const { data: projectData, error: projectError } = await supabase
+export const createProject = async (projectData: CreateProjectData): Promise<Project> => {
+  const { data, error } = await supabase
+    .from('projects')
+    .insert(projectData)
+    .select(`
+      *,
+      artists (
+        id,
+        name,
+        avatar_url
+      )
+    `)
+    .single();
+
+  if (error) {
+    console.error('Error creating project:', error);
+    throw new Error(error.message);
+  }
+
+  return data as Project;
+};
+
+/**
+ * Обновить проект
+ */
+export const updateProject = async (projectId: string, updateData: UpdateProjectData): Promise<Project> => {
+  const { data, error } = await supabase
+    .from('projects')
+    .update({
+      ...updateData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', projectId)
+    .select(`
+      *,
+      artists (
+        id,
+        name,
+        avatar_url
+      )
+    `)
+    .single();
+
+  if (error) {
+    console.error(`Error updating project ${projectId}:`, error);
+    throw new Error(error.message);
+  }
+
+  return data as Project;
+};
+
+/**
+ * Удалить проект
+ */
+export const deleteProject = async (projectId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', projectId);
+
+  if (error) {
+    console.error(`Error deleting project ${projectId}:`, error);
+    throw new Error(error.message);
+  }
+};
+
+/**
+ * Получить статистику по проекту
+ */
+export const getProjectStats = async (projectId: string): Promise<{ tracks_count: number; total_duration: number }> => {
+  const { data, error } = await supabase
+    .from('tracks')
+    .select('duration')
+    .eq('project_id', projectId);
+
+  if (error) {
+    console.error(`Error fetching project stats for ${projectId}:`, error);
+    throw new Error(error.message);
+  }
+
+  const tracks = data || [];
+  const totalDuration = tracks.reduce((sum, track) => sum + (track.duration || 0), 0);
+
+  return {
+    tracks_count: tracks.length,
+    total_duration: totalDuration,
+  };
+};
+
+/**
+ * Создать концепцию проекта с помощью AI
+ */
+export const generateProjectConcept = async (params: {
+  title: string;
+  description?: string;
+  genre?: string;
+  mood?: string;
+  target_audience?: string;
+}): Promise<{ concept: string; marketing_strategy: string }> => {
+  const { data, error } = await supabase.functions.invoke('generate-project-concept', {
+    body: params,
+  });
+
+  if (error) {
+    console.error('Error generating project concept:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+/**
+ * Получить проекты по ID артиста
+ */
+export const getProjectsByArtistId = async (artistId: string): Promise<Project[]> => {
+  const { data, error } = await supabase
+    .from('projects')
+    .select(`
+      *,
+      artists (
+        id,
+        name,
+        avatar_url
+      )
+    `)
+    .eq('artist_id', artistId)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error(`Error fetching projects for artist ${artistId}:`, error);
+    throw new Error(error.message);
+  }
+
+  return (data || []) as Project[];
+};
+
+/**
+ * Создать проект-инбокс для артиста, если он не существует
+ */
+export const ensureArtistInbox = async (artistId: string): Promise<Project> => {
+  // Сначала проверим, есть ли уже инбокс для этого артиста
+  const { data: existingInbox, error: searchError } = await supabase
+    .from('projects')
+    .select('*')
+    .eq('artist_id', artistId)
+    .eq('is_inbox', true)
+    .single();
+
+  if (searchError && searchError.code !== 'PGRST116') {
+    console.error('Error searching for existing inbox:', searchError);
+    throw new Error(searchError.message);
+  }
+
+  if (existingInbox) {
+    return existingInbox as Project;
+  }
+
+  // Создаем новый инбокс
+  const { data, error } = await supabase
     .from('projects')
     .insert({
-      title: payload.title,
-      type: payload.type || 'single',
+      artist_id: artistId,
+      title: 'Inbox',
+      description: 'AI Generated tracks for this artist',
+      type: 'album',
       status: 'draft',
-      artist_id: payload.artist_id,
-      description: payload.description,
+      is_inbox: true,
       metadata: {
-        auto_generated: !!payload.auto_creation,
-        generation_context: payload.auto_creation,
-        ai_context: payload.ai_generation ? {
-          auto_created: true,
-          generation_quality: 0,
-          concept_generated: false,
-          regeneration_count: 0,
-        } : undefined,
+        auto_created: true,
+        created_for: 'ai_generations',
       },
     })
     .select()
     .single();
 
-  if (projectError) {
-    console.error('Error creating project record:', projectError);
-    throw projectError;
-  }
-
-  let currentMetadata = projectData.metadata as any;
-
-  // Step 2 (Optional): AI Concept Generation
-  if (payload.ai_generation?.generate_concept) {
-    try {
-      const { data: aiData } = await supabase.functions.invoke('generate-project-concept', {
-        body: { projectTitle: payload.title, ...payload.ai_generation },
-      });
-      if (aiData?.success) {
-        currentMetadata = {
-          ...currentMetadata,
-          details: aiData.data.concept,
-          ai_context: { ...currentMetadata.ai_context, concept_generated: true, generation_quality: aiData.data.quality_score || 0.8 },
-        };
-      }
-    } catch (e) { console.warn('AI concept generation failed, continuing...', e); }
-  }
-
-  // Step 3 (Optional): Cover Generation
-  if (payload.cover_generation?.auto_generate) {
-    try {
-      const { data: coverData } = await supabase.functions.invoke('generate-cover-image', {
-        body: { title: payload.title, type: 'project', ...payload.cover_generation },
-      });
-      if (coverData?.success) {
-        projectData.cover_url = coverData.data.cover_url;
-        currentMetadata = {
-          ...currentMetadata,
-          cover_context: {
-            provider: payload.cover_generation.provider || 'sunoapi',
-            prompt_used: coverData.data.prompt_used,
-            generation_metadata: coverData.data.metadata,
-            variants: coverData.data.variants || [],
-          },
-        };
-      }
-    } catch (e) { console.warn('Cover generation failed, continuing...', e); }
-  }
-
-  // Step 4: Update project with all generated assets
-  const { data: finalData, error: updateError } = await supabase
-    .from('projects')
-    .update({ cover_url: projectData.cover_url, metadata: currentMetadata })
-    .eq('id', projectData.id)
-    .select()
-    .single();
-
-  if (updateError) {
-    console.error('Error updating project with generated assets:', updateError);
-    // Return partially created data, it's better than nothing
-    return parseProjectData(projectData);
-  }
-
-  return parseProjectData(finalData);
-};
-
-/**
- * Update an existing project.
- */
-export const updateProject = async (id: string, data: UpdateProjectData): Promise<Project> => {
-  const { error } = await supabase
-    .from('projects')
-    .update({
-      title: data.title,
-      description: data.description,
-      type: data.type,
-      status: data.status,
-    })
-    .eq('id', id);
-
   if (error) {
-    console.error(`Error updating project ${id}:`, error);
+    console.error('Error creating artist inbox:', error);
     throw new Error(error.message);
   }
 
-  // Refetch the project to get the latest data in the correct shape from our view
-  const updatedProject = await getProjectById(id);
-  if (!updatedProject) {
-    // This might happen if the project was deleted between the update and the fetch
-    throw new Error('Failed to refetch project after update.');
-  }
-  return updatedProject;
-};
-
-/**
- * Delete a project by invoking the secure backend function.
- */
-export const deleteProject = async (id: string): Promise<void> => {
-  const { error } = await supabase.functions.invoke('delete-project', {
-    body: { projectId: id },
-  });
-
-  if (error) {
-    console.error(`Error deleting project ${id}:`, error);
-    throw new Error(error.message);
-  }
+  return data as Project;
 };

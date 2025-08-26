@@ -53,7 +53,7 @@ const formSchema = z.object({
   artistId: z.string().min(1, "Выберите артиста"),
   projectIdea: z.string().min(1, "Опишите идею проекта"),
   type: z.enum(["album", "single", "ep"], {
-    required_error: "Выберите тип проекта",
+    message: "Выберите тип проекта",
   }),
   additionalContext: z.string().optional(),
 });
