@@ -25,7 +25,7 @@ describe('API - artists', () => {
   describe('getArtists', () => {
     it('should return a list of artists on success', async () => {
       const mockArtists: Artist[] = [
-        { id: '1', name: 'Artist 1', user_id: 'user1', created_at: '2023-01-01', updated_at: '2023-01-01' },
+        { id: '1', name: 'Artist 1', user_id: 'user1', created_at: '2023-01-01', updated_at: '2023-01-01', metadata: {} },
       ];
       (supabase.order as any).mockResolvedValueOnce({ data: mockArtists, error: null });
 
@@ -47,7 +47,7 @@ describe('API - artists', () => {
 
   describe('getArtistById', () => {
     it('should return a single artist on success', async () => {
-      const mockArtist: Artist = { id: '1', name: 'Artist 1', user_id: 'user1', created_at: '2023-01-01', updated_at: '2023-01-01' };
+      const mockArtist: Artist = { id: '1', name: 'Artist 1', user_id: 'user1', created_at: '2023-01-01', updated_at: '2023-01-01', metadata: {} };
       (supabase.single as any).mockResolvedValueOnce({ data: mockArtist, error: null });
 
       const artist = await getArtistById('1');
@@ -79,7 +79,7 @@ describe('API - artists', () => {
   describe('createArtist', () => {
     it('should create and return a new artist', async () => {
       const newArtistData: CreateArtistData = { name: 'New Artist', user_id: 'user1' };
-      const mockCreatedArtist: Artist = { id: '3', ...newArtistData, created_at: '2023-01-03', updated_at: '2023-01-03' };
+      const mockCreatedArtist: Artist = { id: '3', ...newArtistData, created_at: '2023-01-03', updated_at: '2023-01-03', metadata: {} };
       (supabase.single as any).mockResolvedValueOnce({ data: mockCreatedArtist, error: null });
 
       const artist = await createArtist(newArtistData);
@@ -102,7 +102,7 @@ describe('API - artists', () => {
   describe('updateArtist', () => {
     it('should update and return the artist', async () => {
       const updateData: UpdateArtistData = { name: 'Updated Artist' };
-      const mockUpdatedArtist: Artist = { id: '1', name: 'Updated Artist', user_id: 'user1', created_at: '2023-01-01', updated_at: '2023-01-04' };
+      const mockUpdatedArtist: Artist = { id: '1', name: 'Updated Artist', user_id: 'user1', created_at: '2023-01-01', updated_at: '2023-01-04', metadata: {} };
       (supabase.single as any).mockResolvedValueOnce({ data: mockUpdatedArtist, error: null });
 
       const artist = await updateArtist('1', updateData);

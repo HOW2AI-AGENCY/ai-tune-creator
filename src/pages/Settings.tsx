@@ -19,12 +19,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { AIPromptSettings } from "@/features/ai-generation/components/AIPromptSettings";
+import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
+import { StarPurchaseButton } from "@/components/telegram/StarPurchase";
 
 export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation();
   const { settings, isLoading, isSaving, updateSetting, saveSettings } = useUserSettings();
+  const { isInTelegram } = useTelegramWebApp();
 
   const handleSave = async (section: string) => {
     const sectionKey = section.toLowerCase() as keyof typeof settings;
@@ -52,7 +55,7 @@ export default function Settings() {
       <AccountLinkedInfo />
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className={`grid w-full grid-cols-${isInTelegram ? 6 : 5}`}>
           <TabsTrigger value="profile" className="p-2 md:p-3" title="Профиль">
             <User className="h-4 w-4 md:h-5 md:w-5" />
             <span className="sr-only">Профиль</span>
@@ -69,6 +72,12 @@ export default function Settings() {
             <Bot className="h-4 w-4 md:h-5 md:w-5" />
             <span className="sr-only">Настройки ИИ</span>
           </TabsTrigger>
+          {isInTelegram && (
+            <TabsTrigger value="stars" className="p-2 md:p-3" title="Telegram Stars">
+              <Sparkles className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="sr-only">Telegram Stars</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="security" className="p-2 md:p-3" title="Безопасность">
             <Shield className="h-4 w-4 md:h-5 md:w-5" />
             <span className="sr-only">Безопасность</span>
@@ -218,6 +227,32 @@ export default function Settings() {
 
         <TabsContent value="ai" className="space-y-6">
           <AIPromptSettings />
+        </TabsContent>
+
+        <TabsContent value="stars" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Telegram Stars</CardTitle>
+                <CardDescription>
+                  Пополняйте баланс и приобретайте эксклюзивные функции с помощью Звезд Telegram.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 border rounded-lg flex items-center justify-between">
+                    <div>
+                        <h4 className="font-medium">Ваш баланс</h4>
+                        <p className="text-2xl font-bold">-- звезд</p>
+                    </div>
+                    <Button variant="outline">История</Button>
+                </div>
+                <StarPurchaseButton
+                  title="100 Кредитов"
+                  description="Купить 100 дополнительных кредитов для генерации музыки."
+                  payload="credits_100"
+                  amount={10}
+                />
+              </CardContent>
+            </Card>
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">

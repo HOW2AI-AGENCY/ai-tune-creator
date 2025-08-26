@@ -52,9 +52,40 @@ const queryClient = new QueryClient({
   },
 });
 
+import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
+
 function AppContent() {
+  const { isInTelegram } = useTelegramWebApp();
+  const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
   const Layout = isMobile ? MobileLayout : AppLayout;
+
+  useEffect(() => {
+    // Redirect to Telegram Mini App if opened in a browser and not logged in
+    if (!authLoading && !user && !isInTelegram) {
+      // Prevents redirect loops if the bot link is opened in a browser again
+      if (!sessionStorage.getItem('tg_redirect_attempted')) {
+        sessionStorage.setItem('tg_redirect_attempted', 'true');
+        window.location.href = 'https://t.me/musicverse_ai_bot?startapp=from_browser';
+      }
+    }
+  }, [isInTelegram, user, authLoading]);
+
+  // Show a holding page while redirecting
+  if (!authLoading && !user && !isInTelegram) {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-background p-4 text-center">
+        <img src="/favicon.ico" alt="Logo" className="mb-4 h-16 w-16" />
+        <h1 className="mb-2 text-2xl font-bold">Перенаправление в Telegram...</h1>
+        <p className="text-muted-foreground">
+          Для лучшего опыта мы перенаправляем вас в наше приложение в Telegram.
+        </p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Если этого не произошло, <a href="https://t.me/musicverse_ai_bot?startapp=from_browser" className="underline">нажмите сюда</a>.
+        </p>
+      </div>
+    );
+  }
 
   const PageLoader = () => (
     <div className="flex h-full w-full items-center justify-center">
