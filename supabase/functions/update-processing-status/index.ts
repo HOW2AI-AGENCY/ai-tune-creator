@@ -33,18 +33,43 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Verify cron secret for security (since this is a background job)
-  const cronSecret = Deno.env.get('CRON_SECRET');
-  const providedSecret = req.headers.get('X-Cron-Secret');
-  
-  if (!cronSecret || !providedSecret || cronSecret !== providedSecret) {
-    console.log('Cron authentication failed - invalid secret');
-    return new Response(
-      JSON.stringify({ error: 'Unauthorized' }), 
-      { 
-        status: 401, 
-        headers: { 'Content-Type': 'application/json' } 
+  // Auth check: Allow if either a valid user JWT is present or a cron secret is provided
+  let isAuthenticated = false;
+  const authHeader = req.headers.get('Authorization');
+
+  if (authHeader) {
+    try {
+      const supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      if (user) {
+        isAuthenticated = true;
+        console.log('Authenticated via user JWT.');
       }
+    } catch (e) {
+      console.warn('User JWT auth failed, falling back to cron secret check.', e);
+    }
+  }
+
+  if (!isAuthenticated) {
+    console.log('No valid user JWT, checking for cron secret...');
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const providedSecret = req.headers.get('X-Cron-Secret');
+
+    if (cronSecret && providedSecret && cronSecret === providedSecret) {
+      isAuthenticated = true;
+      console.log('Authenticated via cron secret.');
+    }
+  }
+
+  if (!isAuthenticated) {
+    console.error('Authentication failed. No valid user JWT or cron secret.');
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
 
