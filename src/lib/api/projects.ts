@@ -27,7 +27,7 @@ const aiContextSchema = z.object({
 const coverContextSchema = z.object({
   provider: z.enum(['sunoapi', 'stability', 'dalle3', 'midjourney']).optional(),
   prompt_used: z.string().optional(),
-  generation_metadata: z.record(z.unknown()).optional(),
+  generation_metadata: z.record(z.string(), z.unknown()).optional(),
   variants: z.array(z.string()).optional().default([]),
 });
 
