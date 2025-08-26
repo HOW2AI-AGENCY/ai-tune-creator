@@ -43,7 +43,7 @@ export const trackMetadataSchema = z.object({
   external_id: z.string().optional(),
   service: z.enum(['suno', 'mureka']).optional(),
   model: z.string().optional(),
-  generation_params: z.record(z.any()).optional(),
+  generation_params: z.record(z.string(), z.any()).optional(),
   audio_url: z.string().url().optional(),
   deleted: z.boolean().optional(),
   processing_status: z.enum(['pending', 'processing', 'completed', 'failed']).optional(),

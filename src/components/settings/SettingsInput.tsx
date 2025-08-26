@@ -1,7 +1,8 @@
-import { Input, InputProps } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ComponentProps } from "react";
 
-interface SettingsInputProps extends InputProps {
+interface SettingsInputProps extends ComponentProps<typeof Input> {
   id: string;
   label: string;
   description?: string;

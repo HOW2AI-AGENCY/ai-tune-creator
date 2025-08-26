@@ -6,7 +6,7 @@ import { useProjects } from './useProjects';
  * It stays in sync with the global project cache.
  */
 export const useGetProjectsByArtistId = (artistId: string | null) => {
-  const { projects, isLoading, isError, error } = useProjects();
+  const { data, isLoading, isError, error } = useProjects();
 
   if (!artistId) {
     return {
@@ -17,7 +17,8 @@ export const useGetProjectsByArtistId = (artistId: string | null) => {
     };
   }
 
-  const filteredProjects = projects.filter(p => p.artist_id === artistId);
+  const allProjects = data?.pages?.flat() || [];
+  const filteredProjects = allProjects.filter(p => p.artist_id === artistId);
 
   return {
     data: filteredProjects,

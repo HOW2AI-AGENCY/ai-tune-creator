@@ -34,6 +34,7 @@ export default function Artists() {
   const [showBannerUpload, setShowBannerUpload] = useState(false);
   const [showEditArtist, setShowEditArtist] = useState(false);
   const [artistToDelete, setArtistToDelete] = useState<Artist | null>(null);
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
   const { data: projects = [], isLoading: isLoadingProjects } = useGetProjectsByArtistId(selectedArtistId);
 

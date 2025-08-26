@@ -7,14 +7,7 @@ const artistSchema = z.object({
   name: z.string().min(1, "Название артиста обязательно"),
   description: z.string().optional().nullable(),
   avatar_url: z.string().optional().nullable(),
-  metadata: z.object({
-    genre: z.string().optional(),
-    location: z.string().optional(),
-    background: z.string().optional(),
-    style: z.string().optional(),
-    influences: z.array(z.string()).optional(),
-    banner_url: z.string().optional(),
-  }).optional()
+  metadata: z.any().optional()
 });
 
 // Тип для создания нового артиста (все поля опциональны, кроме user_id)
@@ -47,7 +40,10 @@ export const getArtists = async (): Promise<Artist[]> => {
     throw new Error(error.message);
   }
 
-  return data || [];
+  return (data || []).map(artist => ({
+    ...artist,
+    metadata: artist.metadata || {}
+  })) as Artist[];
 };
 
 /**
@@ -68,7 +64,10 @@ export const getArtistById = async (id: string): Promise<Artist | null> => {
     throw new Error(error.message);
   }
 
-  return data;
+  return {
+    ...data,
+    metadata: data.metadata || {}
+  } as Artist;
 };
 
 /**
@@ -86,7 +85,10 @@ export const createArtist = async (artistData: CreateArtistData): Promise<Artist
     throw new Error(error.message);
   }
 
-  return data;
+  return {
+    ...data,
+    metadata: data.metadata || {}
+  } as Artist;
 };
 
 /**
@@ -105,7 +107,10 @@ export const updateArtist = async (id: string, artistData: UpdateArtistData): Pr
     throw new Error(error.message);
   }
 
-  return data;
+  return {
+    ...data,
+    metadata: data.metadata || {}
+  } as Artist;
 };
 
 /**
