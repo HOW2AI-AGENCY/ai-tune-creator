@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 import { Music, Apple, Play, RefreshCw } from "lucide-react";
 
 export const AuthForm = () => {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   // The local error state is removed, we'll use authError from the hook directly.
   const { toast } = useToast();
@@ -125,8 +127,10 @@ export const AuthForm = () => {
       } else {
         toast({
           title: "Добро пожаловать!",
-          description: "Вы успешно вошли в систему.",
+          description: "Вы успешно вошли в систему. Перенаправляем...",
         });
+        // Redirect to the main page after a short delay
+        setTimeout(() => navigate('/'), 1000);
       }
     } catch (err) {
       const description = (err instanceof Error && err.message.includes("Failed to fetch"))
