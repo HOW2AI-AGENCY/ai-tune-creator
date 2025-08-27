@@ -219,6 +219,8 @@ interface TelegramWebApp {
   showPopup: (params: any, callback?: (button_id: string) => void) => void;
   showAlert: (message: string, callback?: () => void) => void;
   showConfirm: (message: string, callback?: (confirmed: boolean) => void) => void;
+  openInvoice?: (url: string, callback?: (status: string) => void) => void;
+  openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
   isVersionAtLeast: (version: string) => boolean;
 }
 

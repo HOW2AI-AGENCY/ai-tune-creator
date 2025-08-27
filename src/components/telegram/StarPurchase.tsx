@@ -46,27 +46,42 @@ export const StarPurchaseButton = ({ title, description, payload, amount }: Star
       }
 
       // 2. Open the invoice in Telegram
-      webApp.openInvoice(invoiceLink, (status) => {
-        if (status === 'paid') {
-          toast({
-            title: 'Оплата прошла успешно!',
-            description: `Вы приобрели "${title}" за ${amount} звезд.`,
-          });
-          // Here you might want to refetch user data to update their balance in the UI
-        } else if (status === 'failed') {
-          toast({
-            title: 'Ошибка оплаты',
-            description: 'Не удалось обработать платеж. Попробуйте еще раз.',
-            variant: 'destructive',
-          });
-        } else if (status === 'cancelled') {
-          toast({
-            title: 'Оплата отменена',
-            description: 'Вы отменили процесс оплаты.',
-            variant: 'secondary',
-          });
-        }
-      });
+      if (webApp.openInvoice) {
+        webApp.openInvoice(invoiceLink, (status) => {
+          if (status === 'paid') {
+            toast({
+              title: 'Оплата прошла успешно!',
+              description: `Вы приобрели "${title}" за ${amount} звезд.`,
+            });
+            // Here you might want to refetch user data to update their balance in the UI
+          } else if (status === 'failed') {
+            toast({
+              title: 'Ошибка оплаты',
+              description: 'Не удалось обработать платеж. Попробуйте еще раз.',
+              variant: 'destructive',
+            });
+          } else if (status === 'cancelled') {
+            toast({
+              title: 'Оплата отменена',
+              description: 'Вы отменили процесс оплаты.',
+            });
+          }
+        });
+      } else if (webApp.openLink) {
+        // Fallback: open link using Telegram's openLink
+        webApp.openLink(invoiceLink);
+        toast({
+          title: 'Переход к оплате',
+          description: 'Открываю страницу оплаты в Telegram.',
+        });
+      } else {
+        // Last fallback: open in new window
+        window.open(invoiceLink, '_blank');
+        toast({
+          title: 'Переход к оплате',
+          description: 'Открываю страницу оплаты в новом окне.',
+        });
+      }
 
     } catch (error) {
       console.error('Star purchase error:', error);
