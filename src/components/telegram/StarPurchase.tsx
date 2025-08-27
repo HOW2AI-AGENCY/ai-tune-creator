@@ -14,6 +14,7 @@ interface StarPurchaseProps {
 
 export const StarPurchaseButton = ({ title, description, payload, amount }: StarPurchaseProps) => {
   const { webApp } = useTelegramWebApp();
+  const webAppAny = webApp as any; // tolerate Telegram API differences across versions
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -46,8 +47,8 @@ export const StarPurchaseButton = ({ title, description, payload, amount }: Star
       }
 
       // 2. Open the invoice in Telegram
-      if (webApp.openInvoice) {
-        webApp.openInvoice(invoiceLink, (status) => {
+      if (webAppAny?.openInvoice) {
+        webAppAny.openInvoice(invoiceLink, (status: string) => {
           if (status === 'paid') {
             toast({
               title: 'Оплата прошла успешно!',
@@ -67,9 +68,9 @@ export const StarPurchaseButton = ({ title, description, payload, amount }: Star
             });
           }
         });
-      } else if (webApp.openLink) {
+      } else if (webAppAny?.openLink) {
         // Fallback: open link using Telegram's openLink
-        webApp.openLink(invoiceLink);
+        webAppAny.openLink(invoiceLink);
         toast({
           title: 'Переход к оплате',
           description: 'Открываю страницу оплаты в Telegram.',
