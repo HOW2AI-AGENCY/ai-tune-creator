@@ -14,6 +14,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RefreshCw } from "lucide-react";
+import { PerformanceMonitor } from "@/components/debug/PerformanceMonitor";
 
 // Lazy load page components for better code splitting
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -149,15 +150,16 @@ const App = () => {
           {/* Temporarily disable AppDataProvider to fix IndexedDB issues */}
           {/* <AppDataProvider> */}
             <TranslationProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <BrowserRouter>
-                  <SidebarProvider>
-                    <AppContent />
-                  </SidebarProvider>
-                </BrowserRouter>
-              </TooltipProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <PerformanceMonitor />
+                  <BrowserRouter>
+                    <SidebarProvider>
+                      <AppContent />
+                    </SidebarProvider>
+                  </BrowserRouter>
+                </TooltipProvider>
             </TranslationProvider>
           {/* </AppDataProvider> */}
         </AuthProvider>

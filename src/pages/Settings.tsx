@@ -17,7 +17,7 @@ import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useUserSettings } from "@/hooks/useUserSettings";
+import { useOptimizedSettings } from "@/hooks/optimization/useOptimizedSettings";
 import { AIPromptSettings } from "@/features/ai-generation/components/AIPromptSettings";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
 import { StarPurchaseButton } from "@/components/telegram/StarPurchase";
@@ -26,7 +26,7 @@ export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation();
-  const { settings, isLoading, isSaving, updateSetting, saveSettings } = useUserSettings();
+  const { settings, isLoading, isSaving, updateSetting, saveSettings } = useOptimizedSettings();
   const { isInTelegram } = useTelegramWebApp();
 
   const handleSave = async (section: string) => {
