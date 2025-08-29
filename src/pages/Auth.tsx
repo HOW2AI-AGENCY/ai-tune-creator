@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthForm } from "@/components/auth/AuthForm";
-import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+import { useTelegramAuthOptimized } from "@/hooks/useTelegramAuthOptimized";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -17,15 +17,22 @@ const Auth = () => {
     authenticateWithTelegram, 
     resetAutoAuth, 
     clearError,
-    authData
-  } = useTelegramAuth();
+    authData,
+    attemptCount,
+    maxAttempts
+  } = useTelegramAuthOptimized();
 
   useEffect(() => {
     // Check if user is already logged in
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/");
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          console.log('User already authenticated, redirecting to dashboard');
+          navigate("/", { replace: true });
+        }
+      } catch (error) {
+        console.error('Session check failed:', error);
       }
     };
     checkUser();
@@ -108,6 +115,7 @@ const Auth = () => {
                 <div><strong>Имя:</strong> {authData.firstName}</div>
                 <div><strong>Данные:</strong> {authData.initData.length} символов</div>
                 <div><strong>Авто-аутентификация:</strong> {autoAuthDisabled ? "Отключена" : "Включена"}</div>
+                <div><strong>Попытки:</strong> {attemptCount} / {maxAttempts}</div>
               </div>
             )}
           </div>

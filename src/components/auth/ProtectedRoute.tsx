@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+import { useTelegramAuthOptimized } from "@/hooks/useTelegramAuthOptimized";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -12,7 +12,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteProps) => {
   const { user, session, loading } = useAuth();
-  const { isInTelegram, isAuthenticating } = useTelegramAuth();
+  const { isInTelegram, isAuthenticating } = useTelegramAuthOptimized();
   const navigate = useNavigate();
 
   useEffect(() => {

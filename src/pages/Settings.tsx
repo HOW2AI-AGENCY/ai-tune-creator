@@ -1,4 +1,4 @@
-import { AccountLinkedInfo } from "@/components/auth/AccountLinkedInfo";
+import { TelegramAccountLinking } from "@/components/auth/TelegramAccountLinking";
 import { User, Bell, Palette, Shield, Database, Save, Bot, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,7 +52,7 @@ export default function Settings() {
       </div>
 
       {/* Account Linking Section */}
-      <AccountLinkedInfo />
+      <TelegramAccountLinking />
 
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className={`grid w-full grid-cols-${isInTelegram ? 6 : 5}`}>

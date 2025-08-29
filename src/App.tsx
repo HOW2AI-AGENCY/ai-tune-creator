@@ -62,9 +62,12 @@ function AppContent() {
   const Layout = isMobile ? MobileLayout : AppLayout;
 
   useEffect(() => {
-    // Redirect to Telegram Mini App if opened in a browser and not logged in
-    if (!authLoading && !user && !isInTelegram) {
-      // Prevents redirect loops if the bot link is opened in a browser again
+    // Only redirect to Telegram if explicitly requested
+    // Remove automatic redirect for better web experience
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceRedirect = urlParams.get('redirect_to_telegram') === 'true';
+    
+    if (forceRedirect && !authLoading && !user && !isInTelegram) {
       if (!sessionStorage.getItem('tg_redirect_attempted')) {
         sessionStorage.setItem('tg_redirect_attempted', 'true');
         window.location.href = 'https://t.me/musicverse_ai_bot?startapp=from_browser';
@@ -72,8 +75,11 @@ function AppContent() {
     }
   }, [isInTelegram, user, authLoading]);
 
-  // Show a holding page while redirecting
-  if (!authLoading && !user && !isInTelegram) {
+  // Show redirect option only if explicitly requested
+  const urlParams = new URLSearchParams(window.location.search);
+  const showTelegramRedirect = urlParams.get('redirect_to_telegram') === 'true';
+  
+  if (!authLoading && !user && !isInTelegram && showTelegramRedirect) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background p-4 text-center">
         <img src="/favicon.ico" alt="Logo" className="mb-4 h-16 w-16" />

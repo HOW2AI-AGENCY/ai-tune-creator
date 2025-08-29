@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConnectionDiagnostics } from "./ConnectionDiagnostics";
-import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+import { useTelegramAuthOptimized } from "@/hooks/useTelegramAuthOptimized";
 import { Music, Apple, Play, RefreshCw } from "lucide-react";
 
 export const AuthForm = () => {
@@ -26,7 +26,7 @@ export const AuthForm = () => {
     clearError,
     autoAuthDisabled,
     resetAutoAuth
-  } = useTelegramAuth();
+  } = useTelegramAuthOptimized();
 
   const handleTelegramAuth = async () => {
     clearError();
@@ -127,10 +127,10 @@ export const AuthForm = () => {
       } else {
         toast({
           title: "Добро пожаловать!",
-          description: "Вы успешно вошли в систему. Перенаправляем...",
+          description: "Вы успешно вошли в систему.",
         });
-        // Redirect to the main page after a short delay
-        setTimeout(() => navigate('/'), 1000);
+        // Navigate immediately after successful sign in
+        navigate('/', { replace: true });
       }
     } catch (err) {
       const description = (err instanceof Error && err.message.includes("Failed to fetch"))
