@@ -82,7 +82,7 @@ export function MurekaStemDialog({ open, onOpenChange }: MurekaStemDialogProps) 
 
   const handleDownload = () => {
     if (result?.zip_url) {
-      window.open(result.zip_url, '_blank');
+      window.open(result.zip_url, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -161,7 +161,7 @@ export function MurekaStemDialog({ open, onOpenChange }: MurekaStemDialogProps) 
                 
                 <Button 
                   variant="outline" 
-                  onClick={() => window.open(result.zip_url, '_blank')}
+                  onClick={() => window.open(result.zip_url, '_blank', 'noopener,noreferrer')}
                   className="w-full"
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />

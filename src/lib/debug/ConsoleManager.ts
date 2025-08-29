@@ -38,10 +38,13 @@ class ConsoleManager {
   private log(level: LogLevel, component: string, message: string, data?: any): void {
     if (!this.enabledLevels.has(level)) return;
 
+    // Sanitize sensitive data before logging
+    const sanitizedData = this.sanitizeData(data);
+
     const entry: LogEntry = {
       level,
       message,
-      data,
+      data: sanitizedData,
       timestamp: Date.now(),
       component
     };
@@ -58,19 +61,54 @@ class ConsoleManager {
       
       switch (level) {
         case 'debug':
-          console.debug(formattedMessage, data);
+          console.debug(formattedMessage, sanitizedData);
           break;
         case 'info':
-          console.info(formattedMessage, data);
+          console.info(formattedMessage, sanitizedData);
           break;
         case 'warn':
-          console.warn(formattedMessage, data);
+          console.warn(formattedMessage, sanitizedData);
           break;
         case 'error':
-          console.error(formattedMessage, data);
+          console.error(formattedMessage, sanitizedData);
           break;
       }
     }
+  }
+
+  private sanitizeData(data: any): any {
+    if (!data || typeof data !== 'object') return data;
+
+    const sensitiveKeys = [
+      'password', 'token', 'key', 'secret', 'auth', 'authorization',
+      'access_token', 'refresh_token', 'api_key', 'private_key',
+      'telegram_id', 'user_id', 'email', 'phone'
+    ];
+
+    const sanitized = Array.isArray(data) ? [...data] : { ...data };
+
+    const sanitizeRecursive = (obj: any): any => {
+      if (!obj || typeof obj !== 'object') return obj;
+      
+      if (Array.isArray(obj)) {
+        return obj.map(sanitizeRecursive);
+      }
+
+      const result: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        const lowerKey = key.toLowerCase();
+        if (sensitiveKeys.some(sensitive => lowerKey.includes(sensitive))) {
+          result[key] = '[REDACTED]';
+        } else if (typeof value === 'object' && value !== null) {
+          result[key] = sanitizeRecursive(value);
+        } else {
+          result[key] = value;
+        }
+      }
+      return result;
+    };
+
+    return sanitizeRecursive(sanitized);
   }
 
   // Публичные методы для логирования

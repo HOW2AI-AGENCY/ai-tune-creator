@@ -118,7 +118,7 @@ export function TrackVariantCard({
 
   const handleOpenExternal = () => {
     if (track.audio_url) {
-      window.open(track.audio_url, '_blank');
+      window.open(track.audio_url, '_blank', 'noopener,noreferrer');
     }
   };
 

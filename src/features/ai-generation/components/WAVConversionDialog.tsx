@@ -143,7 +143,7 @@ export function WAVConversionDialog({
 
   const handleDownloadWAV = () => {
     if (conversionStatus.wavUrl) {
-      window.open(conversionStatus.wavUrl, '_blank');
+      window.open(conversionStatus.wavUrl, '_blank', 'noopener,noreferrer');
       toast.success('Загрузка WAV файла начата');
     }
   };

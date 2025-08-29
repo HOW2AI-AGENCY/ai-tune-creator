@@ -463,7 +463,7 @@ export function TrackViewDialog({ open, onOpenChange, track }: TrackViewDialogPr
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => window.open(generation.result_url, '_blank')}
+                                  onClick={() => window.open(generation.result_url, '_blank', 'noopener,noreferrer')}
                                   className="text-xs h-7"
                                 >
                                   <ExternalLink className="h-3 w-3 mr-1" />

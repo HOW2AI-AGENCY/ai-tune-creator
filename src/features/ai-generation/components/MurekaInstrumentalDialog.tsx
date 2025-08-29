@@ -247,7 +247,7 @@ export function MurekaInstrumentalDialog({ open, onOpenChange, onInstrumentalGen
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          onClick={() => window.open(choice.audio_url, '_blank')}
+                          onClick={() => window.open(choice.audio_url, '_blank', 'noopener,noreferrer')}
                           className="mt-2"
                         >
                           <Play className="h-3 w-3 mr-1" />

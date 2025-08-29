@@ -140,7 +140,7 @@ export function VideoGenerationDialog({ open, onOpenChange, track }: VideoGenera
 
   const playVideo = () => {
     if (!videoUrl) return;
-    window.open(videoUrl, '_blank');
+    window.open(videoUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (

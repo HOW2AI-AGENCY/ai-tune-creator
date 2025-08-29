@@ -76,8 +76,8 @@ export const StarPurchaseButton = ({ title, description, payload, amount }: Star
           description: 'Открываю страницу оплаты в Telegram.',
         });
       } else {
-        // Last fallback: open in new window
-        window.open(invoiceLink, '_blank');
+        // Last fallback: open in new window  
+        window.open(invoiceLink, '_blank', 'noopener,noreferrer');
         toast({
           title: 'Переход к оплате',
           description: 'Открываю страницу оплаты в новом окне.',
