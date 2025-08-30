@@ -53,46 +53,10 @@ const queryClient = new QueryClient({
   },
 });
 
-import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
-
 function AppContent() {
-  const { isInTelegram } = useTelegramWebApp();
   const { user, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
   const Layout = isMobile ? MobileLayout : AppLayout;
-
-  useEffect(() => {
-    // Only redirect to Telegram if explicitly requested
-    // Remove automatic redirect for better web experience
-    const urlParams = new URLSearchParams(window.location.search);
-    const forceRedirect = urlParams.get('redirect_to_telegram') === 'true';
-    
-    if (forceRedirect && !authLoading && !user && !isInTelegram) {
-      if (!sessionStorage.getItem('tg_redirect_attempted')) {
-        sessionStorage.setItem('tg_redirect_attempted', 'true');
-        window.location.href = 'https://t.me/musicverse_ai_bot?startapp=from_browser';
-      }
-    }
-  }, [isInTelegram, user, authLoading]);
-
-  // Show redirect option only if explicitly requested
-  const urlParams = new URLSearchParams(window.location.search);
-  const showTelegramRedirect = urlParams.get('redirect_to_telegram') === 'true';
-  
-  if (!authLoading && !user && !isInTelegram && showTelegramRedirect) {
-    return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-background p-4 text-center">
-        <img src="/favicon.ico" alt="Logo" className="mb-4 h-16 w-16" />
-        <h1 className="mb-2 text-2xl font-bold">Перенаправление в Telegram...</h1>
-        <p className="text-muted-foreground">
-          Для лучшего опыта мы перенаправляем вас в наше приложение в Telegram.
-        </p>
-        <p className="mt-4 text-sm text-muted-foreground">
-          Если этого не произошло, <a href="https://t.me/musicverse_ai_bot?startapp=from_browser" className="underline">нажмите сюда</a>.
-        </p>
-      </div>
-    );
-  }
 
   const PageLoader = () => (
     <div className="flex h-full w-full items-center justify-center">

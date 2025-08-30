@@ -11,7 +11,6 @@ import {
   WifiOff
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useTelegramWebApp, useTelegramBackButton } from '@/hooks/useTelegramWebApp';
 
 interface MobileHeaderProps {
   title: string;
@@ -46,16 +45,6 @@ export function MobileHeader({
   className,
   children
 }: MobileHeaderProps) {
-  const { isInTelegram } = useTelegramWebApp();
-  const { showBackButton, hideBackButton } = useTelegramBackButton();
-
-  React.useEffect(() => {
-    if (isInTelegram && showBack && onBack) {
-      showBackButton(onBack);
-      return () => hideBackButton();
-    }
-  }, [isInTelegram, showBack, onBack, showBackButton, hideBackButton]);
-
   return (
     <header className={cn(
       "sticky top-0 z-50 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
@@ -66,7 +55,7 @@ export function MobileHeader({
       <div className="flex items-center justify-between h-8 px-3">
         {/* Left - Back Button */}
         <div className="w-10 flex items-center justify-start">
-          {showBack && !isInTelegram && (
+          {showBack && (
             <Button
               variant="ghost"
               size="icon"
