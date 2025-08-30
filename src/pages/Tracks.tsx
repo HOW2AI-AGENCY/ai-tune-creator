@@ -8,7 +8,8 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TrackEditDialog, TrackVersionsDialog, TrackGenerationDialog, TrackViewDialog } from "@/features/tracks";
-import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
+import { lazy, Suspense } from "react";
+const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(m => ({ default: m.FloatingPlayer })));
 import { 
   Plus, 
   Search, 
@@ -573,21 +574,23 @@ export default function Tracks() {
       />
 
       {/* Player */}
-      <FloatingPlayer
-        isOpen={playerOpen}
-        onClose={() => setPlayerOpen(false)}
-        track={currentTrack ? {
-          id: currentTrack.id,
-          title: currentTrack.title,
-          audio_url: currentTrack.audio_url || '',
-          project: {
-            title: currentTrack.projects?.title || '',
-            artist: {
-              name: currentTrack.projects?.artists?.name || 'Unknown Artist'
+      <Suspense fallback={null}>
+        <FloatingPlayer
+          isOpen={playerOpen}
+          onClose={() => setPlayerOpen(false)}
+          track={currentTrack ? {
+            id: currentTrack.id,
+            title: currentTrack.title,
+            audio_url: currentTrack.audio_url || '',
+            project: {
+              title: currentTrack.projects?.title || '',
+              artist: {
+                name: currentTrack.projects?.artists?.name || 'Unknown Artist'
+              }
             }
-          }
-        } : null}
-      />
+          } : null}
+        />
+      </Suspense>
     </div>
   );
 }

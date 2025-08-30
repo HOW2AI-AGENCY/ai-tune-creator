@@ -12,7 +12,8 @@ import { MobileCard } from "@/components/mobile/MobileCard";
 import { MobileTrackRow } from "@/components/mobile/MobileTrackRow";
 import { MobileFAB } from "@/components/mobile/MobileFAB";
 import { MobileBottomSheet } from "@/components/mobile/MobileBottomSheet";
-import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
+import { lazy, Suspense } from "react";
+const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(m => ({ default: m.FloatingPlayer })));
 import { TrackCleanupDialog } from "@/components/tracks/TrackCleanupDialog";
 
 interface Track {
@@ -522,13 +523,15 @@ export default function MobileTracks() {
 
       {/* Floating Player */}
       {playerOpen && currentTrack && (
-        <FloatingPlayer
-          track={currentTrack}
-          isOpen={playerOpen}
-          onClose={() => setPlayerOpen(false)}
-          onNext={() => {}}
-          onPrev={() => {}}
-        />
+        <Suspense fallback={null}>
+          <FloatingPlayer
+            track={currentTrack}
+            isOpen={playerOpen}
+            onClose={() => setPlayerOpen(false)}
+            onNext={() => {}}
+            onPrev={() => {}}
+          />
+        </Suspense>
       )}
       
       {/* Track Cleanup Dialog */}

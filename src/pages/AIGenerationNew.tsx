@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { TrackLibrary } from "@/components/tracks/TrackLibrary";
 import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
 import { LyricsDrawer } from "@/features/ai-generation/components/LyricsDrawer";
-import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
+import { lazy, Suspense } from "react";
+const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(m => ({ default: m.FloatingPlayer })));
 import { 
   Search, 
   Play, 
@@ -566,15 +567,17 @@ export default function AIGenerationNew() {
       />
 
       {/* Всплывающий плеер */}
-      <FloatingPlayer
-        isOpen={isPlayerOpen}
-        track={selectedTrack}
-        onClose={() => setIsPlayerOpen(false)}
-        onShowLyrics={(track) => {
-          setSelectedTrack(track);
-          setIsLyricsDrawerOpen(true);
-        }}
-      />
+      <Suspense fallback={null}>
+        <FloatingPlayer
+          isOpen={isPlayerOpen}
+          track={selectedTrack}
+          onClose={() => setIsPlayerOpen(false)}
+          onShowLyrics={(track) => {
+            setSelectedTrack(track);
+            setIsLyricsDrawerOpen(true);
+          }}
+        />
+      </Suspense>
     </div>
   );
 }

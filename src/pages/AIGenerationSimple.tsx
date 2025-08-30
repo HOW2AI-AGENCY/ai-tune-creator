@@ -5,9 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
 import { TrackLibrary } from "@/components/tracks/TrackLibrary";
 import { LyricsDrawer } from "@/features/ai-generation/components/LyricsDrawer";
-import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
 import { useTrackSync } from "@/hooks/useTrackSync";
+import { lazy, Suspense } from "react";
+const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(m => ({ default: m.FloatingPlayer })));
 import { 
   Search, 
   Music,
@@ -208,11 +209,13 @@ export default function AIGenerationSimple() {
       />
 
       {/* Floating Player */}
-      <FloatingPlayer
-        isOpen={isPlayerOpen}
-        track={selectedTrack}
-        onClose={() => setIsPlayerOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <FloatingPlayer
+          isOpen={isPlayerOpen}
+          track={selectedTrack}
+          onClose={() => setIsPlayerOpen(false)}
+        />
+      </Suspense>
     </div>
   );
 }
