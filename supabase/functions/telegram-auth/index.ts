@@ -1,10 +1,34 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+// Restrict CORS to known Telegram origins and app domains
+const getAllowedOrigins = () => {
+  const origins = [
+    'https://web.telegram.org',
+    'https://telegram.org', 
+    'https://t.me',
+    'https://zwbhlfhwymbmvioaikvs.supabase.co'
+  ];
+  
+  // Add development origins in non-production
+  const isDev = Deno.env.get('ENVIRONMENT') !== 'production';
+  if (isDev) {
+    origins.push('http://localhost:3000', 'http://127.0.0.1:3000');
+  }
+  
+  return origins;
+};
+
+const getCorsHeaders = (origin?: string) => {
+  const allowedOrigins = getAllowedOrigins();
+  const allowedOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Credentials': 'true'
+  };
+};
 
 // Rate limiting storage
 const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
@@ -46,8 +70,41 @@ function checkRateLimit(identifier: string): { allowed: boolean; remaining: numb
   };
 }
 
+// Add replay protection
+async function checkAndMarkNonce(authDate: string, supabaseClient: any): Promise<{ valid: boolean; error?: string }> {
+  try {
+    const nonce = `auth_${authDate}`;
+    
+    // Check if nonce already used
+    const { data: existing } = await supabaseClient
+      .from('telegram_auth_nonces')
+      .select('nonce')
+      .eq('nonce', nonce)
+      .single();
+    
+    if (existing) {
+      return { valid: false, error: 'Authentication data already used' };
+    }
+    
+    // Mark nonce as used
+    const { error } = await supabaseClient
+      .from('telegram_auth_nonces')
+      .insert({ nonce });
+    
+    if (error) {
+      console.error('Failed to store nonce:', error);
+      return { valid: false, error: 'Security check failed' };
+    }
+    
+    return { valid: true };
+  } catch (error) {
+    console.error('Nonce check error:', error);
+    return { valid: false, error: 'Security check failed' };
+  }
+}
+
 // Correct Telegram initData validation using HMAC-SHA256
-async function validateTelegramAuth(initData: string, botToken: string): Promise<{ valid: boolean; error?: string }> {
+async function validateTelegramAuth(initData: string, botToken: string, supabaseClient: any): Promise<{ valid: boolean; error?: string }> {
   try {
     console.log('Validating initData:', initData ? `${initData.length} chars` : 'empty');
     const urlParams = new URLSearchParams(initData);
@@ -65,6 +122,12 @@ async function validateTelegramAuth(initData: string, botToken: string): Promise
     if (now - authTime > 300000) {
       console.log('Telegram auth: initData too old, age:', (now - authTime) / 1000, 'seconds');
       return { valid: false, error: 'Authentication data expired' };
+    }
+
+    // Check for replay attacks
+    const nonceCheck = await checkAndMarkNonce(authDate, supabaseClient);
+    if (!nonceCheck.valid) {
+      return nonceCheck;
     }
 
     urlParams.delete('hash');
@@ -107,6 +170,9 @@ async function validateTelegramAuth(initData: string, botToken: string): Promise
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -159,8 +225,8 @@ serve(async (req) => {
       hasInitData: !!authData.initData
     });
 
-    // Валидируем данные от Telegram
-    const validation = await validateTelegramAuth(authData.initData, botToken);
+    // Валидируем данные от Telegram с проверкой повторного использования
+    const validation = await validateTelegramAuth(authData.initData, botToken, supabaseClient);
     if (!validation.valid) {
       console.log(`Invalid Telegram auth for ${authData.telegramId}: ${validation.error}`);
       
@@ -246,12 +312,25 @@ serve(async (req) => {
       throw new Error('Could not generate a user session');
     }
 
+    // Return minimal session info instead of full tokens for security
     const session = {
       access_token: linkData.properties.access_token,
       refresh_token: linkData.properties.refresh_token,
+      expires_at: linkData.properties.expires_at,
+      token_type: 'bearer'
     };
 
-    const user = linkData.user;
+    // Remove sensitive data from user object
+    const { email, ...userWithoutEmail } = linkData.user;
+    const user = {
+      ...userWithoutEmail,
+      // Only include non-sensitive metadata
+      user_metadata: {
+        provider: 'telegram',
+        telegram_id: authData.telegramId,
+        first_name: authData.firstName
+      }
+    };
 
     const duration = Date.now() - startTime;
     console.log(`Telegram auth: Session generated for user ${userId} in ${duration}ms`);

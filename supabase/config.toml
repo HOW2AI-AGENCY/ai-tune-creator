@@ -73,7 +73,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.test-suno-connection]
-verify_jwt = false
+verify_jwt = true
 
 [functions.update-processing-status]
 verify_jwt = false
