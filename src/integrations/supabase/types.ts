@@ -628,6 +628,24 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_auth_nonces: {
+        Row: {
+          expires_at: string
+          nonce: string
+          used_at: string
+        }
+        Insert: {
+          expires_at?: string
+          nonce: string
+          used_at?: string
+        }
+        Update: {
+          expires_at?: string
+          nonce?: string
+          used_at?: string
+        }
+        Relationships: []
+      }
       track_assets: {
         Row: {
           created_at: string
@@ -937,6 +955,10 @@ export type Database = {
       acquire_operation_lock: {
         Args: { _key: string; _ttl_seconds?: number }
         Returns: boolean
+      }
+      cleanup_expired_telegram_nonces: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       create_activity_log: {
         Args: {
