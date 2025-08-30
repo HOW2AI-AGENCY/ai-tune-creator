@@ -7,11 +7,13 @@ import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/u
 import { UnifiedGenerationSidebar } from "@/features/ai-generation/components/UnifiedGenerationSidebar";
 import type { GenerationParams } from "@/features/ai-generation/types";
 import { GenerationFeed } from "@/features/ai-generation/components/GenerationFeed";
-import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TaskQueuePanel } from "@/components/ai-generation/TaskQueuePanel";
 import { AIServiceStatusBanner } from "@/components/ai-generation/AIServiceStatusBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { lazy } from 'react';
+
+const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(module => ({ default: module.FloatingPlayer })));
+const TaskQueuePanel = lazy(() => import("@/components/ai-generation/TaskQueuePanel").then(module => ({ default: module.TaskQueuePanel })));
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import { SunoTrackRecovery } from '@/components/dev/SunoTrackRecovery';
@@ -562,21 +564,23 @@ export default function AIGeneration() {
       </div>
       
       {/* Player */}
-      <FloatingPlayer
-        isOpen={playerOpen}
-        onClose={() => startTransition(() => setPlayerOpen(false))}
-        track={currentTrack ? {
-          id: currentTrack.id,
-          title: currentTrack.title,
-          audio_url: currentTrack.audio_url || '',
-          project: {
-            title: currentTrack.projects?.title || '',
-            artist: {
-              name: currentTrack.projects?.artists?.name || 'Unknown Artist'
+      <Suspense fallback={null}>
+        <FloatingPlayer
+          isOpen={playerOpen}
+          onClose={() => startTransition(() => setPlayerOpen(false))}
+          track={currentTrack ? {
+            id: currentTrack.id,
+            title: currentTrack.title,
+            audio_url: currentTrack.audio_url || '',
+            project: {
+              title: currentTrack.projects?.title || '',
+              artist: {
+                name: currentTrack.projects?.artists?.name || 'Unknown Artist'
+              }
             }
-          }
-        } : null}
-      />
+          } : null}
+        />
+      </Suspense>
     </div>
   );
 }

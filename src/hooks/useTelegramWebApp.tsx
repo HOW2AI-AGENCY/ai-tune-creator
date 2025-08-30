@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { debounce } from '@/lib/utils';
 
 declare global {
   interface Window {
@@ -394,9 +395,9 @@ export function useTelegramLayout() {
     }
 
     // Слушаем изменения viewport
-    const handleViewportChanged = () => {
+    const handleViewportChanged = useCallback(debounce(() => {
       updateViewportData();
-    };
+    }, 150), [webApp]);
 
     // Добавляем обработчик изменений
     if (webApp.onEvent) {

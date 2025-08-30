@@ -22,7 +22,8 @@ import { useProjects } from "@/hooks/data/useProjects"; // Refactored hook
 import { Project } from "@/lib/api/projects"; // Import main Project type
 import { CreateProjectDialog, CreateProjectWithAIDialog, CoverUploadDialog, BannerUploadDialog } from "@/features/projects";
 import { CreateTrackDialog, TrackDetailsDialog } from "@/features/tracks";
-import { FloatingPlayer } from "@/features/ai-generation/components/FloatingPlayer";
+import { lazy, Suspense } from "react";
+const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(m => ({ default: m.FloatingPlayer })));
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -431,7 +432,9 @@ export default function Projects() {
       <BannerUploadDialog open={bannerDialogOpen} onOpenChange={setBannerDialogOpen} projectId={selectedProject?.id || ""} projectTitle={selectedProject?.title || ""} onBannerUploaded={(bannerUrl) => { if (selectedProject) { setSelectedProject({ ...selectedProject, metadata: { ...selectedProject.metadata, banner_url: bannerUrl }}); refetch(); }}} />
       <CreateTrackDialog open={createTrackDialogOpen} onOpenChange={setCreateTrackDialogOpen} projectId={selectedProject?.id || ""} artistInfo={selectedProject?.artists} projectInfo={selectedProject} onTrackCreated={() => { if (selectedProject) { loadTracks(selectedProject.id); } setCreateTrackDialogOpen(false); }} nextTrackNumber={(tracks.length || 0) + 1} />
       <TrackDetailsDialog open={trackDetailsOpen} onOpenChange={setTrackDetailsOpen} track={selectedTrack ? { ...selectedTrack, project: { title: selectedProject?.title, artist: selectedProject?.artists }} : null} onTrackUpdated={handleTrackUpdated} />
-      <FloatingPlayer isOpen={playerOpen} onClose={() => setPlayerOpen(false)} track={currentTrack ? { id: currentTrack.id, title: currentTrack.title, audio_url: currentTrack.audio_url || '', project: { title: selectedProject?.title || '', artist: { name: selectedProject?.artists?.name || 'Unknown Artist' }}} : null} />
+      <Suspense fallback={null}>
+        <FloatingPlayer isOpen={playerOpen} onClose={() => setPlayerOpen(false)} track={currentTrack ? { id: currentTrack.id, title: currentTrack.title, audio_url: currentTrack.audio_url || '', project: { title: selectedProject?.title || '', artist: { name: selectedProject?.artists?.name || 'Unknown Artist' }}} : null} />
+      </Suspense>
       </div>
     </ScrollArea>
   );
