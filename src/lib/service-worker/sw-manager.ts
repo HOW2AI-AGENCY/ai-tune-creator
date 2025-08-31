@@ -246,7 +246,7 @@ class ServiceWorkerManager {
 
     try {
       // Send message to service worker to preload resources
-      this.wb.messageSkipWaiting({
+      this.wb.messageSW({
         type: 'PRELOAD_URLS',
         urls: criticalUrls,
       });

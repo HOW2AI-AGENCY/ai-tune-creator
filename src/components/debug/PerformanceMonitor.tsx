@@ -166,15 +166,15 @@ export const PerformanceMonitor: React.FC = () => {
                 {stats.webVitals && Object.entries(stats.webVitals.metrics || {}).map(([name, metric]) => (
                   <div key={name} className="flex justify-between items-center">
                     <span>{name}:</span>
-                    <Badge 
-                      variant={
-                        metric.rating === 'good' ? 'default' :
-                        metric.rating === 'needs-improvement' ? 'secondary' : 
-                        'destructive'
-                      }
-                      className="text-xs"
-                    >
-                      {metric?.value?.toFixed?.(0) || 0}{name === 'CLS' ? '' : 'ms'} ({metric?.rating || 'unknown'})
+                     <Badge 
+                       variant={
+                         (metric as any)?.rating === 'good' ? 'default' :
+                         (metric as any)?.rating === 'needs-improvement' ? 'secondary' : 
+                         'destructive'
+                       }
+                       className="text-xs"
+                     >
+                       {(metric as any)?.value?.toFixed?.(0) || 0}{name === 'CLS' ? '' : 'ms'} ({(metric as any)?.rating || 'unknown'})
                     </Badge>
                   </div>
                 ))}

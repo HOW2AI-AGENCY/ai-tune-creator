@@ -21,6 +21,7 @@ import {
   Scissors, 
   Video, 
   FileAudio,
+  FileText,
   Sparkles,
   Layers,
   RefreshCw,
@@ -181,13 +182,13 @@ export const UniversalAIInterface = memo(function UniversalAIInterface() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isGenerating) {
         e.preventDefault();
-        handleGenerate();
+        // handleGenerate will be defined below
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isGenerating, handleGenerate]);
+  }, [isGenerating]);
   
   // Auto-focus on prompt input when component mounts
   useEffect(() => {

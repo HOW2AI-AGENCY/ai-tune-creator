@@ -3,7 +3,7 @@
  * Tracks Core Web Vitals metrics and sends them to analytics
  */
 
-import { onCLS, onFID, onFCP, onLCP, onTTFB } from 'web-vitals';
+import { onCLS, onINP, onFCP, onLCP, onTTFB } from 'web-vitals';
 
 interface Metric {
   name: string;
@@ -27,7 +27,7 @@ interface PerformanceEntry {
 // Performance thresholds based on Google recommendations
 const THRESHOLDS = {
   CLS: { good: 0.1, poor: 0.25 },
-  FID: { good: 100, poor: 300 },
+  INP: { good: 200, poor: 500 },
   FCP: { good: 1800, poor: 3000 },
   LCP: { good: 2500, poor: 4000 },
   TTFB: { good: 800, poor: 1800 },
@@ -93,8 +93,8 @@ class PerformanceMonitor {
   private async sendToAnalytics(entry: PerformanceEntry) {
     try {
       // Send to Google Analytics 4 if available
-      if (typeof gtag !== 'undefined') {
-        gtag('event', entry.name, {
+      if (typeof (window as any).gtag !== 'undefined') {
+        (window as any).gtag('event', entry.name, {
           event_category: 'Web Vitals',
           event_label: entry.id,
           value: Math.round(entry.value),
@@ -120,7 +120,7 @@ class PerformanceMonitor {
 
     // Monitor Core Web Vitals
     onCLS(this.handleMetric.bind(this));
-    onFID(this.handleMetric.bind(this));
+    onINP(this.handleMetric.bind(this));
     onFCP(this.handleMetric.bind(this));
     onLCP(this.handleMetric.bind(this));
     onTTFB(this.handleMetric.bind(this));
