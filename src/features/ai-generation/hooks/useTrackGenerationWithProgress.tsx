@@ -125,7 +125,7 @@ export function useTrackGenerationWithProgress() {
       });
 
       // Имитируем прогресс подготовки
-      await new Promise(resolve => createTimeout(resolve, 500));
+      await new Promise(resolve => createTimeout(() => resolve(undefined), 500));
       updateProgress({
         progress: 25,
         steps: [

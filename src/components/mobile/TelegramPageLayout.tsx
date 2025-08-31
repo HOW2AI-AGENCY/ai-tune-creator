@@ -12,3 +12,9 @@ export const TelegramPageLayout = ({ children, className }: TelegramPageLayoutPr
     </div>
   );
 };
+
+export const TelegramSection = ({ children, className }: { children: ReactNode; className?: string }) => (
+  <section className={`p-4 ${className || ''}`}>
+    {children}
+  </section>
+);

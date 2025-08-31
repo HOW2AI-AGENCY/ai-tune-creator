@@ -1,9 +1,7 @@
 /**
- * Database-Backed Rate Limiter for AI Services
- * Provides persistent rate limiting across function restarts
+ * Simple Rate Limiter for AI Services
+ * Provides basic rate limiting without database dependencies
  */
-
-import { supabase } from '@/integrations/supabase/client';
 
 interface RateLimitConfig {
   windowMs: number;
@@ -37,6 +35,8 @@ export class DatabaseRateLimiter {
     }
   };
 
+  private static requestCounts = new Map<string, { count: number; resetTime: number }>();
+
   /**
    * Check if user can make a request and update counters
    */
@@ -49,48 +49,40 @@ export class DatabaseRateLimiter {
       throw new Error(`No rate limit config found for service: ${service}`);
     }
 
-    const now = new Date();
-    const windowStart = new Date(now.getTime() - config.windowMs);
+    const now = Date.now();
+    const key = `${userId}:${service}`;
+    const existing = this.requestCounts.get(key);
 
-    try {
-      // Use RPC function for atomic rate limit checking
-      const { data, error } = await supabase.rpc('check_rate_limit', {
-        p_user_id: userId,
-        p_service: service,
-        p_window_start: windowStart.toISOString(),
-        p_max_requests: config.maxRequests,
-        p_window_ms: config.windowMs
-      });
-
-      if (error) {
-        console.error('Rate limit check error:', error);
-        // Fail open - allow request if DB check fails
-        return {
-          allowed: true,
-          remaining: config.maxRequests - 1,
-          resetTime: new Date(now.getTime() + config.windowMs)
-        };
-      }
-
-      const result = data as { allowed: boolean; count: number; reset_time: string };
-      
-      return {
-        allowed: result.allowed,
-        remaining: Math.max(0, config.maxRequests - result.count),
-        resetTime: new Date(result.reset_time),
-        retryAfter: result.allowed ? undefined : 
-          Math.ceil((new Date(result.reset_time).getTime() - now.getTime()) / 1000)
-      };
-
-    } catch (dbError) {
-      console.error('Database rate limiter error:', dbError);
-      // Fail open on database errors
+    // Check if window has expired
+    if (!existing || now > existing.resetTime) {
+      // Reset the window
+      this.requestCounts.set(key, { count: 1, resetTime: now + config.windowMs });
       return {
         allowed: true,
         remaining: config.maxRequests - 1,
-        resetTime: new Date(now.getTime() + config.windowMs)
+        resetTime: new Date(now + config.windowMs)
       };
     }
+
+    // Check if we're over the limit
+    if (existing.count >= config.maxRequests) {
+      return {
+        allowed: false,
+        remaining: 0,
+        resetTime: new Date(existing.resetTime),
+        retryAfter: Math.ceil((existing.resetTime - now) / 1000)
+      };
+    }
+
+    // Increment the count
+    existing.count++;
+    this.requestCounts.set(key, existing);
+
+    return {
+      allowed: true,
+      remaining: config.maxRequests - existing.count,
+      resetTime: new Date(existing.resetTime)
+    };
   }
 
   /**
@@ -101,63 +93,37 @@ export class DatabaseRateLimiter {
     service: keyof typeof this.DEFAULT_CONFIGS
   ): Promise<RateLimitResult> {
     const config = this.DEFAULT_CONFIGS[service];
-    const now = new Date();
-    const windowStart = new Date(now.getTime() - config.windowMs);
+    const now = Date.now();
+    const key = `${userId}:${service}`;
+    const existing = this.requestCounts.get(key);
 
-    try {
-      const { data, error } = await supabase.rpc('get_rate_limit_status', {
-        p_user_id: userId,
-        p_service: service,
-        p_window_start: windowStart.toISOString()
-      });
-
-      if (error) {
-        console.error('Rate limit status error:', error);
-        return {
-          allowed: true,
-          remaining: config.maxRequests,
-          resetTime: new Date(now.getTime() + config.windowMs)
-        };
-      }
-
-      const result = data as { count: number; oldest_request: string };
-      const remaining = Math.max(0, config.maxRequests - result.count);
-      const allowed = remaining > 0;
-      
-      // Calculate reset time based on oldest request in window
-      const resetTime = result.oldest_request ? 
-        new Date(new Date(result.oldest_request).getTime() + config.windowMs) :
-        new Date(now.getTime() + config.windowMs);
-
-      return {
-        allowed,
-        remaining,
-        resetTime,
-        retryAfter: allowed ? undefined : 
-          Math.ceil((resetTime.getTime() - now.getTime()) / 1000)
-      };
-
-    } catch (dbError) {
-      console.error('Database rate limiter status error:', dbError);
+    if (!existing || now > existing.resetTime) {
       return {
         allowed: true,
         remaining: config.maxRequests,
-        resetTime: new Date(now.getTime() + config.windowMs)
+        resetTime: new Date(now + config.windowMs)
       };
     }
+
+    const remaining = Math.max(0, config.maxRequests - existing.count);
+    
+    return {
+      allowed: remaining > 0,
+      remaining,
+      resetTime: new Date(existing.resetTime),
+      retryAfter: remaining > 0 ? undefined : Math.ceil((existing.resetTime - now) / 1000)
+    };
   }
 
   /**
    * Clean up old rate limit records
    */
   static async cleanup(): Promise<void> {
-    try {
-      const { error } = await supabase.rpc('cleanup_rate_limits');
-      if (error) {
-        console.error('Rate limit cleanup error:', error);
+    const now = Date.now();
+    for (const [key, data] of this.requestCounts.entries()) {
+      if (now > data.resetTime) {
+        this.requestCounts.delete(key);
       }
-    } catch (cleanupError) {
-      console.error('Rate limit cleanup exception:', cleanupError);
     }
   }
 
@@ -165,19 +131,7 @@ export class DatabaseRateLimiter {
    * Reset rate limit for a user (admin function)
    */
   static async resetLimit(userId: string, service: string): Promise<void> {
-    try {
-      const { error } = await supabase.rpc('reset_rate_limit', {
-        p_user_id: userId,
-        p_service: service
-      });
-
-      if (error) {
-        console.error('Rate limit reset error:', error);
-        throw new Error('Failed to reset rate limit');
-      }
-    } catch (resetError) {
-      console.error('Rate limit reset exception:', resetError);
-      throw resetError;
-    }
+    const key = `${userId}:${service}`;
+    this.requestCounts.delete(key);
   }
 }

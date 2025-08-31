@@ -54,7 +54,7 @@ export class AuthHandler {
     const keys = keyMappings[service] || [];
     
     for (const keyName of keys) {
-      const key = process.env[keyName] || (typeof Deno !== 'undefined' ? Deno.env.get(keyName) : null);
+      const key = process.env[keyName] || null;
       if (key && key.trim().length > 0) {
         return key.trim();
       }
