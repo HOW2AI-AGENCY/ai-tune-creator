@@ -54,9 +54,44 @@ export function useTrackGeneration({
   const { toast } = useToast();
   const { settings } = useAISettings();
   
-  // PERFORMANCE: In-memory cache для повторных запросов
+  // PERFORMANCE: In-memory cache для повторных запросов with memory leak prevention
   const cacheRef = useRef<Map<string, CacheEntry>>(new Map());
   const retryConfigRef = useRef<RetryConfig>(DEFAULT_RETRY_CONFIG);
+  const cleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // MEMORY LEAK FIX: Periodic cache cleanup
+  const cleanupStaleCache = useCallback(() => {
+    const now = Date.now();
+    const cache = cacheRef.current;
+    
+    for (const [key, entry] of cache.entries()) {
+      if (now - entry.timestamp > entry.ttl) {
+        cache.delete(key);
+      }
+    }
+    
+    // Limit cache size to prevent memory bloat
+    if (cache.size > 100) {
+      const entries = Array.from(cache.entries());
+      entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const toDelete = entries.slice(0, entries.length - 50);
+      toDelete.forEach(([key]) => cache.delete(key));
+    }
+  }, []);
+
+  // Set up periodic cache cleanup
+  useEffect(() => {
+    cleanupTimerRef.current = setInterval(cleanupStaleCache, 5 * 60 * 1000); // Every 5 minutes
+    
+    return () => {
+      if (cleanupTimerRef.current) {
+        clearInterval(cleanupTimerRef.current);
+        cleanupTimerRef.current = null;
+      }
+      // Clear entire cache on unmount
+      cacheRef.current.clear();
+    };
+  }, [cleanupStaleCache]);
 
   /**
    * Генерирует лирику с использованием retry логики и кеширования

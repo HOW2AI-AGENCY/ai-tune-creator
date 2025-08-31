@@ -14,7 +14,7 @@
  * Level 3: localStorage (Static Resources) - Long-term caching
  */
 
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, useCallback, useMemo, memo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -558,13 +558,14 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
     hydrateFromCache();
   }, []);
   
-  // ============= CACHE PERSISTENCE =============  
+  // ============= CACHE PERSISTENCE ============= 
   useEffect(() => {
     /**
      * Persist state changes to cache
      * 
      * PERFORMANCE: Debounced writes для минимизации I/O
      * STRATEGY: Only persist non-loading states
+     * MEMORY LEAK FIX: Proper timeout cleanup
      */
     const persistToCache = async () => {
       if (state.artists.loading || state.projects.loading || state.tracks.loading) {
@@ -578,13 +579,19 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
       }
     };
     
-    // OPTIMIZATION: Debounce cache writes
+    // OPTIMIZATION: Debounce cache writes with proper cleanup
     const timeoutId = setTimeout(persistToCache, 1000);
-    return () => clearTimeout(timeoutId);
-  }, [state]);
+    return () => {
+      clearTimeout(timeoutId);
+      // Additional cleanup for any pending promises
+      if (cacheManager.cleanup) {
+        cacheManager.cleanup();
+      }
+    };
+  }, [state.artists.version, state.projects.version, state.tracks.version]); // Only watch version changes
   
   // ============= CONVENIENCE METHODS =============
-  const refetchArtists = async () => {
+  const refetchArtists = useCallback(async () => {
     if (!user) return;
     
     dispatch({ type: 'ARTISTS_LOADING' });
@@ -615,9 +622,9 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
       console.error('[AppDataProvider] Artists fetch failed:', error);
       dispatch({ type: 'ARTISTS_ERROR', payload: error.message });
     }
-  };
+  }, [user]);
   
-  const refetchProjects = async () => {
+  const refetchProjects = useCallback(async () => {
     if (!user) return;
     
     dispatch({ type: 'PROJECTS_LOADING' });
@@ -652,9 +659,9 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
       console.error('[AppDataProvider] Projects fetch failed:', error);
       dispatch({ type: 'PROJECTS_ERROR', payload: error.message });
     }
-  };
+  }, [user]);
   
-  const refetchTracks = async () => {
+  const refetchTracks = useCallback(async () => {
     if (!user) return;
     
     dispatch({ type: 'TRACKS_LOADING' });
@@ -687,10 +694,10 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
       console.error('[AppDataProvider] Tracks fetch failed:', error);
       dispatch({ type: 'TRACKS_ERROR', payload: error.message });
     }
-  };
+  }, [user]);
   
   // ============= PERFORMANCE UTILITIES =============
-  const getCacheStats = () => {
+  const getCacheStats = useCallback(() => {
     const totalItems = state.artists.items.length + state.projects.items.length + state.tracks.items.length;
     const cacheHits = Math.floor(totalItems * state.performance.cacheHitRate);
     
@@ -699,9 +706,9 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
       totalRequests: state.performance.dbRequestCount,
       cacheSize: totalItems,
     };
-  };
+  }, [state.artists.items.length, state.projects.items.length, state.tracks.items.length, state.performance.cacheHitRate, state.performance.dbRequestCount]);
   
-  const optimizeCache = async () => {
+  const optimizeCache = useCallback(async () => {
     // TODO: Implement cache optimization logic
     console.log('[AppDataProvider] Cache optimization triggered');
     
@@ -714,10 +721,10 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
     } catch (error) {
       console.warn('[AppDataProvider] Cache optimization failed:', error);
     }
-  };
+  }, []);
   
   // ============= CONTEXT VALUE =============
-  const contextValue: AppDataContextValue = {
+  const contextValue: AppDataContextValue = useMemo(() => ({
     state,
     dispatch,
     refetchArtists,
@@ -725,7 +732,7 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
     refetchTracks,
     getCacheStats,
     optimizeCache,
-  };
+  }), [state, refetchArtists, refetchProjects, refetchTracks, getCacheStats, optimizeCache]);
   
   return (
     <AppDataContext.Provider value={contextValue}>
@@ -768,27 +775,27 @@ export function useAppData(): AppDataContextValue {
 
 export function useArtistsList() {
   const { state } = useAppData();
-  return state.artists;
+  return useMemo(() => state.artists, [state.artists]);
 }
 
 export function useProjectsList() {
   const { state } = useAppData();
-  return state.projects;
+  return useMemo(() => state.projects, [state.projects]);
 }
 
 export function useTracksList() {
   const { state } = useAppData();
-  return state.tracks;
+  return useMemo(() => state.tracks, [state.tracks]);
 }
 
 export function useUIState() {
   const { state } = useAppData();
-  return state.ui;
+  return useMemo(() => state.ui, [state.ui]);
 }
 
 export function usePerformanceMetrics() {
   const { state } = useAppData();
-  return state.performance;
+  return useMemo(() => state.performance, [state.performance]);
 }
 
 /**

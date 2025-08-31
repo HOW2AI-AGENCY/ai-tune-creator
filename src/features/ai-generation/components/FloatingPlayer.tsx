@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
@@ -43,7 +43,7 @@ interface FloatingPlayerProps {
   onNext?: () => void;
 }
 
-export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyrics, playing, onPrev, onNext }: FloatingPlayerProps) {
+export const FloatingPlayer = memo<FloatingPlayerProps>(function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyrics, playing, onPrev, onNext }) {
   // Import the hook with full path to fix module resolution
   const { likeTrack, unlikeTrack, isLiked } = useTrackActions();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -54,6 +54,18 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // MEMORY LEAK FIX: Cleanup audio when component unmounts or track changes
+  useEffect(() => {
+    return () => {
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load(); // This ensures all resources are freed
+      }
+    };
+  }, []);
 
   // Validate URL and reset state on track change
   useEffect(() => {
@@ -216,7 +228,7 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
 
     apply();
   }, [playing, track?.id]);
-  const togglePlay = async () => {
+  const togglePlay = useCallback(async () => {
     if (!audioRef.current || !track?.audio_url) return;
 
     try {
@@ -239,26 +251,26 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
       setIsLoading(false);
       setIsPlaying(false);
     }
-  };
+  }, [isPlaying, track?.audio_url, onPlayPause]);
 
-  const handleSeek = (value: number[]) => {
+  const handleSeek = useCallback((value: number[]) => {
     if (audioRef.current) {
       const newTime = (value[0] / 100) * duration;
       audioRef.current.currentTime = newTime;
       setCurrentTime(newTime);
     }
-  };
+  }, [duration]);
 
-  const handleVolumeChange = (value: number[]) => {
+  const handleVolumeChange = useCallback((value: number[]) => {
     const newVolume = value[0] / 100;
     setVolume(newVolume);
     if (audioRef.current) {
       audioRef.current.volume = newVolume;
     }
     setIsMuted(newVolume === 0);
-  };
+  }, []);
 
-  const toggleMute = () => {
+  const toggleMute = useCallback(() => {
     if (audioRef.current) {
       if (isMuted) {
         audioRef.current.volume = volume;
@@ -268,9 +280,9 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
         setIsMuted(true);
       }
     }
-  };
+  }, [isMuted, volume]);
 
-  const handleLike = async () => {
+  const handleLike = useCallback(async () => {
     if (!track) return;
     try {
       const liked = isLiked(track.id);
@@ -279,14 +291,14 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
     } catch (e) { 
       console.error('Like error:', e); 
     }
-  };
+  }, [track, isLiked, unlikeTrack, likeTrack]);
 
-  const formatTime = (time: number) => {
+  const formatTime = useCallback((time: number) => {
     if (isNaN(time)) return '0:00';
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -429,4 +441,4 @@ export function FloatingPlayer({ isOpen, track, onClose, onPlayPause, onShowLyri
       </Card>
     </div>
   );
-}
+});

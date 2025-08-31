@@ -26,16 +26,20 @@ const MAX_RETRY_ATTEMPTS = 3;
 const INITIAL_RETRY_DELAY = 1000;
 const MAX_RETRY_DELAY = 10000;
 const POLLING_INTERVAL = 3000;
-const MAX_POLLING_ATTEMPTS = 100;
+const MAX_POLLING_ATTEMPTS = 60; // Reduced from 100 to 60 (3 minutes total)
 const API_TIMEOUT = 30000;
+const MAX_TOTAL_WAIT_TIME = 180000; // 3 minutes maximum total wait
 
-// ИСПРАВЛЕНО: Правильный маппинг моделей Mureka
-const SUPPORTED_MODELS = ['auto', 'V7', 'O1', 'V6'] as const;
+// ИСПРАВЛЕНО: Актуальный маппинг моделей Mureka согласно API документации 2025
+const SUPPORTED_MODELS = ['auto', 'V7', 'V7_5', 'O1', 'V6'] as const;
 const MODEL_MAPPING: Record<string, string> = {
   'auto': 'V7',
   'V7': 'V7', 
+  'V7_5': 'V7.5', // API expects dot notation
+  'V7.5': 'V7.5',
   'O1': 'O1',
-  'V6': 'V6'
+  'V6': 'V6',
+  'V8': 'V7' // V8 deprecated, fallback to V7
 };
 
 interface TrackGenerationRequest {
@@ -158,46 +162,52 @@ function validateRequest(request: TrackGenerationRequest): void {
 }
 
 /**
- * ИСПРАВЛЕНО: Content preparation for Mureka API
+ * ИСПРАВЛЕНО: Упрощенная и надежная подготовка контента для Mureka API
+ * Фокус на четком разделении лирики и промпта без сложной логики
  */
 function prepareMurekaContent(request: TrackGenerationRequest): { lyrics: string; prompt: string } {
-  let lyrics = '';
-  let prompt = '';
+  const isInstrumental = request.instrumental;
+  const isLyricsMode = request.inputType === 'lyrics';
   
-  const stylePrompt = request.style || 
-    `${request.genre || 'electronic'}, ${request.mood || 'energetic'}, ${request.tempo || 'medium tempo'}`;
+  // Базовый стиль для промпта
+  const baseStyle = request.style || 
+    [request.genre, request.mood, request.tempo].filter(Boolean).join(', ') || 
+    'electronic, energetic';
+  
+  let lyrics: string;
+  let prompt: string;
   
   console.log('[MUREKA CONTENT] Processing:', {
     inputType: request.inputType,
-    hasPrompt: !!request.prompt,
-    hasLyrics: !!request.lyrics,
-    hasCustomLyrics: !!request.custom_lyrics,
-    instrumental: request.instrumental
+    instrumental: isInstrumental,
+    hasLyrics: !!(request.lyrics || request.custom_lyrics),
+    hasPrompt: !!request.prompt
   });
   
-  if (request.instrumental) {
-    // Инструментальная музыка
+  if (isInstrumental) {
+    // Инструментальная композиция
     lyrics = '[Instrumental]';
-    prompt = request.prompt || stylePrompt;
-  } else if (request.inputType === 'lyrics') {
-    // Пользователь хочет ввести лирику
-    const userLyrics = request.custom_lyrics || request.lyrics || request.prompt || '';
-    if (userLyrics.trim().length > 0) {
-      lyrics = userLyrics.trim();
-      prompt = stylePrompt; // стиль идет в prompt
+    prompt = request.prompt || baseStyle;
+  } else if (isLyricsMode) {
+    // Режим с лирикой - используем предоставленную лирику
+    const providedLyrics = request.custom_lyrics || request.lyrics || '';
+    if (providedLyrics.trim()) {
+      lyrics = providedLyrics.trim();
+      prompt = baseStyle; // стиль отдельно в промпт
     } else {
-      lyrics = '[Auto-generated lyrics based on prompt]';
-      prompt = request.prompt || stylePrompt;
+      // Нет лирики - генерируем на основе промпта
+      lyrics = '[Generate lyrics based on: ' + (request.prompt || 'creative song') + ']';
+      prompt = baseStyle;
     }
   } else {
-    // Режим description - генерируем лирику автоматически
-    lyrics = '[Auto-generated lyrics]';
-    prompt = request.prompt || stylePrompt;
+    // Режим description - AI генерирует лирику на основе описания
+    lyrics = '[Auto-generate lyrics]';
+    prompt = request.prompt || baseStyle;
   }
   
-  console.log('[MUREKA CONTENT] Result:', {
-    lyrics: lyrics.substring(0, 100) + (lyrics.length > 100 ? '...' : ''),
-    prompt: prompt.substring(0, 100) + (prompt.length > 100 ? '...' : '')
+  console.log('[MUREKA CONTENT] Final:', {
+    lyrics: lyrics.length > 100 ? lyrics.substring(0, 100) + '...' : lyrics,
+    prompt: prompt.length > 100 ? prompt.substring(0, 100) + '...' : prompt
   });
   
   return { lyrics, prompt };
@@ -247,10 +257,18 @@ async function callMurekaAPI(payload: MurekaAPIRequest, apiKey: string): Promise
 }
 
 /**
- * Poll for completion
+ * ИСПРАВЛЕНО: Enhanced polling with better timeout management and error handling
  */
 async function pollMurekaStatus(taskId: string, apiKey: string): Promise<MurekaAPIResponse> {
+  const startTime = Date.now();
+  let lastStatus = 'unknown';
+  
   for (let attempt = 0; attempt < MAX_POLLING_ATTEMPTS; attempt++) {
+    // Check total time limit
+    if (Date.now() - startTime > MAX_TOTAL_WAIT_TIME) {
+      throw new Error(`Polling timeout after ${MAX_TOTAL_WAIT_TIME}ms (last status: ${lastStatus})`);
+    }
+    
     try {
       const response = await fetchWithTimeout(`https://api.mureka.ai/v1/song/query/${taskId}`, {
         headers: {
@@ -259,22 +277,56 @@ async function pollMurekaStatus(taskId: string, apiKey: string): Promise<MurekaA
         }
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.status === 'succeeded' || data.status === 'failed') {
-          return data;
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(`Task ${taskId} not found`);
         }
+        console.warn(`Polling attempt ${attempt + 1} returned ${response.status}`);
+        continue;
       }
-    } catch (error) {
-      console.error(`Polling error attempt ${attempt + 1}:`, error);
-    }
-    
-    if (attempt < MAX_POLLING_ATTEMPTS - 1) {
-      await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+      
+      const data = await response.json();
+      lastStatus = data.status || 'unknown';
+      
+      console.log(`[MUREKA POLL] Attempt ${attempt + 1}: ${lastStatus}`);
+      
+      // Terminal states
+      if (data.status === 'succeeded') {
+        console.log(`[MUREKA POLL] Success after ${attempt + 1} attempts in ${Date.now() - startTime}ms`);
+        return data;
+      }
+      
+      if (data.status === 'failed' || data.status === 'cancelled' || data.status === 'timeouted') {
+        throw new Error(`Mureka generation ${data.status}: ${data.failed_reason || 'Unknown error'}`);
+      }
+      
+      // Continue polling for non-terminal states
+      if (['preparing', 'queued', 'running', 'streaming'].includes(data.status)) {
+        // Dynamic delay based on status
+        const delay = data.status === 'preparing' ? 1000 : 
+                     data.status === 'queued' ? 2000 : 
+                     POLLING_INTERVAL;
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+    } catch (error: any) {
+      console.error(`[MUREKA POLL] Error on attempt ${attempt + 1}:`, error.message);
+      
+      // Don't retry on certain errors
+      if (error.message.includes('not found') || error.message.includes('failed')) {
+        throw error;
+      }
+      
+      // Wait before retry on network errors
+      if (attempt < MAX_POLLING_ATTEMPTS - 1) {
+        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+      }
     }
   }
   
-  throw new Error('Polling timeout');
+  throw new Error(`Polling timeout after ${MAX_POLLING_ATTEMPTS} attempts (last status: ${lastStatus})`);
 }
 
 // Main handler

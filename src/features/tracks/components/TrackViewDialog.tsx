@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,7 +78,7 @@ interface TrackViewDialogProps {
   track: Track | null;
 }
 
-export function TrackViewDialog({ open, onOpenChange, track }: TrackViewDialogProps) {
+export const TrackViewDialog = memo<TrackViewDialogProps>(function TrackViewDialog({ open, onOpenChange, track }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [aiGenerations, setAiGenerations] = useState<any[]>([]);
   const [loadingAiHistory, setLoadingAiHistory] = useState(false);
@@ -569,4 +569,4 @@ export function TrackViewDialog({ open, onOpenChange, track }: TrackViewDialogPr
       </DialogContent>
     </Dialog>
   );
-}
+});

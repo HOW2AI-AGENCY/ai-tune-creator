@@ -1,5 +1,5 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import 'https://deno.land/x/xhr@0.1.0/mod.ts';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,7 +27,7 @@ serve(async (req) => {
     }
 
     // Create callback URL for this project
-    const callBackUrl = `https://zwbhlfhwymbmvioaikvs.supabase.co/functions/v1/suno-callback`;
+    const callBackUrl = 'https://zwbhlfhwymbmvioaikvs.supabase.co/functions/v1/suno-callback';
 
     const response = await fetch('https://api.sunoapi.org/api/v1/vocal-removal/generate', {
       method: 'POST',

@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
  * Компонент шапки приложения с переключением темы и профилем пользователя
  * Удалена мемоизация для улучшения реактивности
  */
-export function AppHeader() {
+export const AppHeader = memo(function AppHeader() {
   const { user, signOut } = useAuth();
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const navigate = useNavigate();
@@ -143,4 +143,4 @@ export function AppHeader() {
       </div>
     </header>
   );
-};
+});

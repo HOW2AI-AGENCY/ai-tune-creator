@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,14 +24,14 @@ interface GenerationTrackCardProps {
   onRetry?: (generation: AIGeneration) => void;
 }
 
-export function GenerationTrackCard({ 
+export const GenerationTrackCard = memo<GenerationTrackCardProps>(function GenerationTrackCard({ 
   generation, 
   onCheckStatus, 
   onPlay, 
   onDownload,
   isRefreshing,
   onRetry
-}: GenerationTrackCardProps) {
+}) {
   const [progress, setProgress] = useState(generation.progress || 0);
 
   // Simulate progress for processing generations
@@ -368,4 +368,4 @@ export function GenerationTrackCard({
       </CardContent>
     </Card>
   );
-}
+});

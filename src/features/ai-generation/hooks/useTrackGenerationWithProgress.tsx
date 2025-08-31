@@ -3,7 +3,7 @@
  * Will be replaced by useUnifiedGeneration in v0.01.037
  * @deprecated Use useUnifiedGeneration instead
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSunoStatusPolling } from './useSunoStatusPolling';
@@ -52,6 +52,26 @@ export function useTrackGenerationWithProgress() {
   const { t } = useTranslation();
   const { startPolling, stopPolling } = useSunoStatusPolling({});
   const { startGeneration, updateGeneration, completeGeneration, ongoingGenerations } = useGenerationPersistence();
+  
+  // MEMORY LEAK FIX: Track active timers and intervals for cleanup
+  const activeTimersRef = useRef<Set<NodeJS.Timeout>>(new Set());
+  const activeIntervalsRef = useRef<Set<NodeJS.Timeout>>(new Set());
+  
+  // Clean up all timers and intervals on unmount
+  useEffect(() => {
+    return () => {
+      // Clear all active timers
+      activeTimersRef.current.forEach(timer => clearTimeout(timer));
+      activeTimersRef.current.clear();
+      
+      // Clear all active intervals  
+      activeIntervalsRef.current.forEach(interval => clearInterval(interval));
+      activeIntervalsRef.current.clear();
+      
+      // Stop any ongoing polling
+      stopPolling();
+    };
+  }, [stopPolling]);
 
   const updateProgress = useCallback((update: Partial<TrackGenerationProgress>) => {
     setGenerationProgress(prev => prev ? { ...prev, ...update } : null);
@@ -59,6 +79,32 @@ export function useTrackGenerationWithProgress() {
 
   const resetProgress = useCallback(() => {
     setGenerationProgress(null);
+  }, []);
+
+  // MEMORY LEAK FIX: Helper functions for timer management
+  const createTimeout = useCallback((callback: () => void, delay: number): NodeJS.Timeout => {
+    const timer = setTimeout(() => {
+      activeTimersRef.current.delete(timer);
+      callback();
+    }, delay);
+    activeTimersRef.current.add(timer);
+    return timer;
+  }, []);
+
+  const createInterval = useCallback((callback: () => void, interval: number): NodeJS.Timeout => {
+    const timer = setInterval(callback, interval);
+    activeIntervalsRef.current.add(timer);
+    return timer;
+  }, []);
+
+  const clearTimeoutSafe = useCallback((timer: NodeJS.Timeout) => {
+    clearTimeout(timer);
+    activeTimersRef.current.delete(timer);
+  }, []);
+
+  const clearIntervalSafe = useCallback((timer: NodeJS.Timeout) => {
+    clearInterval(timer);
+    activeIntervalsRef.current.delete(timer);
   }, []);
 
   const generateTrack = useCallback(async (params: GenerationParams): Promise<any> => {
@@ -79,7 +125,7 @@ export function useTrackGenerationWithProgress() {
       });
 
       // Имитируем прогресс подготовки
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => createTimeout(resolve, 500));
       updateProgress({
         progress: 25,
         steps: [
@@ -332,13 +378,13 @@ export function useTrackGenerationWithProgress() {
       throw error;
     } finally {
       // Сбрасываем прогресс через небольшую задержку
-      setTimeout(() => {
+      createTimeout(() => {
         setIsGenerating(false);
         resetProgress();
         setCurrentTask(null);
       }, 2000);
     }
-  }, [toast, startPolling, updateProgress, resetProgress]);
+  }, [toast, startPolling, updateProgress, resetProgress, createTimeout]);
 
   const retryGeneration = useCallback(async (generation: { parameters?: GenerationParams }): Promise<any> => {
     if (!generation.parameters) {

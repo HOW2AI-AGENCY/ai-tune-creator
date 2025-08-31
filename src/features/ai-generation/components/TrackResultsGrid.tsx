@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useTrackActions } from "@/hooks/useTrackActions";
-import { useState } from "react";
+import { useState, memo, useCallback } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,7 +65,7 @@ interface TrackResultsGridProps {
   onTrackDeleted?: () => void; // Callback для обновления списка после удаления
 }
 
-export function TrackResultsGrid({
+export const TrackResultsGrid = memo<TrackResultsGridProps>(function TrackResultsGrid({
   tracks,
   onTrackClick,
   onPlayTrack,
@@ -344,4 +344,4 @@ export function TrackResultsGrid({
       </AlertDialog>
     </>
   );
-}
+});

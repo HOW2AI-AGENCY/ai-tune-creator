@@ -47,13 +47,15 @@ const TIMEOUT_CONFIG = {
   AUTH_CHECK: 5000       // 5 секунд для проверки авторизации
 } as const;
 
-/** CORS заголовки для поддержки кроссдоменных запросов */
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400'
-} as const;
+// SECURITY FIX: Import secure CORS configuration, logging, and input sanitization
+import { getSecureCorsHeaders } from '../_shared/cors.ts';
+import { SecureLogger } from '../_shared/secure-logger.ts';
+import { InputSanitizer } from '../_shared/input-sanitizer.ts';
+
+// Enhanced imports for improved API compliance
+import { AuthHandler } from '../_shared/auth-handler.ts';
+import { APIErrorHandler } from '../_shared/api-error-handler.ts';
+import { DatabaseRateLimiter } from '../_shared/rate-limiter.ts';
 
 /** In-memory хранилище для rate limiting (сброс при перезапуске функции) */
 const rateMap = new Map<string, { count: number; reset: number }>();
@@ -284,14 +286,48 @@ function cleanupRateLimit(): void {
 }
 
 /**
- * Валидирует входные данные запроса
- * @description Проверяет обязательные поля и корректность значений
+ * Валидирует и санитизирует входные данные запроса
+ * @description SECURITY FIX: Добавлена защита от XSS, SQL injection и других атак
  * @param request - Данные запроса
- * @returns Результат валидации
+ * @returns Результат валидации с санитизированными данными
  */
-function validateRequest(request: GenerationRequest): OperationResult<void> {
+function validateAndSanitizeRequest(request: GenerationRequest): OperationResult<GenerationRequest> {
+  // Определяем правила санитизации для разных полей
+  const fieldOptions = {
+    prompt: { maxLength: 3000, allowHTML: false, allowSpecialChars: true },
+    lyrics: { maxLength: 10000, allowHTML: false, allowSpecialChars: true },
+    stylePrompt: { maxLength: 500, allowHTML: false, allowSpecialChars: true },
+    style: { maxLength: 200, allowHTML: false, allowSpecialChars: false },
+    title: { maxLength: 200, allowHTML: false, allowSpecialChars: false },
+    tags: { maxLength: 500, allowHTML: false, allowSpecialChars: false },
+    voice_style: { maxLength: 100, allowHTML: false, allowSpecialChars: false },
+    language: { maxLength: 10, allowHTML: false, allowSpecialChars: false },
+    tempo: { maxLength: 50, allowHTML: false, allowSpecialChars: false },
+  };
+
+  // Санитизируем входные данные
+  const sanitization = InputSanitizer.sanitizeObject(request as any, fieldOptions);
+  
+  if (!sanitization.isValid) {
+    const errorDetails = Object.entries(sanitization.errors)
+      .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
+      .join('; ');
+      
+    return {
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: `Небезопасные данные в запросе: ${errorDetails}`,
+        retryable: false,
+        details: sanitization.errors
+      }
+    };
+  }
+
+  const sanitizedRequest = sanitization.sanitized! as GenerationRequest;
+
   // Проверка обязательного поля prompt
-  if (!request.prompt || request.prompt.trim().length === 0) {
+  if (!sanitizedRequest.prompt || sanitizedRequest.prompt.trim().length === 0) {
     return {
       success: false,
       error: {
@@ -303,7 +339,7 @@ function validateRequest(request: GenerationRequest): OperationResult<void> {
   }
   
   // Проверка обязательного поля inputType
-  if (!request.inputType || !['description', 'lyrics'].includes(request.inputType)) {
+  if (!sanitizedRequest.inputType || !['description', 'lyrics'].includes(sanitizedRequest.inputType)) {
     return {
       success: false,
       error: {
@@ -315,33 +351,55 @@ function validateRequest(request: GenerationRequest): OperationResult<void> {
   }
   
   // Проверка длины основного контента
-  const maxLength = request.inputType === 'lyrics' ? 3000 : 1000;
-  if (request.prompt.length > maxLength) {
+  const maxLength = sanitizedRequest.inputType === 'lyrics' ? 3000 : 1000;
+  if (sanitizedRequest.prompt.length > maxLength) {
     return {
       success: false,
       error: {
         code: 'VALIDATION_ERROR', 
-        message: `Контент слишком длинный (максимум ${maxLength} символов для ${request.inputType})`,
+        message: `Контент слишком длинный (максимум ${maxLength} символов для ${sanitizedRequest.inputType})`,
         retryable: false
       }
     };
   }
   
-  // Проверка stylePrompt только для description режима
-  if (request.inputType === 'description' && request.stylePrompt && request.stylePrompt.length > 500) {
+  // Валидация UUID полей если они присутствуют
+  if (sanitizedRequest.trackId && !InputSanitizer.validateUUID(sanitizedRequest.trackId).isValid) {
     return {
       success: false,
       error: {
         code: 'VALIDATION_ERROR',
-        message: 'Описание стиля слишком длинное (максимум 500 символов)',
+        message: 'Неверный формат trackId',
         retryable: false
       }
     };
   }
   
-  // Проверка и нормализация модели (принимаем старые форматы и V4_5PLUS)
-  if (request.model) {
-    const normalized = normalizeModelName(request.model);
+  if (sanitizedRequest.projectId && !InputSanitizer.validateUUID(sanitizedRequest.projectId).isValid) {
+    return {
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Неверный формат projectId',
+        retryable: false
+      }
+    };
+  }
+  
+  if (sanitizedRequest.artistId && !InputSanitizer.validateUUID(sanitizedRequest.artistId).isValid) {
+    return {
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Неверный формат artistId',
+        retryable: false
+      }
+    };
+  }
+  
+  // Проверка и нормализация модели
+  if (sanitizedRequest.model) {
+    const normalized = normalizeModelName(sanitizedRequest.model);
     const supportedModels: NormalizedSunoModel[] = ['V3_5', 'V4', 'V4_5', 'V4_5PLUS'];
     if (!supportedModels.includes(normalized)) {
       return {
@@ -355,7 +413,7 @@ function validateRequest(request: GenerationRequest): OperationResult<void> {
     }
   }
   
-  return { success: true, data: undefined };
+  return { success: true, data: sanitizedRequest };
 }
 
 /**
@@ -424,8 +482,11 @@ serve(async (req) => {
   // ОБРАБОТКА CORS И ПРЕДВАРИТЕЛЬНЫХ ЗАПРОСОВ
   // ========================================================================
   
+  const origin = req.headers.get('origin');
+  const corsHeaders = getSecureCorsHeaders(origin);
+  
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: CORS_HEADERS });
+    return new Response(null, { headers: corsHeaders });
   }
   
   // Запускаем периодическую очистку rate limiting
@@ -440,10 +501,11 @@ serve(async (req) => {
     // ИНИЦИАЛИЗАЦИЯ И ПРОВЕРКА АВТОРИЗАЦИИ
     // ======================================================================
     
-    console.log('=== SUNO EDGE FUNCTION START ===');
-    console.log('Request method:', req.method);
-    console.log('Request URL:', req.url);
-    console.log('Timestamp:', new Date().toISOString());
+    SecureLogger.info('Suno Edge Function started', {
+      functionName: 'generate-suno-track',
+      method: req.method,
+      timestamp: new Date().toISOString()
+    });
     
     // Создаем клиент Supabase с таймаутом для операций
     const supabase = createClient(
@@ -475,12 +537,22 @@ serve(async (req) => {
       throw new Error('Требуется авторизация');
     }
     
-    console.log('Пользователь авторизован:', user.id);
+    SecureLogger.logAuthentication('generate-suno-track', user.id, true, 'supabase');
     
-    // Проверяем rate limiting
-    if (!checkRateLimit(user.id)) {
-      throw new Error('Превышен лимит запросов. Попробуйте позже.');
+    // ИСПРАВЛЕНО: Используем database-backed rate limiting
+    const rateLimitResult = await DatabaseRateLimiter.checkLimit(user.id, 'suno');
+    if (!rateLimitResult.allowed) {
+      const retryAfter = rateLimitResult.retryAfter || 600; // 10 minutes default
+      throw new Error(`Rate limit exceeded. Try again in ${retryAfter} seconds.`);
     }
+    
+    SecureLogger.info('Rate limit check passed', {
+      functionName: 'generate-suno-track',
+      userId: user.id
+    }, {
+      remaining: rateLimitResult.remaining,
+      resetTime: rateLimitResult.resetTime
+    });
 
     // ======================================================================
     // ПАРСИНГ И ВАЛИДАЦИЯ ВХОДНЫХ ДАННЫХ
@@ -489,7 +561,10 @@ serve(async (req) => {
     let requestBody: GenerationRequest;
     try {
       requestBody = await req.json();
-      console.log('Получен запрос:', JSON.stringify(requestBody, null, 2));
+      SecureLogger.debug('Request received', {
+        functionName: 'generate-suno-track',
+        userId: user?.id
+      }, requestBody);
     } catch (parseError) {
       console.error('Ошибка парсинга JSON:', parseError);
       throw new Error('Неверный формат JSON в теле запроса');
@@ -519,33 +594,42 @@ serve(async (req) => {
     // ЯВНО: поддержка поля custom_lyrics (может приходить из клиента)
     const custom_lyrics: string = (requestBody as any).custom_lyrics?.toString?.() || "";
     
-    console.log('Параметры запроса:', {
-      prompt: prompt ? `"${prompt.substring(0, 100)}..."` : '[пустой]',
+    SecureLogger.info('Request parameters validated', {
+      functionName: 'generate-suno-track',
+      userId: user.id
+    }, {
+      promptLength: prompt?.length || 0,
       inputType,
-      stylePrompt: stylePrompt || '[не указан]',
-      style: style || '[не указан]',
-      title: title || '[не указан]',
+      style: style ? '[PROVIDED]' : '[NOT PROVIDED]',
+      title: title ? '[PROVIDED]' : '[NOT PROVIDED]',
       model,
       make_instrumental,
       mode,
-      voice_style: voice_style || '[не указан]',
       language,
-      tempo: tempo || '[не указан]',
       useInbox,
-      trackId,
-      projectId,
-      artistId,
+      trackId: trackId ? '[PROVIDED]' : null,
+      projectId: projectId ? '[PROVIDED]' : null,
+      artistId: artistId ? '[PROVIDED]' : null,
       custom_lyrics_len: custom_lyrics.length
     });
 
-    // Валидируем входные данные
-    const validationResult = validateRequest(requestBody);
+    // SECURITY FIX: Валидируем и санитизируем входные данные
+    const validationResult = validateAndSanitizeRequest(requestBody);
     if (!validationResult.success) {
-      console.error('Ошибка валидации:', validationResult.error);
+      SecureLogger.error('Validation failed', {
+        functionName: 'generate-suno-track',
+        userId: user.id
+      }, validationResult.error);
       throw new Error(validationResult.error.message);
     }
     
-    console.log('Валидация данных пройдена успешно');
+    // Используем санитизированные данные для дальнейшей обработки
+    requestBody = validationResult.data;
+    
+    SecureLogger.info('Input validation and sanitization completed', {
+      functionName: 'generate-suno-track',
+      userId: user.id
+    });
 
     // ======================================================================
     // ОБРАБОТКА КОНТЕКСТА (ЛОГИКА INBOX)
@@ -588,19 +672,28 @@ serve(async (req) => {
     
     console.log('Подготовка данных для Suno API...');
 
-    // Получаем конфигурацию Suno API
-    const sunoApiKey = Deno.env.get('SUNOAPI_ORG_TOKEN') || Deno.env.get('SUNOAPI_ORG_KEY');
-    const sunoApiUrl = Deno.env.get('SUNO_API_URL') || 'https://api.sunoapi.org';
+    // ИСПРАВЛЕНО: Используем улучшенную аутентификацию
+    const sunoApiKey = AuthHandler.getAPIKey('suno');
+    if (!sunoApiKey) {
+      throw new Error('Suno API key not configured');
+    }
+    
+    // Проверяем формат API ключа
+    if (!AuthHandler.validateAPIKey(sunoApiKey, 'suno')) {
+      throw new Error('Invalid Suno API key format');
+    }
+    
+    const sunoApiUrl = AuthHandler.getServiceConfig('suno').baseUrl;
     const callbackUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/suno-callback`;
 
-    if (!sunoApiKey) {
-      console.error('Suno API ключ не найден. Проверены SUNOAPI_ORG_TOKEN и SUNOAPI_ORG_KEY');
-      throw new Error('SUNOAPI_ORG_TOKEN не настроен');
-    }
-
-    console.log('Используем Suno API URL:', sunoApiUrl);
-    console.log('Длина API ключа:', sunoApiKey.length);
-    console.log('Callback URL:', callbackUrl);
+    SecureLogger.info('Suno API configuration loaded', {
+      functionName: 'generate-suno-track',
+      userId: user.id
+    }, {
+      apiUrl: sunoApiUrl,
+      apiKeyConfigured: !!sunoApiKey,
+      callbackUrl: callbackUrl
+    });
 
     // Use inputType directly - no more guessing
     const sunoParams = prepareSunoParams(requestBody);
@@ -668,65 +761,33 @@ serve(async (req) => {
     let sunoResponse: Response;
     let lastError: Error | null = null;
     
-    // Реализуем retry логику с экспоненциальной задержкой
-    for (let attempt = 0; attempt < RETRY_CONFIG.MAX_ATTEMPTS; attempt++) {
-      try {
-        console.log(`Попытка ${attempt + 1}/${RETRY_CONFIG.MAX_ATTEMPTS}`);
-        
-        // Выполняем запрос с таймаутом
-        sunoResponse = await fetchWithTimeout(fullUrl, {
+    // ИСПРАВЛЕНО: Используем улучшенную retry логику с стандартизированной обработкой ошибок
+    try {
+      sunoResponse = await APIErrorHandler.withRetry(async () => {
+        const response = await AuthHandler.authenticatedFetch('suno', endpoint, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${sunoApiKey}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'User-Agent': 'AI-Tune-Creator/2.0'
-          },
-          body: JSON.stringify(sunoRequest),
-        }, TIMEOUT_CONFIG.API_REQUEST);
+          body: JSON.stringify(sunoRequest)
+        });
         
-        console.log('Получен ответ от Suno API. Статус:', sunoResponse.status);
-        
-        // Если запрос успешен или ошибка не подлежит retry - выходим из цикла
-        if (sunoResponse.ok || !isRetryableError(null, sunoResponse.status)) {
-          break;
+        if (!response.ok) {
+          throw response;
         }
         
-        // Логируем временную ошибку
-        console.warn(`Временная ошибка (статус ${sunoResponse.status}), повтор через ${calculateRetryDelay(attempt)}ms`);
-        lastError = new Error(`HTTP ${sunoResponse.status}`);
-        
-      } catch (error) {
-        console.error(`Ошибка при попытке ${attempt + 1}:`, error);
-        lastError = error as Error;
-        
-        // Если ошибка не подлежит retry или это последняя попытка - прерываем
-        if (!isRetryableError(error) || attempt === RETRY_CONFIG.MAX_ATTEMPTS - 1) {
-          break;
-        }
-      }
-      
-      // Ждем перед следующей попыткой (кроме последней)
-      if (attempt < RETRY_CONFIG.MAX_ATTEMPTS - 1) {
-        const delay = calculateRetryDelay(attempt);
-        console.log(`Ожидание ${delay}ms перед следующей попыткой...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+        return response;
+      }, {
+        maxAttempts: RETRY_CONFIG.MAX_ATTEMPTS,
+        baseDelay: RETRY_CONFIG.BASE_DELAY,
+        maxDelay: RETRY_CONFIG.MAX_DELAY,
+        backoffFactor: RETRY_CONFIG.BACKOFF_FACTOR
+      });
+    } catch (error: any) {
+      const apiError = APIErrorHandler.handleError(error, 'suno');
+      console.error('Suno API call failed after retries:', apiError);
+      throw new Error(`${apiError.code}: ${apiError.message}`);
     }
     
-    // Проверяем, что запрос завершился успешно
-    if (!sunoResponse! || !sunoResponse.ok) {
-      const errorText = sunoResponse ? await sunoResponse.text() : 'Network error';
-      console.error('Финальная ошибка Suno API:', {
-        status: sunoResponse?.status,
-        statusText: sunoResponse?.statusText,
-        body: errorText,
-        url: fullUrl,
-        lastError: lastError?.message
-      });
-      
-      throw new Error(`Suno API error after ${RETRY_CONFIG.MAX_ATTEMPTS} attempts: ${sunoResponse?.status} ${errorText}`);
-    }
+    // sunoResponse is guaranteed to be valid by the retry logic above
+    console.log('Suno API request successful:', sunoResponse.status);
 
     // ======================================================================
     // ОБРАБОТКА ОТВЕТА ОТ SUNO API
@@ -1043,7 +1104,7 @@ serve(async (req) => {
     
     return new Response(JSON.stringify(successResponse), {
       headers: { 
-        ...CORS_HEADERS, 
+        ...corsHeaders, 
         'Content-Type': 'application/json',
         'X-Processing-Time': processingTime.toString(),
         'X-Task-ID': taskId
@@ -1122,7 +1183,7 @@ serve(async (req) => {
     return new Response(JSON.stringify(errorResponse), {
       status: httpStatus,
       headers: { 
-        ...CORS_HEADERS, 
+        ...corsHeaders, 
         'Content-Type': 'application/json',
         'X-Error-Code': errorCode,
         'X-Processing-Time': processingTime.toString()

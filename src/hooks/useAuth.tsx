@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -18,48 +18,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     let mounted = true;
+    let subscription: { unsubscribe: () => void } | null = null;
     
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-        
-        console.log('Auth state change:', event, session?.user?.id);
-        
-        // Handle different auth events
-        switch (event) {
-          case 'SIGNED_IN':
+    // MEMORY LEAK FIX: Create a proper auth state change handler
+    const authStateChangeHandler = async (event: string, session: Session | null) => {
+      if (!mounted) return;
+      
+      console.log('Auth state change:', event, session?.user?.id);
+      
+      // Handle different auth events
+      switch (event) {
+        case 'SIGNED_IN':
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+          break;
+          
+        case 'SIGNED_OUT':
+          console.log('User signed out, clearing state');
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          break;
+          
+        case 'TOKEN_REFRESHED':
+          if (session) {
             setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-            break;
-            
-          case 'SIGNED_OUT':
-            console.log('User signed out, clearing state');
+            setUser(session.user);
+          } else {
+            console.log('Token refresh failed, clearing session');
             setSession(null);
             setUser(null);
-            setLoading(false);
-            break;
-            
-          case 'TOKEN_REFRESHED':
-            if (session) {
-              setSession(session);
-              setUser(session.user);
-            } else {
-              console.log('Token refresh failed, clearing session');
-              setSession(null);
-              setUser(null);
-            }
-            setLoading(false);
-            break;
-            
-          default:
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-        }
+          }
+          setLoading(false);
+          break;
+          
+        default:
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
       }
-    );
+    };
+    
+    // Set up auth state listener FIRST
+    const { data } = supabase.auth.onAuthStateChange(authStateChangeHandler);
+    subscription = data.subscription;
 
     // THEN check for existing session with proper error handling
     const checkSession = async () => {
@@ -93,11 +96,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      if (subscription) {
+        subscription.unsubscribe();
+        subscription = null;
+      }
     };
   }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       console.log('Signing out user');
       setLoading(true);
@@ -116,7 +122,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, session, loading, signOut }}>

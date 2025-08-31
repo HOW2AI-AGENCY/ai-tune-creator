@@ -2,8 +2,28 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://zwbhlfhwymbmvioaikvs.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3YmhsZmh3eW1ibXZpb2Fpa3ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3MjU3MTMsImV4cCI6MjA2OTMwMTcxM30.qyCcLcEzRQ7S2J1GUNpgO597BKn768Pmb-lOGjIC4bU";
+// SECURITY FIX: Use environment variables instead of hardcoded credentials
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Validate required environment variables at runtime
+if (!SUPABASE_URL) {
+  throw new Error('VITE_SUPABASE_URL environment variable is required but not set');
+}
+
+if (!SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error('VITE_SUPABASE_ANON_KEY environment variable is required but not set');
+}
+
+// Additional URL validation for security
+try {
+  const url = new URL(SUPABASE_URL);
+  if (!url.hostname.includes('.supabase.co')) {
+    throw new Error('Invalid Supabase URL format');
+  }
+} catch (error) {
+  throw new Error(`Invalid SUPABASE_URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -13,5 +33,17 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    // Additional security configurations
+    detectSessionInUrl: false, // Prevent session hijacking via URL params
+    flowType: 'pkce', // Use PKCE flow for enhanced security
+  },
+  global: {
+    // Add security headers
+    headers: {
+      'X-Client-Info': 'ai-tune-creator-client',
+    }
+  },
+  db: {
+    schema: 'public'
   }
 });

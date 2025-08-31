@@ -1,42 +1,60 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getSecureCorsHeaders } from '../_shared/cors.ts';
+import { AuthUtils } from '../_shared/auth-utils.ts';
+import { SecureLogger } from '../_shared/secure-logger.ts';
 
 // Basic in-memory rate limiter (per function instance)
 const RATE_LIMIT_WINDOW = 5 * 60 * 1000; // 5 minutes
 const RATE_LIMIT_MAX = 60; // 60 requests per window
 const rateMap = new Map<string, { count: number; reset: number }>();
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 // T-061: Edge Function для генерации промпта стиля на основе контекста
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getSecureCorsHeaders(origin);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Extract user id from verified JWT for rate limiting
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const token = authHeader.replace('Bearer ', '');
-  const jwtPayload = token.split('.')[1];
-  const userId = jwtPayload ? JSON.parse(atob(jwtPayload)).sub as string : 'anonymous';
-
-  // Rate limit per user
-  const now = Date.now();
-  const rl = rateMap.get(userId);
-  if (!rl || now > rl.reset) {
-    rateMap.set(userId, { count: 1, reset: now + RATE_LIMIT_WINDOW });
-  } else if (rl.count >= RATE_LIMIT_MAX) {
-    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
-      status: 429,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  // SECURITY FIX: Use proper authentication instead of manual JWT parsing
+  const authResult = await AuthUtils.authenticateUser(req, 'generate-style-prompt');
+  if (!authResult.success || !authResult.context) {
+    return new Response(JSON.stringify({ 
+      error: authResult.error?.message || 'Authentication required',
+      code: authResult.error?.code || 'AUTH_ERROR'
+    }), {
+      status: authResult.error?.status || 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
-  } else {
-    rl.count++;
+  }
+
+  const userId = authResult.context.user.id;
+
+  // Rate limit per user using secure auth utilities
+  const rateCheck = AuthUtils.checkUserRateLimit(
+    userId, 
+    'generate-style-prompt',
+    { maxRequests: RATE_LIMIT_MAX, windowMs: RATE_LIMIT_WINDOW },
+    rateMap
+  );
+
+  if (!rateCheck.allowed) {
+    SecureLogger.logRateLimit('generate-style-prompt', userId, true, rateCheck.remaining);
+    return new Response(JSON.stringify({ 
+      error: 'Rate limit exceeded',
+      retryAfter: Math.ceil((rateCheck.resetTime - Date.now()) / 1000)
+    }), {
+      status: 429,
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json',
+        'Retry-After': Math.ceil((rateCheck.resetTime - Date.now()) / 1000).toString()
+      },
+    });
   }
 
   try {

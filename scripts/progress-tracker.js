@@ -183,7 +183,7 @@ class ProgressTracker {
     if (newStatus === TaskStatus.IN_PROGRESS || newStatus === TaskStatus.COMPLETED) {
       const blockedDeps = this.checkDependencies(task);
       if (blockedDeps.length > 0) {
-        console.error(chalk.red(`❌ Невозможно обновить статус. Заблокировано зависимостями:`));
+        console.error(chalk.red('❌ Невозможно обновить статус. Заблокировано зависимостями:'));
         blockedDeps.forEach(dep => console.log(`  - ${dep}`));
         return false;
       }

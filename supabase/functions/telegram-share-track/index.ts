@@ -1,37 +1,37 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { telegram_id, track_id, track_title, track_url, artist_name } = await req.json()
+    const { telegram_id, track_id, track_title, track_url, artist_name } = await req.json();
     
-    console.log('Sharing track to Telegram:', { telegram_id, track_id, track_title })
+    console.log('Sharing track to Telegram:', { telegram_id, track_id, track_title });
     
     if (!telegram_id || !track_title) {
-      throw new Error('Missing required parameters: telegram_id, track_title')
+      throw new Error('Missing required parameters: telegram_id, track_title');
     }
 
-    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
+    const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
     if (!botToken) {
-      throw new Error('TELEGRAM_BOT_TOKEN not configured')
+      throw new Error('TELEGRAM_BOT_TOKEN not configured');
     }
 
     // Prepare message
     const caption = `🎵 *${track_title}*\n\n` +
                    `🎤 Artist: ${artist_name || 'AI Composer'}\n` +
-                   `🤖 Generated with AI Music Studio\n\n` +
-                   `Tap to listen! 👆`
+                   '🤖 Generated with AI Music Studio\n\n' +
+                   'Tap to listen! 👆';
 
-    let response
+    let response;
 
     if (track_url) {
       // Send as audio file
@@ -43,7 +43,7 @@ serve(async (req) => {
         body: JSON.stringify({
           chat_id: telegram_id,
           audio: track_url,
-          caption: caption,
+          caption,
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [[
@@ -54,7 +54,7 @@ serve(async (req) => {
             ]]
           }
         })
-      })
+      });
     } else {
       // Send as text message
       response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -75,17 +75,17 @@ serve(async (req) => {
             ]]
           }
         })
-      })
+      });
     }
 
-    const telegramResult = await response.json()
+    const telegramResult = await response.json();
     
     if (!response.ok || !telegramResult.ok) {
-      console.error('Telegram API error:', telegramResult)
-      throw new Error(`Telegram API error: ${telegramResult.description || 'Unknown error'}`)
+      console.error('Telegram API error:', telegramResult);
+      throw new Error(`Telegram API error: ${telegramResult.description || 'Unknown error'}`);
     }
 
-    console.log('Track shared successfully to Telegram user:', telegram_id)
+    console.log('Track shared successfully to Telegram user:', telegram_id);
 
     return new Response(
       JSON.stringify({ 
@@ -99,10 +99,10 @@ serve(async (req) => {
           'Content-Type': 'application/json' 
         } 
       }
-    )
+    );
 
   } catch (error) {
-    console.error('Error sharing track to Telegram:', error)
+    console.error('Error sharing track to Telegram:', error);
     
     return new Response(
       JSON.stringify({ 
@@ -116,6 +116,6 @@ serve(async (req) => {
           'Content-Type': 'application/json' 
         } 
       }
-    )
+    );
   }
-})
+});

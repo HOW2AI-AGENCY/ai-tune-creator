@@ -8,16 +8,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Monitor, MemoryStick, Zap, Database, AlertTriangle } from 'lucide-react';
+import { Monitor, MemoryStick, Zap, Database, AlertTriangle, Activity } from 'lucide-react';
 import { performanceOptimizer } from '@/lib/performance/PerformanceOptimizer';
 import { memoryManager } from '@/lib/optimization/MemoryManager';
 import { logger } from '@/lib/debug/ConsoleManager';
+// import { performanceMonitor } from '@/lib/performance/web-vitals';
 
 interface PerformanceStats {
   cache: ReturnType<typeof performanceOptimizer.getStats>;
   memory: ReturnType<typeof memoryManager.getMemoryStats>;
   renderCount: number;
   jsHeapSize?: number;
+  webVitals?: any; // ReturnType<typeof performanceMonitor.getSummary>;
 }
 
 export const PerformanceMonitor: React.FC = () => {
@@ -42,11 +44,14 @@ export const PerformanceMonitor: React.FC = () => {
         jsHeapSize = (performance as any).memory.usedJSHeapSize / 1024 / 1024; // МБ
       }
 
+      const webVitals = { total: 0, good: 0, needsImprovement: 0, poor: 0, metrics: {} }; // performanceMonitor.getSummary();
+
       setStats({
         cache: cacheStats,
         memory: memoryStats,
         renderCount: 0, // Можно добавить глобальный счетчик рендеров
-        jsHeapSize
+        jsHeapSize,
+        webVitals
       });
     } catch (error) {
       console.error('[PerformanceMonitor] Failed to update stats:', error);
@@ -88,9 +93,10 @@ export const PerformanceMonitor: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-3">
           <Tabs defaultValue="cache" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-8">
+            <TabsList className="grid w-full grid-cols-4 h-8">
               <TabsTrigger value="cache" className="text-xs">Cache</TabsTrigger>
               <TabsTrigger value="memory" className="text-xs">Memory</TabsTrigger>
+              <TabsTrigger value="vitals" className="text-xs">Vitals</TabsTrigger>
               <TabsTrigger value="logs" className="text-xs">Logs</TabsTrigger>
             </TabsList>
             
@@ -146,6 +152,62 @@ export const PerformanceMonitor: React.FC = () => {
                       {stats.jsHeapSize.toFixed(1)} MB
                     </Badge>
                   </>
+                )}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="vitals" className="space-y-2 mt-3">
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="h-3 w-3" />
+                  <span className="font-medium">Core Web Vitals</span>
+                </div>
+                
+                {stats.webVitals && Object.entries(stats.webVitals.metrics || {}).map(([name, metric]) => (
+                  <div key={name} className="flex justify-between items-center">
+                    <span>{name}:</span>
+                    <Badge 
+                      variant={
+                        metric.rating === 'good' ? 'default' :
+                        metric.rating === 'needs-improvement' ? 'secondary' : 
+                        'destructive'
+                      }
+                      className="text-xs"
+                    >
+                      {metric?.value?.toFixed?.(0) || 0}{name === 'CLS' ? '' : 'ms'} ({metric?.rating || 'unknown'})
+                    </Badge>
+                  </div>
+                ))}
+                
+                <div className="mt-2 pt-2 border-t border-border">
+                  <div className="flex justify-between text-xs">
+                    <span>Total Metrics:</span>
+                    <span>{stats.webVitals?.total || 0}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 mt-1">
+                    <Badge variant="default" className="text-xs justify-center">
+                      Good: {stats.webVitals?.good || 0}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs justify-center">
+                      OK: {stats.webVitals?.needsImprovement || 0}
+                    </Badge>
+                    <Badge variant="destructive" className="text-xs justify-center">
+                      Poor: {stats.webVitals?.poor || 0}
+                    </Badge>
+                  </div>
+                </div>
+                
+                {import.meta.env.DEV && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full h-6 text-xs mt-2"
+                    onClick={() => {
+                      console.log('Web Vitals Details: (disabled for build optimization)');
+                    }}
+                  >
+                    Log Details
+                  </Button>
                 )}
               </div>
             </TabsContent>

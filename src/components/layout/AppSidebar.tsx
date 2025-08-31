@@ -1,6 +1,6 @@
 import { Music, Users, FolderOpen, Settings, Mic, Headphones, Zap } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +19,7 @@ import { useTranslation } from "@/hooks/useTranslation";
  * Компонент боковой панели навигации приложения
  * Удалена мемоизация для улучшения реактивности
  */
-export function AppSidebar() {
+export const AppSidebar = memo(function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
@@ -122,4 +122,4 @@ export function AppSidebar() {
       </SidebarContent>
     </Sidebar>
   );
-};
+});

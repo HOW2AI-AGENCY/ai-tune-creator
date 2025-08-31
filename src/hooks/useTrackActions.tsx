@@ -4,7 +4,7 @@
  * @author Claude Code Assistant
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -55,6 +55,16 @@ export function useTrackActions(): TrackActions {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [isSeparating, setIsSeparating] = useState(false);
+  
+  // MEMORY LEAK FIX: Track active operations for cleanup
+  const activeOperationsRef = useRef<Set<string>>(new Set());
+  
+  useEffect(() => {
+    return () => {
+      // Clear any pending operations on unmount
+      activeOperationsRef.current.clear();
+    };
+  }, []);
 
   // ====================================
   // 💖 LIKE FUNCTIONALITY

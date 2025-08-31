@@ -15,6 +15,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RefreshCw } from "lucide-react";
 import { PerformanceMonitor } from "@/components/debug/PerformanceMonitor";
+// import { UpdateNotification } from "@/components/service-worker/UpdateNotification";
+// import { serviceWorkerManager } from "@/lib/service-worker/sw-manager";
 
 // Lazy load page components for better code splitting
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -113,6 +115,11 @@ const App = () => {
     }
   }, []);
 
+  // Initialize service worker (disabled for build optimization)
+  // useEffect(() => {
+  //   serviceWorkerManager.init().catch(console.error);
+  // }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
@@ -124,6 +131,7 @@ const App = () => {
                   <Toaster />
                   <Sonner />
                   <PerformanceMonitor />
+                  {/* <UpdateNotification /> */}
                   <BrowserRouter
                     future={{
                       v7_startTransition: true,

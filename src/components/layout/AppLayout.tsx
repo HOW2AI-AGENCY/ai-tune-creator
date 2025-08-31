@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, memo, useCallback } from "react";
 import { SidebarProvider, SidebarInset, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
@@ -8,7 +8,7 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
-function SidebarRouteSync() {
+const SidebarRouteSync = memo(function SidebarRouteSync() {
   const { setOpen } = useSidebar();
   const location = useLocation();
 
@@ -18,9 +18,9 @@ function SidebarRouteSync() {
   }, [location.pathname, setOpen]);
 
   return null;
-}
+});
 
-export function AppLayout({ children }: AppLayoutProps) {
+export const AppLayout = memo<AppLayoutProps>(function AppLayout({ children }) {
   return (
     <>
       <SidebarRouteSync />
@@ -35,4 +35,4 @@ export function AppLayout({ children }: AppLayoutProps) {
       </div>
     </>
   );
-}
+});
