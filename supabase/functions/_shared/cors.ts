@@ -72,7 +72,7 @@ export const getTelegramCorsHeaders = (origin?: string) => {
 export const getServiceOnlyCorsHeaders = () => {
   return {
     'Access-Control-Allow-Origin': 'null', // No browser access
-    'Access-Control-Allow-Headers': 'content-type, x-cron-secret',
+    'Access-Control-Allow-Headers': 'content-type, x-cron-secret, x-webhook-secret, authorization',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 };
@@ -99,3 +99,36 @@ export const getAdminOnlyCorsHeaders = (origin?: string) => {
 
   return Object.fromEntries(headers.entries());
 };
+
+// Authentication helper for Edge Functions
+export const authenticateUser = async (req: Request) => {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { user: null, error: 'Missing or invalid Authorization header' };
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      {
+        global: {
+          headers: { Authorization: authHeader }
+        }
+      }
+    );
+
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error || !user) {
+      return { user: null, error: 'Authentication failed' };
+    }
+
+    return { user, error: null, supabase };
+  } catch (error) {
+    return { user: null, error: 'Authentication error' };
+  }
+};
+
+// Import required for auth helper
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';

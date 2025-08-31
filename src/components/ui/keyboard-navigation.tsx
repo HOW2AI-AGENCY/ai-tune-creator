@@ -4,27 +4,12 @@ import { cn } from '@/lib/utils';
 interface KeyboardNavigationProps {
   children: React.ReactNode;
   className?: string;
-  /**
-   * Enable focus trapping within this component
-   */
   trapFocus?: boolean;
-  /**
-   * Enable arrow key navigation for child elements
-   */
   enableArrowKeys?: boolean;
-  /**
-   * Selector for focusable elements
-   */
   focusableSelector?: string;
-  /**
-   * Callback when focus escapes the container
-   */
   onFocusEscape?: (direction: 'up' | 'down' | 'left' | 'right') => void;
 }
 
-/**
- * Enhanced keyboard navigation component with WCAG 2.1 AA compliance
- */
 export const KeyboardNavigationProvider = React.forwardRef<
   HTMLDivElement,
   KeyboardNavigationProps
@@ -37,11 +22,50 @@ export const KeyboardNavigationProvider = React.forwardRef<
   onFocusEscape,
   ...props 
 }, ref) => {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [currentFocusIndex, setCurrentFocusIndex] = React.useState(-1);
+  return (
+    <div
+      ref={ref}
+      className={cn("keyboard-navigation", className)}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+});
+
+KeyboardNavigationProvider.displayName = "KeyboardNavigationProvider";
+
+export const SkipLink = React.forwardRef<
+  HTMLAnchorElement,
+  React.ComponentProps<'a'> & {
+    targetId: string;
+    children: React.ReactNode;
+  }
+>(({ targetId, children, className, ...props }, ref) => {
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    const target = document.getElementById(targetId);
+    if (target) {
+      target.focus();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
   
-  React.useImperativeHandle(ref, () => containerRef.current!);
-  
-  const getFocusableElements = React.useCallback(() => {
-    if (!containerRef.current) return [];
-    return Array.from(\n      containerRef.current.querySelectorAll<HTMLElement>(focusableSelector)\n    ).filter(el => \n      !el.hasAttribute('disabled') && \n      !el.getAttribute('aria-hidden') && \n      el.offsetWidth > 0 && \n      el.offsetHeight > 0\n    );\n  }, [focusableSelector]);\n  \n  const handleKeyDown = React.useCallback((event: React.KeyboardEvent) => {\n    const focusableElements = getFocusableElements();\n    if (focusableElements.length === 0) return;\n    \n    const activeElement = document.activeElement as HTMLElement;\n    const currentIndex = focusableElements.indexOf(activeElement);\n    \n    switch (event.key) {\n      case 'Tab': {\n        if (trapFocus) {\n          event.preventDefault();\n          const nextIndex = event.shiftKey \n            ? (currentIndex <= 0 ? focusableElements.length - 1 : currentIndex - 1)\n            : (currentIndex >= focusableElements.length - 1 ? 0 : currentIndex + 1);\n          \n          focusableElements[nextIndex]?.focus();\n          setCurrentFocusIndex(nextIndex);\n        }\n        break;\n      }\n      \n      case 'ArrowDown': {\n        if (enableArrowKeys) {\n          event.preventDefault();\n          const nextIndex = currentIndex >= focusableElements.length - 1 ? 0 : currentIndex + 1;\n          \n          if (nextIndex === 0 && currentIndex === focusableElements.length - 1 && onFocusEscape) {\n            onFocusEscape('down');\n            return;\n          }\n          \n          focusableElements[nextIndex]?.focus();\n          setCurrentFocusIndex(nextIndex);\n        }\n        break;\n      }\n      \n      case 'ArrowUp': {\n        if (enableArrowKeys) {\n          event.preventDefault();\n          const nextIndex = currentIndex <= 0 ? focusableElements.length - 1 : currentIndex - 1;\n          \n          if (nextIndex === focusableElements.length - 1 && currentIndex === 0 && onFocusEscape) {\n            onFocusEscape('up');\n            return;\n          }\n          \n          focusableElements[nextIndex]?.focus();\n          setCurrentFocusIndex(nextIndex);\n        }\n        break;\n      }\n      \n      case 'ArrowRight': {\n        if (enableArrowKeys) {\n          event.preventDefault();\n          const nextIndex = currentIndex >= focusableElements.length - 1 ? 0 : currentIndex + 1;\n          \n          if (nextIndex === 0 && currentIndex === focusableElements.length - 1 && onFocusEscape) {\n            onFocusEscape('right');\n            return;\n          }\n          \n          focusableElements[nextIndex]?.focus();\n          setCurrentFocusIndex(nextIndex);\n        }\n        break;\n      }\n      \n      case 'ArrowLeft': {\n        if (enableArrowKeys) {\n          event.preventDefault();\n          const nextIndex = currentIndex <= 0 ? focusableElements.length - 1 : currentIndex - 1;\n          \n          if (nextIndex === focusableElements.length - 1 && currentIndex === 0 && onFocusEscape) {\n            onFocusEscape('left');\n            return;\n          }\n          \n          focusableElements[nextIndex]?.focus();\n          setCurrentFocusIndex(nextIndex);\n        }\n        break;\n      }\n      \n      case 'Escape': {\n        if (trapFocus && containerRef.current) {\n          containerRef.current.blur();\n        }\n        break;\n      }\n      \n      case 'Home': {\n        if (enableArrowKeys && focusableElements.length > 0) {\n          event.preventDefault();\n          focusableElements[0]?.focus();\n          setCurrentFocusIndex(0);\n        }\n        break;\n      }\n      \n      case 'End': {\n        if (enableArrowKeys && focusableElements.length > 0) {\n          event.preventDefault();\n          const lastIndex = focusableElements.length - 1;\n          focusableElements[lastIndex]?.focus();\n          setCurrentFocusIndex(lastIndex);\n        }\n        break;\n      }\n    }\n  }, [trapFocus, enableArrowKeys, getFocusableElements, onFocusEscape]);\n  \n  // Focus first element when component mounts (if trapFocus is enabled)\n  React.useEffect(() => {\n    if (trapFocus && containerRef.current) {\n      const focusableElements = getFocusableElements();\n      if (focusableElements.length > 0) {\n        focusableElements[0]?.focus();\n        setCurrentFocusIndex(0);\n      }\n    }\n  }, [trapFocus, getFocusableElements]);\n  \n  return (\n    <div\n      ref={containerRef}\n      className={cn(\n        \"focus-within:outline-none\",\n        trapFocus && \"relative\",\n        className\n      )}\n      onKeyDown={handleKeyDown}\n      role={enableArrowKeys ? \"application\" : undefined}\n      aria-label={enableArrowKeys ? \"Use arrow keys to navigate\" : undefined}\n      {...props}\n    >\n      {children}\n    </div>\n  );\n});\n\nKeyboardNavigationProvider.displayName = \"KeyboardNavigationProvider\";\n\n/**\n * Hook for managing focus within a component\n */\nexport const useFocusManagement = ({\n  enabled = true,\n  autoFocus = false,\n  restoreFocus = true\n}: {\n  enabled?: boolean;\n  autoFocus?: boolean;\n  restoreFocus?: boolean;\n} = {}) => {\n  const containerRef = React.useRef<HTMLElement>(null);\n  const previouslyFocusedElement = React.useRef<HTMLElement | null>(null);\n  \n  const focusFirst = React.useCallback(() => {\n    if (!containerRef.current || !enabled) return;\n    \n    const focusableElements = containerRef.current.querySelectorAll<HTMLElement>(\n      'button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])'\n    );\n    \n    const firstFocusable = Array.from(focusableElements).find(el => \n      !el.hasAttribute('disabled') && \n      !el.getAttribute('aria-hidden') &&\n      el.offsetWidth > 0 && \n      el.offsetHeight > 0\n    );\n    \n    firstFocusable?.focus();\n  }, [enabled]);\n  \n  const focusLast = React.useCallback(() => {\n    if (!containerRef.current || !enabled) return;\n    \n    const focusableElements = containerRef.current.querySelectorAll<HTMLElement>(\n      'button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])'\n    );\n    \n    const visibleElements = Array.from(focusableElements).filter(el => \n      !el.hasAttribute('disabled') && \n      !el.getAttribute('aria-hidden') &&\n      el.offsetWidth > 0 && \n      el.offsetHeight > 0\n    );\n    \n    visibleElements[visibleElements.length - 1]?.focus();\n  }, [enabled]);\n  \n  React.useEffect(() => {\n    if (enabled && autoFocus) {\n      // Store previously focused element\n      previouslyFocusedElement.current = document.activeElement as HTMLElement;\n      \n      // Focus first element\n      setTimeout(focusFirst, 0);\n      \n      // Restore focus on cleanup if requested\n      return () => {\n        if (restoreFocus && previouslyFocusedElement.current) {\n          previouslyFocusedElement.current.focus();\n        }\n      };\n    }\n  }, [enabled, autoFocus, restoreFocus, focusFirst]);\n  \n  return {\n    containerRef,\n    focusFirst,\n    focusLast\n  };\n};\n\n/**\n * Skip link component for keyboard navigation\n */\nexport const SkipLink = React.forwardRef<\n  HTMLAnchorElement,\n  React.ComponentProps<'a'> & {\n    targetId: string;\n    children: React.ReactNode;\n  }\n>(({ targetId, children, className, ...props }, ref) => {\n  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {\n    e.preventDefault();\n    const target = document.getElementById(targetId);\n    if (target) {\n      target.focus();\n      target.scrollIntoView({ behavior: 'smooth', block: 'start' });\n    }\n  };\n  \n  return (\n    <a\n      ref={ref}\n      href={`#${targetId}`}\n      onClick={handleClick}\n      className={cn(\n        \"sr-only focus:not-sr-only focus:absolute focus:top-0 focus:left-0\",\n        \"bg-primary text-primary-foreground px-4 py-2 rounded-md z-50\",\n        \"transition-all duration-200\",\n        className\n      )}\n      {...props}\n    >\n      {children}\n    </a>\n  );\n});\n\nSkipLink.displayName = \"SkipLink\";
+  return (
+    <a
+      ref={ref}
+      href={`#${targetId}`}
+      onClick={handleClick}
+      className={cn(
+        "sr-only focus:not-sr-only focus:absolute focus:top-0 focus:left-0",
+        "bg-primary text-primary-foreground px-4 py-2 rounded-md z-50",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </a>
+  );
+});
+
+SkipLink.displayName = "SkipLink";

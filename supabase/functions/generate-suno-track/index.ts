@@ -47,7 +47,10 @@ const TIMEOUT_CONFIG = {
   AUTH_CHECK: 5000       // 5 секунд для проверки авторизации
 } as const;
 
-// SECURITY FIX: Import secure CORS configuration, logging, and input sanitization
+// Security imports
+import { getSecureCorsHeaders, authenticateUser } from '../_shared/cors.ts';
+import { logger } from '../_shared/secure-logger.ts';
+import { sanitizeInput } from '../_shared/input-sanitizer.ts';
 import { getSecureCorsHeaders } from '../_shared/cors.ts';
 import { SecureLogger } from '../_shared/secure-logger.ts';
 import { InputSanitizer } from '../_shared/input-sanitizer.ts';
