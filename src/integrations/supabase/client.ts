@@ -3,26 +3,36 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 // SECURITY FIX: Use environment variables instead of hardcoded credentials
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
 
-// Validate required environment variables at runtime
-if (!SUPABASE_URL) {
-  throw new Error('VITE_SUPABASE_URL environment variable is required but not set');
+// Development mode warning instead of hard error
+if (import.meta.env.DEV && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY)) {
+  console.warn(
+    '⚠️  Development mode: Supabase environment variables not set.\n' +
+    'Please copy .env.example to .env and configure your Supabase credentials.\n' +
+    'Some features may not work properly without proper configuration.'
+  );
 }
 
-if (!SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error('VITE_SUPABASE_ANON_KEY environment variable is required but not set');
-}
-
-// Additional URL validation for security
-try {
-  const url = new URL(SUPABASE_URL);
-  if (!url.hostname.includes('.supabase.co')) {
-    throw new Error('Invalid Supabase URL format');
+// Production validation - only fail in production builds
+if (import.meta.env.PROD) {
+  if (!import.meta.env.VITE_SUPABASE_URL) {
+    throw new Error('VITE_SUPABASE_URL environment variable is required in production');
   }
-} catch (error) {
-  throw new Error(`Invalid SUPABASE_URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
+    throw new Error('VITE_SUPABASE_ANON_KEY environment variable is required in production');
+  }
+  
+  // Additional URL validation for security in production
+  try {
+    const url = new URL(SUPABASE_URL);
+    if (!url.hostname.includes('.supabase.co')) {
+      throw new Error('Invalid Supabase URL format');
+    }
+  } catch (error) {
+    throw new Error(`Invalid SUPABASE_URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 // Import the supabase client like this:
