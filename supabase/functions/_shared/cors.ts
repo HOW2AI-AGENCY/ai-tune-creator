@@ -1,70 +1,71 @@
 // Centralized CORS configuration for edge functions
 // This file provides secure CORS headers based on function type and security requirements
 
-export interface CorsConfig {
-  allowedOrigins: string[];
-  allowCredentials?: boolean;
-  additionalHeaders?: string[];
-}
+// Function to check if an origin is allowed
+const isOriginAllowed = (origin: string, allowedOrigins: (string | RegExp)[]): boolean => {
+  if (!origin) return false;
+  for (const allowed of allowedOrigins) {
+    if (typeof allowed === 'string' && allowed === origin) {
+      return true;
+    }
+    if (allowed instanceof RegExp && allowed.test(origin)) {
+      return true;
+    }
+  }
+  return false;
+};
 
 // Default secure CORS configuration
-export const getSecureCorsHeaders = (origin?: string, config?: CorsConfig) => {
-  const defaultConfig: CorsConfig = {
-    allowedOrigins: [
-      'https://zwbhlfhwymbmvioaikvs.supabase.co', // Main app domain
-    ],
-    allowCredentials: false,
-    additionalHeaders: []
-  };
+export const getSecureCorsHeaders = (origin?: string) => {
+  const allowedOrigins: (string | RegExp)[] = [
+    'https://zwbhlfhwymbmvioaikvs.supabase.co', // Main app domain
+    /https?:\/\/localhost(:\d+)?/, // http://localhost, https://localhost, with any port
+    /https:\/\/.*--lovable-app\.netlify\.app/, // Netlify preview domains
+    /https:\/\/.*\.lovable\.app/, // Lovable preview domains
+    'https://lovable.app' // Main production domain
+  ];
 
-  // Add development origins in non-production
-  const isDev = Deno.env.get('ENVIRONMENT') !== 'production';
-  if (isDev) {
-    defaultConfig.allowedOrigins.push(
-      'http://localhost:3000',
-      'http://127.0.0.1:3000'
-    );
+  const headers = new Headers();
+
+  if (origin && isOriginAllowed(origin, allowedOrigins)) {
+    headers.set('Access-Control-Allow-Origin', origin);
+    headers.set('Vary', 'Origin');
+  } else {
+    // Fallback for safety, though browsers might block this anyway
+    headers.set('Access-Control-Allow-Origin', 'https://lovable.app');
   }
 
-  const finalConfig = { ...defaultConfig, ...config };
-  const allowedOrigin = origin && finalConfig.allowedOrigins.includes(origin) 
-    ? origin 
-    : finalConfig.allowedOrigins[0];
+  headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type, x-cron-secret');
+  headers.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, DELETE, PUT');
+  headers.set('Access-Control-Allow-Credentials', 'true');
 
-  const headers: Record<string, string> = {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': [
-      'authorization',
-      'x-client-info', 
-      'apikey',
-      'content-type',
-      ...finalConfig.additionalHeaders
-    ].join(', '),
-  };
-
-  if (finalConfig.allowCredentials) {
-    headers['Access-Control-Allow-Credentials'] = 'true';
-  }
-
-  return headers;
+  return Object.fromEntries(headers.entries());
 };
 
 // For Telegram authentication - more permissive but still restricted
 export const getTelegramCorsHeaders = (origin?: string) => {
-  return getSecureCorsHeaders(origin, {
-    allowedOrigins: [
-      'https://web.telegram.org',
-      'https://telegram.org',
-      'https://t.me',
-      'https://zwbhlfhwymbmvioaikvs.supabase.co',
-      // Add development origins
-      ...(Deno.env.get('ENVIRONMENT') !== 'production' ? [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000'
-      ] : [])
-    ],
-    allowCredentials: true
-  });
+  const telegramAllowedOrigins: (string | RegExp)[] = [
+    'https://web.telegram.org',
+    'https://telegram.org',
+    'https://t.me',
+    /https?:\/\/localhost(:\d+)?/,
+    'https://zwbhlfhwymbmvioaikvs.supabase.co',
+    'https://lovable.app'
+  ];
+
+  const headers = new Headers();
+  if (origin && isOriginAllowed(origin, telegramAllowedOrigins)) {
+    headers.set('Access-Control-Allow-Origin', origin);
+    headers.set('Vary', 'Origin');
+  } else {
+    headers.set('Access-Control-Allow-Origin', 'https://lovable.app');
+  }
+
+  headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+  headers.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  headers.set('Access-Control-Allow-Credentials', 'true');
+
+  return Object.fromEntries(headers.entries());
 };
 
 // For service-only functions (cron, webhooks) - no browser access needed
@@ -72,18 +73,29 @@ export const getServiceOnlyCorsHeaders = () => {
   return {
     'Access-Control-Allow-Origin': 'null', // No browser access
     'Access-Control-Allow-Headers': 'content-type, x-cron-secret',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 };
 
 // For admin-only functions
 export const getAdminOnlyCorsHeaders = (origin?: string) => {
-  return getSecureCorsHeaders(origin, {
-    allowedOrigins: [
-      'https://zwbhlfhwymbmvioaikvs.supabase.co',
-      ...(Deno.env.get('ENVIRONMENT') !== 'production' ? [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000'
-      ] : [])
-    ]
-  });
+  const adminAllowedOrigins: (string | RegExp)[] = [
+    'https://zwbhlfhwymbmvioaikvs.supabase.co',
+    /https?:\/\/localhost(:\d+)?/,
+    'https://lovable.app' // Allow from main app for admin actions
+  ];
+
+  const headers = new Headers();
+  if (origin && isOriginAllowed(origin, adminAllowedOrigins)) {
+    headers.set('Access-Control-Allow-Origin', origin);
+    headers.set('Vary', 'Origin');
+  } else {
+    headers.set('Access-Control-Allow-Origin', 'https://lovable.app');
+  }
+
+  headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+  headers.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, DELETE');
+  headers.set('Access-Control-Allow-Credentials', 'true');
+
+  return Object.fromEntries(headers.entries());
 };

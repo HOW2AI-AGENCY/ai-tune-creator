@@ -1,10 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-// Service-only function - no browser access needed
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'null',
-  'Access-Control-Allow-Headers': 'content-type, x-cron-secret',
-}
+import { getServiceOnlyCorsHeaders } from '../_shared/cors.ts';
 
 interface GenerationRecord {
   id: string;
@@ -16,6 +11,7 @@ interface GenerationRecord {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getServiceOnlyCorsHeaders();
   // Handle CORS - service-only access
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
