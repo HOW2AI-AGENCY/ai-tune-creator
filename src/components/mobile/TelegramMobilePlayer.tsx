@@ -3,15 +3,41 @@ import { Button } from '@/components/ui/button';
 import { Play, Pause } from 'lucide-react';
 import { useState } from 'react';
 
-interface TelegramMobilePlayerProps {
-  audioUrl?: string;
-  title?: string;
+interface TrackData {
+  id: string;
+  title: string;
+  audio_url?: string;
+  duration?: number;
+  lyrics?: string;
 }
 
-export const TelegramMobilePlayer = ({ audioUrl, title }: TelegramMobilePlayerProps) => {
-  const [isPlaying, setIsPlaying] = useState(false);
+interface TelegramMobilePlayerProps {
+  track: TrackData;
+  isPlaying: boolean;
+  onPlayPause: (playing: boolean) => void;
+  onShare: (track: TrackData) => Promise<void>;
+  onDownload: (track: TrackData) => void;
+  onShowLyrics: () => void;
+  playlist: TrackData[];
+  currentIndex: number;
+  onNext: () => void;
+  onPrev: () => void;
+}
 
-  if (!audioUrl) return null;
+export const TelegramMobilePlayer = ({ 
+  track, 
+  isPlaying, 
+  onPlayPause, 
+  onShare,
+  onDownload,
+  onShowLyrics,
+  playlist,
+  currentIndex,
+  onNext,
+  onPrev
+}: TelegramMobilePlayerProps) => {
+
+  if (!track?.audio_url) return null;
 
   return (
     <Card>
@@ -20,12 +46,12 @@ export const TelegramMobilePlayer = ({ audioUrl, title }: TelegramMobilePlayerPr
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setIsPlaying(!isPlaying)}
+            onClick={() => onPlayPause(!isPlaying)}
           >
             {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </Button>
           <div className="flex-1">
-            <p className="text-sm font-medium">{title || 'Сгенерированный трек'}</p>
+            <p className="text-sm font-medium">{track.title || 'Сгенерированный трек'}</p>
           </div>
         </div>
       </CardContent>

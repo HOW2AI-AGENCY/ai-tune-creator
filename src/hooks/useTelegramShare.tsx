@@ -3,6 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 interface ShareOptions {
   url: string;
   text?: string;
+  track?: any;
 }
 
 export const useTelegramShare = () => {
@@ -23,8 +24,9 @@ export const useTelegramShare = () => {
     }
   };
 
-  const shareTrackToTelegram = shareUrl;
-  const copyShareLink = (url: string) => {
+  const shareTrackToTelegram = (options: ShareOptions) => shareUrl(options);
+  const copyShareLink = (track: any) => {
+    const url = track.audio_url || track.url || '';
     navigator.clipboard.writeText(url);
     toast({
       title: 'Ссылка скопирована',

@@ -146,7 +146,7 @@ export default function MobileGeneration() {
     impactFeedback?.('medium');
     
     if (canShareToTelegram) {
-      await shareTrackToTelegram({ track });
+      await shareTrackToTelegram({ url: track.audio_url || '', text: track.title, track });
     } else {
       await copyShareLink(track);
     }
