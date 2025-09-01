@@ -15,6 +15,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RefreshCw } from "lucide-react";
 import { PerformanceMonitor } from "@/components/debug/PerformanceMonitor";
+import { ErrorBoundary } from "@/components/debug/ErrorBoundary";
 // import { UpdateNotification } from "@/components/service-worker/UpdateNotification";
 // import { serviceWorkerManager } from "@/lib/service-worker/sw-manager";
 
@@ -138,7 +139,9 @@ const App = () => {
                     }}
                   >
                     <SidebarProvider>
-                      <AppContent />
+                      <ErrorBoundary>
+                        <AppContent />
+                      </ErrorBoundary>
                     </SidebarProvider>
                   </BrowserRouter>
                 </TooltipProvider>

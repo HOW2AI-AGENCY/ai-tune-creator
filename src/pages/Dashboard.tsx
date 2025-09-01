@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileDashboard } from "./mobile/MobileDashboard";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -138,10 +139,10 @@ export default function Dashboard() {
         <div className="flex gap-2">
           <TestGenerationButton />
           <Button asChild>
-            <a href="/generate">
+            <Link to="/generate">
               <Sparkles className="mr-2 h-4 w-4" />
               Создать музыку
-            </a>
+            </Link>
           </Button>
         </div>
       </div>
@@ -154,13 +155,13 @@ export default function Dashboard() {
         </p>
         <div className="flex gap-2">
           <Button asChild>
-            <a href="/generate">
+            <Link to="/generate">
               <Sparkles className="mr-2 h-4 w-4" />
               Новая генерация
-            </a>
+            </Link>
           </Button>
           <Button variant="outline" asChild>
-            <a href="/tracks">Мои треки</a>
+            <Link to="/tracks">Мои треки</Link>
           </Button>
         </div>
       </div>
@@ -261,10 +262,10 @@ export default function Dashboard() {
                     Создайте свою первую музыкальную композицию с помощью ИИ
                   </p>
                   <Button asChild>
-                    <a href="/generate">
+                    <Link to="/generate">
                       <Sparkles className="mr-2 h-4 w-4" />
                       Начать генерацию
-                    </a>
+                    </Link>
                   </Button>
                 </div>
               ) : (
@@ -294,13 +295,13 @@ export default function Dashboard() {
                   
                   <div className="flex gap-2 pt-4">
                     <Button variant="outline" asChild className="flex-1">
-                      <a href="/tracks">Все треки</a>
+                      <Link to="/tracks">Все треки</Link>
                     </Button>
                     <Button asChild className="flex-1">
-                      <a href="/generate">
+                      <Link to="/generate">
                         <Sparkles className="mr-2 h-4 w-4" />
                         Новая генерация
-                      </a>
+                      </Link>
                     </Button>
                   </div>
                 </div>
