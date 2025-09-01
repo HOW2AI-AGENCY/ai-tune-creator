@@ -61,7 +61,7 @@ export default function MobileSettings() {
     },
     connections: {
       emailLinked: !!user?.email,
-      telegramLinked: !!authData?.telegramId
+      telegramLinked: !!authData
     }
   });
 
@@ -141,10 +141,10 @@ export default function MobileSettings() {
         body: {
           provider: 'telegram',
           credentials: {
-            telegram_id: authData.telegramId?.toString(),
-            telegram_username: authData.username,
-            telegram_first_name: authData.firstName,
-            telegram_last_name: authData.lastName
+            telegram_id: authData?.id?.toString(),
+            telegram_username: authData?.email,
+            telegram_first_name: authData?.user_metadata?.first_name,
+            telegram_last_name: authData?.user_metadata?.last_name
           }
         }
       });
@@ -227,7 +227,7 @@ export default function MobileSettings() {
           id: 'telegramConnection',
           title: 'Привязать Telegram',
           description: settings.connections.telegramLinked ? 
-            `Привязан: @${authData?.username || 'Unknown'}` : 
+            `Привязан: ${authData?.email || 'Unknown'}` : 
             isInTelegram ? 'Доступно для привязки' : 'Доступно только в Telegram',
           type: 'button',
           action: linkTelegram
@@ -523,7 +523,7 @@ export default function MobileSettings() {
                   {settings.connections.telegramLinked ? (
                     <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
                       <p className="text-sm text-green-700 dark:text-green-300">
-                        ✓ Привязан: @{authData?.username || 'Unknown'}
+                        ✓ Привязан: {authData?.email || 'Unknown'}
                       </p>
                     </div>
                   ) : (

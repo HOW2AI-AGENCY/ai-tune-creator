@@ -3,9 +3,10 @@ import { ReactNode } from 'react';
 interface TelegramPageLayoutProps {
   children: ReactNode;
   className?: string;
+  fullscreen?: boolean;
 }
 
-export const TelegramPageLayout = ({ children, className }: TelegramPageLayoutProps) => {
+export const TelegramPageLayout = ({ children, className, fullscreen }: TelegramPageLayoutProps) => {
   return (
     <div className={`min-h-screen bg-background p-4 ${className}`}>
       {children}

@@ -584,9 +584,7 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
     return () => {
       clearTimeout(timeoutId);
       // Additional cleanup for any pending promises
-      if (cacheManager.cleanup) {
-        cacheManager.cleanup();
-      }
+      // Note: cleanup method will be added to CacheManager if needed
     };
   }, [state.artists.version, state.projects.version, state.tracks.version]); // Only watch version changes
   

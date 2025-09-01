@@ -2,11 +2,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 
 interface TelegramGenerationProgressProps {
-  progress: number;
-  status: string;
+  progress?: number;
+  status?: string;
+  isActive?: boolean;
+  onCancel?: () => void;
+  onComplete?: () => void;
 }
 
-export const TelegramGenerationProgress = ({ progress, status }: TelegramGenerationProgressProps) => {
+export const TelegramGenerationProgress = ({ progress = 0, status = 'Generating...', isActive, onCancel, onComplete }: TelegramGenerationProgressProps) => {
   return (
     <Card>
       <CardContent className="p-4 space-y-3">

@@ -220,6 +220,6 @@ export const useUserSettings = () => {
     updateSetting,
     saveSettings,
     linkAccount,
-    isConnectedViaTelegram: !!authData?.telegramId
+    isConnectedViaTelegram: !!authData
   };
 };
