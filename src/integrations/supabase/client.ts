@@ -4,10 +4,10 @@ import type { Database } from './types';
 
 // SECURITY FIX: Use environment variables instead of hardcoded credentials
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-key';
 
 // Development mode warning instead of hard error
-if (import.meta.env.DEV && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY)) {
+if (import.meta.env.DEV && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)) {
   console.warn(
     '⚠️  Development mode: Supabase environment variables not set.\n' +
     'Please copy .env.example to .env and configure your Supabase credentials.\n' +
@@ -20,8 +20,8 @@ if (import.meta.env.PROD) {
   if (!import.meta.env.VITE_SUPABASE_URL) {
     throw new Error('VITE_SUPABASE_URL environment variable is required in production');
   }
-  if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
-    throw new Error('VITE_SUPABASE_ANON_KEY environment variable is required in production');
+  if (!import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error('VITE_SUPABASE_PUBLISHABLE_KEY environment variable is required in production');
   }
   
   // Additional URL validation for security in production
