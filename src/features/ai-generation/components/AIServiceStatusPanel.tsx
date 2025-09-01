@@ -1,8 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Zap, Coins, AlertTriangle, CheckCircle, XCircle, Clock } from "lucide-react";
+import { RefreshCw, Zap, Coins, AlertTriangle, CheckCircle, XCircle, Clock, Wrench } from "lucide-react";
 import { useAIServiceStatus, ServiceStatus } from "@/hooks/useAIServiceStatus";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AIServiceStatusPanelProps {
   compact?: boolean;
@@ -10,6 +12,20 @@ interface AIServiceStatusPanelProps {
 
 export function AIServiceStatusPanel({ compact = false }: AIServiceStatusPanelProps) {
   const { services, isLoading, refreshStatuses } = useAIServiceStatus();
+
+  // Дополнительная функция для исправления зависших треков
+  const fixProcessingTracks = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('fix-processing-tracks');
+      if (error) throw error;
+      
+      console.log('Fixed processing tracks:', data);
+      toast.success(`Исправлено ${data.fixed_count} треков`);
+    } catch (error) {
+      console.error('Error fixing tracks:', error);
+      toast.error('Ошибка исправления треков');
+    }
+  };
 
   const getStatusIcon = (status: ServiceStatus['status']) => {
     switch (status) {
@@ -112,15 +128,26 @@ export function AIServiceStatusPanel({ compact = false }: AIServiceStatusPanelPr
             <Zap className="h-4 w-4" />
             Статус AI Сервисов
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={refreshStatuses}
-            disabled={isLoading}
-            className="h-7 w-7 p-0"
-          >
-            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fixProcessingTracks}
+              title="Исправить зависшие треки"
+              className="h-7 w-7 p-0"
+            >
+              <Wrench className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refreshStatuses}
+              disabled={isLoading}
+              className="h-7 w-7 p-0"
+            >
+              <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       

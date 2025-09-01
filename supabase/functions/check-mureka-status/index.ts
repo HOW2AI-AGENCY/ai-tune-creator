@@ -10,10 +10,12 @@ interface MurekaBillingResponse {
   concurrent_request_limit: number;
 }
 
-serve(async (req) => {
-  const origin = req.headers.get('Origin');
-  const corsHeaders = getSecureCorsHeaders(origin);
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

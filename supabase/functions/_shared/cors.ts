@@ -22,6 +22,7 @@ export const getSecureCorsHeaders = (origin?: string) => {
     /https?:\/\/localhost(:\d+)?/, // http://localhost, https://localhost, with any port
     /https:\/\/.*--lovable-app\.netlify\.app/, // Netlify preview domains
     /https:\/\/.*\.lovable\.app/, // Lovable preview domains
+    /https:\/\/.*\.sandbox\.lovable\.dev/, // Sandbox domains
     'https://lovable.app' // Main production domain
   ];
 
