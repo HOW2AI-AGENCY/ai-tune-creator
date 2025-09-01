@@ -125,7 +125,10 @@ export function ConnectionDiagnostics() {
     // 5. Проверка CORS
     try {
       const response = await fetch('https://zwbhlfhwymbmvioaikvs.supabase.co/auth/v1/settings', {
-        method: 'GET'
+        method: 'GET',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3YmhsZmh3eW1ibXZpb2Fpa3ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3MjU3MTMsImV4cCI6MjA2OTMwMTcxM30.qyCcLcEzRQ7S2J1GUNpgO597BKn768Pmb-lOGjIC4bU'
+        }
       });
       
       if (response.ok) {

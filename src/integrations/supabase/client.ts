@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 // SECURITY FIX: Use environment variables instead of hardcoded credentials
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-key';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://zwbhlfhwymbmvioaikvs.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3YmhsZmh3eW1ibXZpb2Fpa3ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3MjU3MTMsImV4cCI6MjA2OTMwMTcxM30.qyCcLcEzRQ7S2J1GUNpgO597BKn768Pmb-lOGjIC4bU';
 
 // Development mode warning instead of hard error
 if (import.meta.env.DEV && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)) {
@@ -17,10 +17,10 @@ if (import.meta.env.DEV && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.e
 
 // Production validation - only fail in production builds
 if (import.meta.env.PROD) {
-  if (!import.meta.env.VITE_SUPABASE_URL) {
+  if (!SUPABASE_URL || SUPABASE_URL.includes('placeholder')) {
     throw new Error('VITE_SUPABASE_URL environment variable is required in production');
   }
-  if (!import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+  if (!SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISHABLE_KEY.includes('placeholder')) {
     throw new Error('VITE_SUPABASE_PUBLISHABLE_KEY environment variable is required in production');
   }
   
