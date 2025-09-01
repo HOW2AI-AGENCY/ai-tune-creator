@@ -3,13 +3,12 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getAdminOnlyCorsHeaders, authenticateUser } from '../_shared/cors.ts';
+import { DatabaseRateLimiter } from '../_shared/rate-limiter.ts';
 
 serve(async (req) => {
+  const corsHeaders = getAdminOnlyCorsHeaders(req.headers.get('Origin'));
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -22,23 +21,32 @@ serve(async (req) => {
       });
     }
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    // Client for auth (verify user from JWT)
-    const authClient = createClient(SUPABASE_URL, ANON_KEY, {
-      global: { headers: { Authorization: req.headers.get("Authorization") || "" } },
-    });
-    const { data: { user }, error: userErr } = await authClient.auth.getUser();
-    if (userErr || !user) {
-      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+    // Authenticate user using secure helper
+    const { user, error: authError } = await authenticateUser(req);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ success: false, error: authError || 'Authentication failed' }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    // Check rate limit for extremely sensitive operations - very restrictive
+    const rateLimitResult = await DatabaseRateLimiter.checkLimit(user.id, 'suno');
+    if (!rateLimitResult.allowed) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Rate limit exceeded for sensitive operations',
+        retryAfter: rateLimitResult.retryAfter 
+      }), { 
+        status: 429, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
     const userId = user.id;
 
     // Helper to delete storage files for a user
@@ -56,15 +64,10 @@ serve(async (req) => {
             return paths.length;
           }
         }
-        // Fallback: list all and filter by userId appearance
-        const listAll = await admin.storage.from(bucket).list("", { limit: 10000, offset: 0 });
-        if (listAll.error) return 0;
-        const all = listAll.data || [];
-        const filtered = all.filter((f) => f.name.includes(userId));
-        if (filtered.length === 0) return 0;
-        const { error: remErr } = await admin.storage.from(bucket).remove(filtered.map((f) => f.name));
-        if (remErr) console.error(`[STORAGE] fallback remove error (${bucket}):`, remErr.message);
-        return filtered.length;
+        // SECURITY FIX: Remove dangerous fallback that could delete other users' files
+        // Only delete files explicitly under the user's prefix to prevent accidental deletion
+        console.warn(`[STORAGE] No files found under prefix ${userId} in bucket ${bucket}`);
+        return 0;
       } catch (e) {
         console.error(`[STORAGE] Unexpected error in ${bucket}:`, e);
         return 0;

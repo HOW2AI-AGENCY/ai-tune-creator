@@ -1,48 +1,43 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getAdminOnlyCorsHeaders, authenticateUser } from '../_shared/cors.ts';
+import { DatabaseRateLimiter } from '../_shared/rate-limiter.ts';
 
 export default async function handler(req: Request) {
   console.log('Delete track function called');
+  
+  const corsHeaders = getAdminOnlyCorsHeaders(req.headers.get('Origin'));
   
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
-
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Authorization header required' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Authenticate user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
+    // Authenticate user using secure helper
+    const { user, error: authError, supabase } = await authenticateUser(req);
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid authorization' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      return new Response(JSON.stringify({ error: authError || 'Authentication failed' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
+
+    // Check rate limit for sensitive operations
+    const rateLimitResult = await DatabaseRateLimiter.checkLimit(user.id, 'suno');
+    if (!rateLimitResult.allowed) {
+      return new Response(JSON.stringify({ 
+        error: 'Rate limit exceeded',
+        retryAfter: rateLimitResult.retryAfter 
+      }), { 
+        status: 429, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // Create admin client for privileged operations
+    const adminSupabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
     const { trackId, softDelete = true } = await req.json();
 
@@ -59,7 +54,7 @@ export default async function handler(req: Request) {
     console.log('Deleting track:', { trackId, userId: user.id, softDelete });
 
     // Call the comprehensive delete function
-    const { data: deleteResult, error: deleteError } = await supabase.rpc(
+    const { data: deleteResult, error: deleteError } = await adminSupabase.rpc(
       'delete_track_completely',
       {
         p_track_id: trackId,

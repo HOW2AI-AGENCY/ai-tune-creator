@@ -1,34 +1,41 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.55.0';
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getAdminOnlyCorsHeaders, authenticateUser } from '../_shared/cors.ts';
+import { DatabaseRateLimiter } from '../_shared/rate-limiter.ts';
 
 export default async function handler(req: Request) {
+  const corsHeaders = getAdminOnlyCorsHeaders(req.headers.get('Origin'));
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Create a Supabase client with the service role key to perform admin actions.
-    const supabase = createClient(
+    // Authenticate user using secure helper
+    const { user, error: authError, supabase } = await authenticateUser(req);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: authError || 'Authentication failed' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // Check rate limit for sensitive operations
+    const rateLimitResult = await DatabaseRateLimiter.checkLimit(user.id, 'suno');
+    if (!rateLimitResult.allowed) {
+      return new Response(JSON.stringify({ 
+        error: 'Rate limit exceeded',
+        retryAfter: rateLimitResult.retryAfter 
+      }), { 
+        status: 429, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // Create admin client for privileged operations
+    const adminSupabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    // First, authenticate the user making the request.
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Authorization header required' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Invalid authorization' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     // Get the project ID from the request body.
     const { projectId } = await req.json();
@@ -37,7 +44,7 @@ export default async function handler(req: Request) {
     }
 
     // Call the PostgreSQL function to perform the secure, transactional delete.
-    const { error: rpcError } = await supabase.rpc(
+    const { error: rpcError } = await adminSupabase.rpc(
       'delete_project_and_children',
       {
         p_project_id: projectId,

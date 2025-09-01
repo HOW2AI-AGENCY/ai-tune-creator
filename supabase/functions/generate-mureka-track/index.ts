@@ -13,11 +13,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
  * @version 2.1.0 (Security Hardened)
  */
 
-// ИСПРАВЛЕНО: Убрали ограничение CORS для корректной работы
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getSecureCorsHeaders, authenticateUser } from '../_shared/cors.ts';
+import { DatabaseRateLimiter } from '../_shared/rate-limiter.ts';
 
 // Rate limiting and configuration (unchanged for stability)
 const RATE_LIMIT_WINDOW = 10 * 60 * 1000;
@@ -331,47 +328,45 @@ async function pollMurekaStatus(taskId: string, apiKey: string): Promise<MurekaA
 
 // Main handler
 serve(async (req) => {
+  const corsHeaders = getSecureCorsHeaders(req.headers.get('Origin'));
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
   
   try {
-    // SECURITY FIX: Verify authentication first
-    const supabase = createClient(
+    // SECURITY FIX: Verify authentication using secure helper
+    const { user, error: authError, supabase } = await authenticateUser(req);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ 
+        error: authError || 'Authentication failed',
+        code: 'AUTH_ERROR'
+      }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // Check rate limit for generation operations
+    const rateLimitResult = await DatabaseRateLimiter.checkLimit(user.id, 'mureka');
+    if (!rateLimitResult.allowed) {
+      return new Response(JSON.stringify({ 
+        error: 'Rate limit exceeded for music generation',
+        retryAfter: rateLimitResult.retryAfter,
+        remaining: rateLimitResult.remaining,
+        resetTime: rateLimitResult.resetTime.toISOString(),
+        code: 'RATE_LIMIT_EXCEEDED'
+      }), { 
+        status: 429, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // Create admin client for privileged operations only when needed
+    const adminSupabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: {
-            Authorization: req.headers.get('Authorization') ?? ''
-          }
-        }
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-    
-    const userId = await getAuthenticatedUserId(supabase);
-    if (!userId) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Authentication required'
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    
-    // Rate limiting
-    const rateLimitCheck = checkRateLimit(userId);
-    if (!rateLimitCheck.allowed) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Rate limit exceeded',
-        retryAfter: rateLimitCheck.retryAfter
-      }), {
-        status: 429,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
     
     // Parse request
     let requestBody: TrackGenerationRequest;
@@ -392,17 +387,17 @@ serve(async (req) => {
     // Handle inbox logic
     let finalProjectId = requestBody.projectId;
     if (requestBody.useInbox) {
-      const { data: inboxId } = await supabase.rpc('ensure_user_inbox', { 
-        p_user_id: userId 
+      const { data: inboxId } = await adminSupabase.rpc('ensure_user_inbox', { 
+        p_user_id: user.id 
       });
       finalProjectId = inboxId;
     }
     
     // Create generation record
-    const { data: generation, error: genError } = await supabase
+    const { data: generation, error: genError } = await adminSupabase
       .from('ai_generations')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         service: 'mureka',
         prompt: requestBody.prompt?.substring(0, 500) || '',
         status: 'processing',
@@ -441,7 +436,7 @@ serve(async (req) => {
     try {
       murekaResponse = await callMurekaAPI(payload, murekaApiKey);
     } catch (error: any) {
-      await supabase
+      await adminSupabase
         .from('ai_generations')
         .update({ 
           status: 'failed',
@@ -461,7 +456,7 @@ serve(async (req) => {
       try {
         finalResponse = await pollMurekaStatus(murekaResponse.id, murekaApiKey);
       } catch (pollingError: any) {
-        await supabase
+        await adminSupabase
           .from('ai_generations')
           .update({ 
             status: 'failed',
@@ -486,7 +481,7 @@ serve(async (req) => {
     }
     
     // Update generation status
-    await supabase
+    await adminSupabase
       .from('ai_generations')
       .update({
         status: 'completed',
