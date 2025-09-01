@@ -124,8 +124,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
         <AuthProvider>
-          {/* Temporarily disable AppDataProvider to fix IndexedDB issues */}
-          {/* <AppDataProvider> */}
+          <AppDataProvider>
             <TranslationProvider>
                 <TooltipProvider>
                   <Toaster />
@@ -144,7 +143,7 @@ const App = () => {
                   </BrowserRouter>
                 </TooltipProvider>
             </TranslationProvider>
-          {/* </AppDataProvider> */}
+          </AppDataProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
