@@ -130,7 +130,7 @@ const App = () => {
                 <TooltipProvider>
                   <Toaster />
                   <Sonner />
-                  <PerformanceMonitor />
+{(import.meta.env.DEV && localStorage.getItem('perfMonitor')==='1') && <PerformanceMonitor />}
                   {/* <UpdateNotification /> */}
                   <BrowserRouter
                     future={{
