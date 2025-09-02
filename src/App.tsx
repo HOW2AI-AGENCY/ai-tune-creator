@@ -62,10 +62,18 @@ function AppContent() {
   const Layout = isMobile ? MobileLayout : AppLayout;
 
   const PageLoader = () => (
-    <div className="flex h-full w-full items-center justify-center">
-      <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <div className="text-center space-y-4">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary mx-auto" />
+        <p className="text-muted-foreground">Загружается...</p>
+      </div>
     </div>
   );
+
+  // Show loading while authentication is being resolved
+  if (authLoading) {
+    return <PageLoader />;
+  }
 
   return (
     <Suspense fallback={<PageLoader />}>
