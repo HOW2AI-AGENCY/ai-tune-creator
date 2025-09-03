@@ -22,17 +22,15 @@ const SidebarRouteSync = memo(function SidebarRouteSync() {
 
 export const AppLayout = memo<AppLayoutProps>(function AppLayout({ children }) {
   return (
-    <>
+    <div className="min-h-screen flex w-full bg-background">
       <SidebarRouteSync />
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <SidebarInset>
-          <AppHeader />
-          <main className="flex-1 overflow-auto">
-            {children}
-          </main>
-        </SidebarInset>
-      </div>
-    </>
+      <AppSidebar />
+      <SidebarInset>
+        <AppHeader />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </SidebarInset>
+    </div>
   );
 });

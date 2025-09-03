@@ -130,34 +130,33 @@ const App = () => {
   // }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-        <AuthProvider>
-          <AppDataProvider>
-            <TranslationProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-{(import.meta.env.DEV && localStorage.getItem('perfMonitor')==='1') && <PerformanceMonitor />}
-                  {/* <UpdateNotification /> */}
-                  <BrowserRouter
-                    future={{
-                      v7_startTransition: true,
-                      v7_relativeSplatPath: true,
-                    }}
-                  >
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
+            <AuthProvider>
+              <AppDataProvider>
+                <TranslationProvider>
+                  <TooltipProvider>
                     <SidebarProvider>
-                      <ErrorBoundary>
-                        <AppContent />
-                      </ErrorBoundary>
+                      <Toaster />
+                      <Sonner />
+                      {(import.meta.env.DEV && localStorage.getItem('perfMonitor')==='1') && <PerformanceMonitor />}
+                      <AppContent />
                     </SidebarProvider>
-                  </BrowserRouter>
-                </TooltipProvider>
-            </TranslationProvider>
-          </AppDataProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+                  </TooltipProvider>
+                </TranslationProvider>
+              </AppDataProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 
