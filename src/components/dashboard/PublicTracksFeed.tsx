@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Music, User, Calendar, Play } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -29,74 +29,50 @@ interface PublicTracksFeedProps {
   showHeader?: boolean;
 }
 
-export const PublicTracksFeed = ({ limit = 10, showHeader = true }: PublicTracksFeedProps) => {
+export const PublicTracksFeed = React.memo(({ limit = 10, showHeader = true }: PublicTracksFeedProps) => {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadPublicTracks = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('tracks')
-          .select(`
-            id,
-            title,
-            created_at,
-            audio_url,
-            metadata,
-            project_id,
-            projects (
-              artist_id,
-              artists (
-                name,
-                avatar_url,
-                user_id,
-                profiles!inner (
-                  display_name,
-                  avatar_url
-                )
-              )
-            )
-          `)
-          .not('audio_url', 'is', null)
-          .not('metadata->>deleted', 'eq', 'true')
-          .order('created_at', { ascending: false })
-          .limit(limit);
+  const loadPublicTracks = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Use optimized RPC function for better performance
+      const { data, error: rpcError } = await supabase
+        .rpc('get_public_tracks_feed', { p_limit: limit });
 
-        if (error) {
-          console.error('Error loading public tracks:', error);
-          return;
+      if (rpcError) throw rpcError;
+
+      const formattedTracks = data?.map(track => ({
+        id: track.id,
+        title: track.title,
+        created_at: track.created_at,
+        audio_url: track.audio_url,
+        metadata: track.metadata as Record<string, any> || {},
+        artist: {
+          name: track.artist_name || 'Неизвестный артист',
+          avatar_url: track.artist_avatar_url
         }
+      })) || [];
 
-        const formattedTracks = data?.map(track => ({
-          id: track.id,
-          title: track.title,
-          created_at: track.created_at,
-          audio_url: track.audio_url,
-          metadata: track.metadata as Record<string, any> || {},
-          artist: {
-            name: track.projects?.artists?.name || 'Неизвестный артист',
-            avatar_url: track.projects?.artists?.avatar_url
-          },
-          profile: track.projects?.artists?.profiles ? {
-            display_name: (track.projects.artists.profiles as any).display_name,
-            avatar_url: (track.projects.artists.profiles as any).avatar_url
-          } : undefined
-        })) || [];
-
-        setTracks(formattedTracks);
-      } catch (error) {
-        console.error('Failed to load tracks:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadPublicTracks();
+      setTracks(formattedTracks);
+    } catch (error) {
+      console.error('Error loading public tracks:', error);
+      setError('Failed to load tracks');
+      setTracks([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, [limit]);
 
-  const playTrack = (trackId: string, audioUrl: string) => {
+  useEffect(() => {
+    loadPublicTracks();
+  }, [loadPublicTracks]);
+
+  const playTrack = useCallback((trackId: string, audioUrl: string) => {
     if (currentlyPlaying === trackId) {
       setCurrentlyPlaying(null);
       // Остановить воспроизведение
@@ -121,7 +97,7 @@ export const PublicTracksFeed = ({ limit = 10, showHeader = true }: PublicTracks
         audio.play().catch(console.error);
       }
     }
-  };
+  }, [currentlyPlaying]);
 
   if (isLoading) {
     return (
@@ -154,7 +130,12 @@ export const PublicTracksFeed = ({ limit = 10, showHeader = true }: PublicTracks
         </CardHeader>
       )}
       <CardContent className="p-6">
-        {tracks.length === 0 ? (
+        {error ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Music className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>Не удалось загрузить треки</p>
+          </div>
+        ) : tracks.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Music className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>Пока нет опубликованных треков</p>
@@ -162,8 +143,8 @@ export const PublicTracksFeed = ({ limit = 10, showHeader = true }: PublicTracks
         ) : (
           <div className="space-y-4">
             {tracks.map((track) => {
-              const artistName = track.profile?.display_name || track.artist.name;
-              const avatarUrl = track.profile?.avatar_url || track.artist.avatar_url;
+              const artistName = track.artist.name;
+              const avatarUrl = track.artist.avatar_url;
               const isPlaying = currentlyPlaying === track.id;
               const service = track.metadata?.service;
 
@@ -229,4 +210,4 @@ export const PublicTracksFeed = ({ limit = 10, showHeader = true }: PublicTracks
       </CardContent>
     </Card>
   );
-};
+});

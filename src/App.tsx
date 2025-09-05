@@ -28,7 +28,7 @@ const AIGenerationStudio = lazy(() => import("./pages/AIGenerationStudio"));
 const Tracks = lazy(() => import("./pages/Tracks"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Auth = lazy(() => import("./pages/Auth"));
-const Index = lazy(() => import("./pages/Index"));
+const Index = lazy(() => import("./pages/OptimizedIndex"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TrackDetailsDemo = lazy(() => import("./pages/TrackDetailsDemo"));
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Music, Sparkles, FolderOpen, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +11,7 @@ interface UserStats {
   activeGenerations: number;
 }
 
-export const UserStatsPanel = () => {
+export const UserStatsPanel = React.memo(() => {
   const { user } = useAuth();
   const [stats, setStats] = useState<UserStats>({
     totalTracks: 0,
@@ -20,95 +20,81 @@ export const UserStatsPanel = () => {
     activeGenerations: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadUserStats = useCallback(async () => {
+    if (!user?.id) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Use optimized RPC function for single database call
+      const { data, error: rpcError } = await supabase
+        .rpc('get_user_stats', { p_user_id: user.id });
+
+      if (rpcError) throw rpcError;
+
+      if (data && data.length > 0) {
+        const result = data[0];
+        setStats({
+          totalTracks: result.total_tracks || 0,
+          totalProjects: result.total_projects || 0,
+          totalArtists: result.total_artists || 0,
+          activeGenerations: result.active_generations || 0,
+        });
+      } else {
+        setStats({
+          totalTracks: 0,
+          totalProjects: 0,
+          totalArtists: 0,
+          activeGenerations: 0,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user stats:', error);
+      setError('Failed to load statistics');
+      setStats({
+        totalTracks: 0,
+        totalProjects: 0,
+        totalArtists: 0,
+        activeGenerations: 0,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    const loadUserStats = async () => {
-      if (!user) return;
-
-      try {
-        // Получаем статистику пользователя напрямую
-
-        // Простой подход - получаем данные напрямую
-        const [tracks, projects, artists, generations] = await Promise.all([
-          supabase
-            .from('tracks')
-            .select(`
-              id,
-              projects!inner (
-                id,
-                artists!inner (
-                  id,
-                  user_id
-                )
-              )
-            `)
-            .eq('projects.artists.user_id', user.id),
-            
-          supabase
-            .from('projects')
-            .select(`
-              id,
-              artists!inner (
-                user_id
-              )
-            `)
-            .eq('artists.user_id', user.id),
-            
-          supabase
-            .from('artists')
-            .select('id')
-            .eq('user_id', user.id),
-            
-          supabase
-            .from('ai_generations')
-            .select('id')
-            .eq('user_id', user.id)
-            .in('status', ['pending', 'processing'])
-        ]);
-
-        setStats({
-          totalTracks: tracks.data?.length || 0,
-          totalProjects: projects.data?.length || 0,
-          totalArtists: artists.data?.length || 0,
-          activeGenerations: generations.data?.length || 0
-        });
-
-      } catch (error) {
-        console.error('Error loading user stats:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadUserStats();
-  }, [user]);
+  }, [loadUserStats]);
 
-  const statItems = [
+  const statItems = useMemo(() => [
     {
       icon: Music,
       label: 'Треки',
       value: stats.totalTracks,
-      color: 'text-blue-600 dark:text-blue-400'
+      color: 'text-primary'
     },
     {
       icon: FolderOpen,
       label: 'Проекты',
       value: stats.totalProjects,
-      color: 'text-green-600 dark:text-green-400'
+      color: 'text-primary'
     },
     {
       icon: Users,
       label: 'Артисты',
       value: stats.totalArtists,
-      color: 'text-purple-600 dark:text-purple-400'
+      color: 'text-primary'
     },
     {
       icon: Sparkles,
       label: 'Генерации',
       value: stats.activeGenerations,
-      color: 'text-orange-600 dark:text-orange-400'
+      color: 'text-primary'
     }
-  ];
+  ], [stats]);
 
   if (isLoading) {
     return (
@@ -128,10 +114,22 @@ export const UserStatsPanel = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <Card className="col-span-full">
+          <CardContent className="p-4 text-center text-muted-foreground">
+            <p>Не удалось загрузить статистику</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       {statItems.map((item, index) => (
-        <Card key={index} className="hover:shadow-md transition-shadow">
+        <Card key={index} className="hover:shadow-sm transition-shadow">
           <CardContent className="p-4">
             <div className="flex flex-col items-center text-center space-y-2">
               <item.icon className={`h-8 w-8 ${item.color}`} />
@@ -143,4 +141,4 @@ export const UserStatsPanel = () => {
       ))}
     </div>
   );
-};
+});
