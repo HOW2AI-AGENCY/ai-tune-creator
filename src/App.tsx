@@ -28,6 +28,7 @@ const AIGenerationStudio = lazy(() => import("./pages/AIGenerationStudio"));
 const Tracks = lazy(() => import("./pages/Tracks"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Auth = lazy(() => import("./pages/Auth"));
+const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TrackDetailsDemo = lazy(() => import("./pages/TrackDetailsDemo"));
 
@@ -87,7 +88,8 @@ function AppContent() {
           <ProtectedRoute requireAuth={true}>
             <Layout>
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<Index />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/projects" element={<Projects />} />
                 <Route path="/tracks" element={<Tracks />} />
                 <Route path="/artists" element={<Artists />} />
