@@ -1012,6 +1012,19 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: number
       }
+      get_public_tracks_feed: {
+        Args: { p_limit?: number }
+        Returns: {
+          artist_avatar_url: string
+          artist_name: string
+          audio_url: string
+          created_at: string
+          id: string
+          metadata: Json
+          project_id: string
+          title: string
+        }[]
+      }
       get_tracks_needing_storage_upload: {
         Args: { p_user_id: string }
         Returns: {
@@ -1022,6 +1035,15 @@ export type Database = {
           service: string
           title: string
           track_id: string
+        }[]
+      }
+      get_user_stats: {
+        Args: { p_user_id: string }
+        Returns: {
+          active_generations: number
+          total_artists: number
+          total_projects: number
+          total_tracks: number
         }[]
       }
       has_role: {
