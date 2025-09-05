@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useTracks } from "@/hooks/data/useTracks";
@@ -13,7 +13,9 @@ import { useTelegramTheme } from "@/hooks/useTelegramTheme";
 import { useTelegramShare } from "@/hooks/useTelegramShare";
 import { TelegramGenerationProgress } from "@/components/mobile/TelegramGenerationProgress";
 import { useUnifiedGeneration } from "@/features/ai-generation/hooks/useUnifiedGeneration";
-import { Wand2, Music, ArrowLeft, Plus, Share2, Download, Heart, MoreHorizontal, Search, Filter, Clock } from "lucide-react";
+import { SimplifiedGenerationPanel } from "@/components/ai-generation/SimplifiedGenerationPanel";
+import { LocalErrorBoundary } from "@/components/debug/LocalErrorBoundary";
+import { Wand2, Music, ArrowLeft, Plus, Share2, Download, Heart, MoreHorizontal, Search, Filter, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface GenerationFormData {
@@ -213,11 +215,44 @@ export default function MobileGeneration() {
   if (showForm) {
     return (
       <TelegramPageLayout>
-        <TelegramGenerationForm
-          onGenerate={handleGenerate}
-          onCancel={() => {}}
-          isGenerating={isGenerating}
-        />
+        <LocalErrorBoundary 
+          sectionName="Mobile Generation Form"
+          fallback={
+            <div className="p-4">
+              <SimplifiedGenerationPanel 
+                onGenerate={(params) => {
+                  handleGenerate({
+                    prompt: params.prompt,
+                    genre: 'pop',
+                    mood: 'upbeat',
+                    duration: 180,
+                    tempo: 120,
+                    instrumental: params.instrumental || false,
+                    language: params.language || 'ru',
+                    tags: []
+                  });
+                }}
+                isGenerating={isGenerating}
+                className="bg-[--tg-theme-bg-color] border-[--tg-separator-color]"
+              />
+            </div>
+          }
+        >
+          <Suspense fallback={
+            <div className="p-4 flex items-center justify-center">
+              <div className="text-center">
+                <Music className="h-8 w-8 mx-auto mb-4 text-[--tg-button-color] animate-pulse" />
+                <p className="text-[--tg-text]">Загружаем форму...</p>
+              </div>
+            </div>
+          }>
+            <TelegramGenerationForm
+              onGenerate={handleGenerate}
+              onCancel={() => {}}
+              isGenerating={isGenerating}
+            />
+          </Suspense>
+        </LocalErrorBoundary>
       </TelegramPageLayout>
     );
   }

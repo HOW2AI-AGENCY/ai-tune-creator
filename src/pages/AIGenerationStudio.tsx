@@ -8,31 +8,48 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Search, Play, Heart, Download, Music, Sparkles, RefreshCw, CloudDownload, MoreHorizontal, Command, Clock, Eye, Pause, Filter, SlidersHorizontal, Plus } from "lucide-react";
+import { Search, Play, Heart, Download, Music, Sparkles, RefreshCw, CloudDownload, MoreHorizontal, Command, Clock, Eye, Pause, Filter, SlidersHorizontal, Plus, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTrackSync } from "@/hooks/useTrackSync";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { GenerationParams } from "@/features/ai-generation/types";
 import { cn, getErrorMessage } from "@/lib/utils";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { TrackStorageManager } from "@/components/dev/TrackStorageManager";
 import { useEventListener } from "@/lib/events/event-bus";
-import { lazy } from "react";
+import { safeLazy, preloadModules } from "@/lib/optimization/SafeLazyLoader";
+import { SimplifiedGenerationPanel } from "@/components/ai-generation/SimplifiedGenerationPanel";
+import { LocalErrorBoundary } from "@/components/debug/LocalErrorBoundary";
 
-// Lazily import heavy components to improve initial load time
-const GenerationContextPanel = lazy(() => import("@/features/ai-generation/components/GenerationContextPanel").then(module => ({ default: module.GenerationContextPanel })));
-const TaskQueuePanel = lazy(() => import("@/features/ai-generation/components/TaskQueuePanel").then(module => ({ default: module.TaskQueuePanel })));
-const TrackResultsGrid = lazy(() => import("@/features/ai-generation/components/TrackResultsGrid").then(module => ({ default: module.TrackResultsGrid })));
-const TrackDetailsDrawer = lazy(() => import("@/features/ai-generation/components/TrackDetailsDrawer").then(module => ({ default: module.TrackDetailsDrawer })));
-const CommandPalette = lazy(() => import("@/features/ai-generation/components/CommandPalette").then(module => ({ default: module.CommandPalette })));
-const FloatingPlayer = lazy(() =>
-  import("@/features/ai-generation/components/FloatingPlayer")
-  .then(module => ({ default: module.FloatingPlayer }))
+// Безопасная загрузка тяжелых компонентов с retry и timeout
+const GenerationContextPanel = safeLazy(
+  () => import("@/features/ai-generation/components/GenerationContextPanel").then(module => ({ default: module.GenerationContextPanel })),
+  { timeout: 5000, retries: 2 }
+);
+const TaskQueuePanel = safeLazy(
+  () => import("@/features/ai-generation/components/TaskQueuePanel").then(module => ({ default: module.TaskQueuePanel })),
+  { timeout: 3000, retries: 1 }
+);
+const TrackResultsGrid = safeLazy(
+  () => import("@/features/ai-generation/components/TrackResultsGrid").then(module => ({ default: module.TrackResultsGrid })),
+  { timeout: 5000, retries: 2 }
+);
+const TrackDetailsDrawer = safeLazy(
+  () => import("@/features/ai-generation/components/TrackDetailsDrawer").then(module => ({ default: module.TrackDetailsDrawer })),
+  { timeout: 3000, retries: 1 }
+);
+const CommandPalette = safeLazy(
+  () => import("@/features/ai-generation/components/CommandPalette").then(module => ({ default: module.CommandPalette })),
+  { timeout: 3000, retries: 1 }
+);
+const FloatingPlayer = safeLazy(
+  () => import("@/features/ai-generation/components/FloatingPlayer").then(module => ({ default: module.FloatingPlayer })),
+  { timeout: 3000, retries: 1 }
 );
 
 interface Track {
@@ -72,20 +89,13 @@ interface Option {
   name: string;
 }
 export default function AIGenerationStudio() {
-  const {
-    user
-  } = useAuth();
-  const {
-    toast
-  } = useToast();
-  const {
-    t
-  } = useTranslation();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { t } = useTranslation();
   const isMobile = useIsMobile();
   const location = useLocation();
-  const {
-    state: sidebarState
-  } = useSidebar();
+  const [searchParams] = useSearchParams();
+  const { state: sidebarState } = useSidebar();
 
   // Generation with progress tracking
   const {
@@ -123,6 +133,11 @@ export default function AIGenerationStudio() {
   // Mobile State
   const [isGenerationPanelOpen, setIsGenerationPanelOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Loading States
+  const [modulesLoaded, setModulesLoaded] = useState(false);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Sync Hook
   const {
@@ -155,8 +170,28 @@ export default function AIGenerationStudio() {
     window.addEventListener('open-generation-panel', openHandler);
     return () => window.removeEventListener('open-generation-panel', openHandler);
   }, []);
+  // Инициализация и предзагрузка модулей
   useEffect(() => {
     if (!user) return;
+
+    console.log('[AIGenerationStudio] Component mounted, starting initialization...');
+
+    // Предзагрузка тяжелых модулей
+    const preloadHeavyModules = async () => {
+      try {
+        console.log('[AIGenerationStudio] Preloading heavy modules...');
+        await preloadModules([
+          () => import("@/features/ai-generation/components/GenerationContextPanel"),
+          () => import("@/features/ai-generation/components/TaskQueuePanel"),
+          () => import("@/features/ai-generation/components/TrackResultsGrid")
+        ]);
+        setModulesLoaded(true);
+        console.log('[AIGenerationStudio] Heavy modules preloaded successfully');
+      } catch (error) {
+        console.error('[AIGenerationStudio] Failed to preload modules:', error);
+        setLoadingError('Не удалось загрузить компоненты интерфейса');
+      }
+    };
 
     // Clear stuck processing tasks first
     const clearStuckTasks = async () => {
@@ -166,12 +201,23 @@ export default function AIGenerationStudio() {
         console.error('Error clearing stuck tasks:', error);
       }
     };
-    clearStuckTasks().then(() => {
-      fetchData();
-    });
 
-    // Components are now lazy-loaded automatically when needed
+    // Инициализация данных и компонентов
+    Promise.all([clearStuckTasks(), preloadHeavyModules()])
+      .then(() => fetchData())
+      .catch((error) => {
+        console.error('[AIGenerationStudio] Initialization failed:', error);
+        setLoadingError('Ошибка инициализации приложения');
+      });
   }, [user]);
+
+  // Автооткрытие панели генерации из URL
+  useEffect(() => {
+    if (searchParams.get('open') === '1' && isMobile) {
+      console.log('[AIGenerationStudio] Auto-opening generation panel from URL');
+      setIsGenerationPanelOpen(true);
+    }
+  }, [searchParams, isMobile]);
   const fetchData = async () => {
     try {
       // Fetch context data
