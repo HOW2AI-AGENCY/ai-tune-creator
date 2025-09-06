@@ -5,7 +5,11 @@ import { TrackVersionsDialog } from "./TrackVersionsDialog";
 import { TrackGenerationDialog } from "./TrackGenerationDialog";
 import { TrackExtendDialog } from "./TrackExtendDialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { History, Sparkles, Zap } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Track {
   id: string;
@@ -19,6 +23,7 @@ interface Track {
   genre_tags?: string[] | null;
   style_prompt?: string | null;
   metadata?: any;
+  is_public?: boolean;
   created_at: string;
   updated_at: string;
   project_id: string;
@@ -80,6 +85,29 @@ export function TrackDetailsDialog({ open, onOpenChange, track, onTrackUpdated }
                   <Zap className="h-4 w-4 mr-2" />
                   Расширить трек
                 </Button>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="public-track"
+                    checked={track.is_public || false}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        const { error } = await supabase
+                          .from('tracks')
+                          .update({ is_public: checked })
+                          .eq('id', track.id);
+
+                        if (error) throw error;
+                        
+                        toast.success(`Track ${checked ? 'made public' : 'made private'}`);
+                        onTrackUpdated();
+                      } catch (error) {
+                        console.error('Failed to update track visibility:', error);
+                        toast.error('Failed to update track visibility');
+                      }
+                    }}
+                  />
+                  <Label htmlFor="public-track">Public</Label>
+                </div>
               </div>
             </div>
 

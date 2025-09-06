@@ -551,6 +551,36 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          count: number
+          created_at: string
+          expires_at: string
+          id: string
+          identifier: string
+          operation: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          expires_at: string
+          id?: string
+          identifier: string
+          operation: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          identifier?: string
+          operation?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       reference_research: {
         Row: {
           ai_analysis: string | null
@@ -728,6 +758,7 @@ export type Database = {
           duration: number | null
           genre_tags: string[] | null
           id: string
+          is_public: boolean
           lyrics: string | null
           metadata: Json | null
           project_id: string
@@ -748,6 +779,7 @@ export type Database = {
           duration?: number | null
           genre_tags?: string[] | null
           id?: string
+          is_public?: boolean
           lyrics?: string | null
           metadata?: Json | null
           project_id: string
@@ -768,6 +800,7 @@ export type Database = {
           duration?: number | null
           genre_tags?: string[] | null
           id?: string
+          is_public?: boolean
           lyrics?: string | null
           metadata?: Json | null
           project_id?: string
@@ -956,6 +989,15 @@ export type Database = {
         Args: { _key: string; _ttl_seconds?: number }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: {
+          p_identifier: string
+          p_max_requests: number
+          p_operation: string
+          p_window_minutes?: number
+        }
+        Returns: Json
+      }
       cleanup_expired_telegram_nonces: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1099,6 +1141,15 @@ export type Database = {
           p_track_id: string
         }
         Returns: undefined
+      }
+      validate_file_upload: {
+        Args: {
+          p_file_name: string
+          p_file_size: number
+          p_mime_type: string
+          p_upload_type?: string
+        }
+        Returns: Json
       }
       validate_track_metadata: {
         Args: { metadata_json: Json }

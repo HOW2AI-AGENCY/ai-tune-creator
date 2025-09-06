@@ -2,6 +2,8 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SecureFileValidator } from "@/lib/security/secure-file-validation";
+import { toast } from "sonner";
 
 interface FileUploadProps {
   onFileSelect: (file: File | null) => void;
@@ -24,17 +26,27 @@ export function FileUpload({
   const [error, setError] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (file: File | null) => {
+  const handleFileChange = async (file: File | null) => {
     setError(null);
     
     if (file) {
-      if (file.size > maxSize) {
-        setError(`Файл слишком большой. Максимальный размер: ${Math.round(maxSize / (1024 * 1024))}MB`);
-        return;
-      }
-      
-      if (accept && !file.type.match(accept.replace('*', '.*'))) {
-        setError('Неподдерживаемый тип файла');
+      // Determine upload type based on accept prop
+      let uploadType: 'image' | 'audio' | 'general' = 'general';
+      if (accept?.includes('image/')) uploadType = 'image';
+      else if (accept?.includes('audio/')) uploadType = 'audio';
+
+      try {
+        const validation = await SecureFileValidator.validateFile(file, uploadType);
+        
+        if (!validation.valid) {
+          setError(validation.errors.join(', '));
+          toast.error(`File validation failed: ${validation.errors.join(', ')}`);
+          return;
+        }
+      } catch (error) {
+        console.error('File validation failed:', error);
+        setError('File validation failed');
+        toast.error('Failed to validate file');
         return;
       }
     }
