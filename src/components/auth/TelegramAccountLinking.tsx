@@ -5,10 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Unlink, Link, MessageCircle, User, CheckCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAccountLinking } from "@/hooks/useAccountLinking";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
+import { getTelegramData } from "@/lib/secure-profile";
 
 interface UserProfile {
   telegram_id?: string | null;
@@ -33,18 +33,8 @@ export const TelegramAccountLinking = () => {
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('telegram_id, telegram_username, telegram_first_name, telegram_last_name')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
-        return;
-      }
-
-      setProfile(data || {});
+      const telegramData = await getTelegramData();
+      setProfile(telegramData || {});
     } catch (error) {
       console.error('Profile fetch failed:', error);
     } finally {

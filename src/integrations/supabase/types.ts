@@ -1054,6 +1054,14 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: number
       }
+      get_public_profile: {
+        Args: { profile_user_id: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+        }[]
+      }
       get_public_tracks_feed: {
         Args: { p_limit?: number }
         Returns: {
