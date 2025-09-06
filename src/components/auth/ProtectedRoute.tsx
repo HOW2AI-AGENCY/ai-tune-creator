@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
+import { SimplePreloader } from "@/components/debug/SimplePreloader";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -56,6 +57,6 @@ export const ProtectedRoute = ({ children, requireAuth = true }: ProtectedRouteP
   }
 
   // If we reach here, user is not authenticated
-  // This shouldn't happen due to the useEffect redirect, but just in case
-  return null;
+  // Show preloader during redirect instead of null (белый экран)
+  return <SimplePreloader message="Перенаправление..." />;
 };

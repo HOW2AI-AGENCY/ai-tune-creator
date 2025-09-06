@@ -16,6 +16,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { RefreshCw } from "lucide-react";
 import { PerformanceMonitor } from "@/components/debug/PerformanceMonitor";
 import { ErrorBoundary } from "@/components/debug/ErrorBoundary";
+import { GlobalErrorHandler } from "@/components/debug/GlobalErrorHandler";
+import { bootLogger } from "@/components/debug/BootLogger";
 // import { UpdateNotification } from "@/components/service-worker/UpdateNotification";
 // import { serviceWorkerManager } from "@/lib/service-worker/sw-manager";
 
@@ -31,6 +33,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const Index = lazy(() => import("./pages/OptimizedIndex"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TrackDetailsDemo = lazy(() => import("./pages/TrackDetailsDemo"));
+const HealthCheck = lazy(() => import("./pages/HealthCheck"));
 
 /**
  * Optimized QueryClient configuration для AI Music Platform
@@ -65,7 +68,7 @@ function AppContent() {
   const PageLoader = () => (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <div className="text-center space-y-4">
-        <RefreshCw className="h-8 w-8 animate-spin text-primary mx-auto" />
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
         <p className="text-muted-foreground">Загружается...</p>
       </div>
     </div>
@@ -97,6 +100,7 @@ function AppContent() {
                 <Route path="/generate-old" element={<AIGeneration />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/demo/track-details" element={<TrackDetailsDemo />} />
+                <Route path="/__health" element={<HealthCheck />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>
@@ -118,11 +122,16 @@ function AppContent() {
  * 5. TooltipProvider - UI tooltips
  */
 const App = () => {
-  // Установка темной темы по умолчанию
   useEffect(() => {
+    bootLogger.log('8. App component mounted');
+    
+    // Установка темной темы по умолчанию
     if (!localStorage.getItem('theme')) {
+      bootLogger.log('9. Setting default dark theme');
       localStorage.setItem('theme', 'dark');
       document.documentElement.classList.add('dark');
+    } else {
+      bootLogger.log('9. Theme already set');
     }
   }, []);
 
@@ -133,6 +142,7 @@ const App = () => {
 
   return (
     <ErrorBoundary>
+      <GlobalErrorHandler />
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <BrowserRouter

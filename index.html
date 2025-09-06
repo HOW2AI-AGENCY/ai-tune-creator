@@ -22,7 +22,18 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Показываем сообщение пока React не загрузился -->
+      <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui; color: #666; background: #fff;">
+        <div style="text-align: center;">
+          <div style="width: 32px; height: 32px; border: 2px solid #e5e7eb; border-top: 2px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+          <div>Загружается приложение...</div>
+        </div>
+      </div>
+      <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+      </style>
+    </div>
     
     <!-- Telegram Mini App Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
