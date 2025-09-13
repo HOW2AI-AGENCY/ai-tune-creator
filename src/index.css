@@ -120,6 +120,30 @@ All colors MUST be HSL.
     --interactive-hover: 261 83% 58% / 0.2;
     --text-on-dark: 0 0% 100%;
     --text-muted-on-dark: 0 0% 100% / 0.8;
+    
+    /* Enhanced mobile responsive tokens */
+    --mobile-breakpoint: 768px;
+    --tablet-breakpoint: 1024px;
+    --desktop-breakpoint: 1280px;
+    
+    /* Touch target specifications */
+    --touch-target-min: 44px;
+    --touch-spacing-min: 8px;
+    
+    /* Mobile-optimized spacing scale */
+    --mobile-spacing-xs: 0.25rem;
+    --mobile-spacing-sm: 0.5rem;
+    --mobile-spacing-md: 1rem;
+    --mobile-spacing-lg: 1.5rem;
+    --mobile-spacing-xl: 2rem;
+    
+    /* Mobile typography scale */
+    --mobile-text-xs: 0.75rem;
+    --mobile-text-sm: 0.875rem;
+    --mobile-text-base: 1rem;
+    --mobile-text-lg: 1.125rem;
+    --mobile-text-xl: 1.25rem;
+    --mobile-text-2xl: 1.5rem;
   }
 
   .dark {
@@ -498,6 +522,86 @@ All colors MUST be HSL.
       transform: scale(0.9);
       opacity: 0;
     }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Responsive Design Utilities */
+  @media (max-width: 768px) {
+    .mobile-only {
+      display: block;
+    }
+    
+    .desktop-only {
+      display: none;
+    }
+    
+    /* Mobile-optimized text sizes */
+    .mobile-text-sm {
+      font-size: var(--mobile-text-sm);
+    }
+    
+    .mobile-text-base {
+      font-size: var(--mobile-text-base);
+    }
+    
+    .mobile-text-lg {
+      font-size: var(--mobile-text-lg);
+    }
+    
+    /* Mobile spacing utilities */
+    .mobile-p-4 {
+      padding: var(--mobile-spacing-md);
+    }
+    
+    .mobile-px-4 {
+      padding-left: var(--mobile-spacing-md);
+      padding-right: var(--mobile-spacing-md);
+    }
+    
+    .mobile-py-4 {
+      padding-top: var(--mobile-spacing-md);
+      padding-bottom: var(--mobile-spacing-md);
+    }
+    
+    /* Touch-friendly sizing */
+    .touch-target {
+      min-height: var(--touch-target-min);
+      min-width: var(--touch-target-min);
+    }
+  }
+  
+  @media (min-width: 769px) {
+    .mobile-only {
+      display: none;
+    }
+    
+    .desktop-only {
+      display: block;
+    }
+  }
+  
+  /* Universal responsive utilities */
+  .responsive-container {
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+  
+  @media (min-width: 768px) {
+    .responsive-container {
+      padding: 0 2rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .responsive-container {
+      padding: 0 3rem;
+    }
+  }
     to {
       transform: scale(1);
       opacity: 1;

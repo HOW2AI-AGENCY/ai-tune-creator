@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { MobileHeader } from "./MobileHeader";
 import { MobileBottomNav } from "./MobileBottomNav";
+import { ResponsiveContainer } from "./ResponsiveContainer";
 import { useLocation } from "react-router-dom";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { cn } from "@/lib/utils";
@@ -60,16 +61,19 @@ export function MobileLayout({ children }: MobileLayoutProps) {
         )}
 
         {/* Main Content */}
-        <main className={cn(
-          "flex-1 overflow-auto",
-          "mobile-content-area",
-          showBottomNav && "pb-16", // Space for bottom nav
-          "bg-background"
-        )}>
-          <div className="min-h-full">
+        <ResponsiveContainer 
+          className={cn(
+            "flex-1 overflow-auto",
+            "mobile-content-area",
+            showBottomNav && "pb-16", // Space for bottom nav
+            "bg-background"
+          )}
+          padding="none"
+        >
+          <div className="min-h-full responsive-container">
             {children}
           </div>
-        </main>
+        </ResponsiveContainer>
 
         {/* Mobile Bottom Navigation */}
         {showBottomNav && <MobileBottomNav />}
