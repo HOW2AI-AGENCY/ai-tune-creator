@@ -602,11 +602,6 @@ All colors MUST be HSL.
       padding: 0 3rem;
     }
   }
-    to {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
 
   /* Lyrics Editor Specific Styles */
   .lyrics-editor {
