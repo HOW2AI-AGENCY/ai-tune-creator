@@ -57,13 +57,8 @@ export default function AIGeneration() {
     
     console.log("Fetching generations...");
     
-    // Сначала пытаемся обновить старые статусы
-    try {
-      await supabase.functions.invoke('update-processing-status');
-      console.log("Processing statuses updated");
-    } catch (updateError) {
-      console.warn("Could not update processing statuses:", updateError);
-    }
+    // Пропускаем обновление статусов на клиенте — доступно только по cron/серверу
+    // Статусы будут подтянуты напрямую из БД ниже
     
     const { data, error } = await supabase
       .from("ai_generations")

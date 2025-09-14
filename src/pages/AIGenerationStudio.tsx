@@ -193,17 +193,13 @@ export default function AIGenerationStudio() {
       }
     };
 
-    // Clear stuck processing tasks first
+    // Clear stuck processing tasks first (disabled on client; server-only)
     const clearStuckTasks = async () => {
-      try {
-        await supabase.functions.invoke('update-processing-status');
-      } catch (error) {
-        console.error('Error clearing stuck tasks:', error);
-      }
+      return; // no-op
     };
 
     // Инициализация данных и компонентов
-    Promise.all([clearStuckTasks(), preloadHeavyModules()])
+    Promise.all([preloadHeavyModules()])
       .then(() => fetchData())
       .catch((error) => {
         console.error('[AIGenerationStudio] Initialization failed:', error);
