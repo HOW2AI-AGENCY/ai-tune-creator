@@ -989,6 +989,14 @@ export type Database = {
         Args: { _key: string; _ttl_seconds?: number }
         Returns: boolean
       }
+      audit_user_profiles_security: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          check_name: string
+          recommendation: string
+          status: string
+        }[]
+      }
       check_rate_limit: {
         Args: {
           p_identifier: string
