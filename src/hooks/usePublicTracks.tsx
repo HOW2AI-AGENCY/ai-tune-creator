@@ -44,7 +44,7 @@ export function usePublicTracks({
         throw error;
       }
 
-      logger.debug('Successfully fetched', data?.length || 0, 'tracks');
+      logger.debug('Successfully fetched tracks:', data?.length || 0);
       return (data || []) as PublicTrack[];
     },
     enabled,
