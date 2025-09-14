@@ -49,9 +49,6 @@ const TIMEOUT_CONFIG = {
 
 // Security imports
 import { getSecureCorsHeaders, authenticateUser } from '../_shared/cors.ts';
-import { logger } from '../_shared/secure-logger.ts';
-import { sanitizeInput } from '../_shared/input-sanitizer.ts';
-import { getSecureCorsHeaders } from '../_shared/cors.ts';
 import { SecureLogger } from '../_shared/secure-logger.ts';
 import { InputSanitizer } from '../_shared/input-sanitizer.ts';
 
