@@ -21,13 +21,21 @@ export class InputSanitizer {
     '/': '&#x2F;',
   };
 
-  // SQL injection patterns
+  // SQL injection patterns (focused on real SQL constructs to avoid false positives)
   private static readonly SQL_INJECTION_PATTERNS = [
-    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/gi,
-    /(\b(OR|AND)\s+\d+\s*=\s*\d+)/gi,
-    /(--|#|\/\*|\*\/)/gi,
-    /(\bxp_\w+)/gi,
-    /(\bsp_\w+)/gi,
+    /\bSELECT\b[\s\S]+?\bFROM\b/i,
+    /\bINSERT\s+INTO\b/i,
+    /\bUPDATE\b[\s\S]+?\bSET\b/i,
+    /\bDELETE\s+FROM\b/i,
+    /\bDROP\s+(TABLE|DATABASE|SCHEMA)\b/i,
+    /\bCREATE\s+(TABLE|DATABASE|SCHEMA|FUNCTION|PROCEDURE|TRIGGER)\b/i,
+    /\bALTER\s+(TABLE|DATABASE|SCHEMA)\b/i,
+    /\bEXEC(UTE)?\b/i,
+    /\bUNION\b\s+SELECT\b/i,
+    /(--|#|\/\*|\*\/)/,
+    /(\bxp_\w+)/i,
+    /(\bsp_\w+)/i,
+    /(\b(OR|AND)\s+\d+\s*=\s*\d+)/i,
   ];
 
   // XSS patterns
