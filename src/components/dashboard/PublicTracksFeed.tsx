@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Music, User, Calendar, Play } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Music, User, Calendar, Play, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { usePublicTracks } from '@/hooks/usePublicTracks';
+import { usePerformanceTracking } from '@/lib/optimization/PerformanceOptimizer';
 
 interface Track {
   id: string;
@@ -18,10 +19,6 @@ interface Track {
     name: string;
     avatar_url?: string;
   };
-  profile?: {
-    display_name?: string;
-    avatar_url?: string;
-  };
 }
 
 interface PublicTracksFeedProps {
@@ -30,47 +27,28 @@ interface PublicTracksFeedProps {
 }
 
 export const PublicTracksFeed = React.memo(({ limit = 10, showHeader = true }: PublicTracksFeedProps) => {
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  usePerformanceTracking('PublicTracksFeed'); // Мониторинг производительности
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  
+  // Используем оптимизированный хук вместо прямых запросов
+  const { tracks: rawTracks, isLoading, isError, refresh, isFetching } = usePublicTracks({
+    limit,
+    enabled: true,
+    backgroundRefetch: false // Отключаем автообновление для экономии ресурсов
+  });
 
-  const loadPublicTracks = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // Use optimized RPC function for better performance
-      const { data, error: rpcError } = await supabase
-        .rpc('get_public_tracks_feed', { p_limit: limit });
-
-      if (rpcError) throw rpcError;
-
-      const formattedTracks = data?.map(track => ({
-        id: track.id,
-        title: track.title,
-        created_at: track.created_at,
-        audio_url: track.audio_url,
-        metadata: track.metadata as Record<string, any> || {},
-        artist: {
-          name: track.artist_name || 'Неизвестный артист',
-          avatar_url: track.artist_avatar_url
-        }
-      })) || [];
-
-      setTracks(formattedTracks);
-    } catch (error) {
-      console.error('Error loading public tracks:', error);
-      setError('Failed to load tracks');
-      setTracks([]);
-    } finally {
-      setIsLoading(false);
+  // Форматируем треки для компонента
+  const tracks: Track[] = rawTracks.map(track => ({
+    id: track.id,
+    title: track.title,
+    created_at: track.created_at,
+    audio_url: track.audio_url,
+    metadata: (track.metadata as Record<string, any>) || {},
+    artist: {
+      name: track.artist_name || 'Неизвестный артист',
+      avatar_url: track.artist_avatar_url
     }
-  }, [limit]);
-
-  useEffect(() => {
-    loadPublicTracks();
-  }, [loadPublicTracks]);
+  }));
 
   const playTrack = useCallback((trackId: string, audioUrl: string) => {
     if (currentlyPlaying === trackId) {
@@ -123,17 +101,31 @@ export const PublicTracksFeed = React.memo(({ limit = 10, showHeader = true }: P
     <Card>
       {showHeader && (
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Music className="h-5 w-5" />
-            Последние треки сообщества
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Music className="h-5 w-5" />
+              Последние треки сообщества
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refresh}
+              disabled={isFetching}
+              className="h-8 w-8 p-0"
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
           </CardTitle>
         </CardHeader>
       )}
       <CardContent className="p-6">
-        {error ? (
+        {isError ? (
           <div className="text-center py-8 text-muted-foreground">
             <Music className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>Не удалось загрузить треки</p>
+            <Button variant="outline" size="sm" onClick={refresh} className="mt-2">
+              Попробовать снова
+            </Button>
           </div>
         ) : tracks.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">

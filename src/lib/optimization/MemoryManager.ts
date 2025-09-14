@@ -13,7 +13,7 @@ interface MemoryEntry {
 class MemoryManager {
   private static instance: MemoryManager;
   private allocatedMemory = new Map<string, MemoryEntry>();
-  private maxMemoryMB = 50; // Максимальный размер кеша в МБ
+  private maxMemoryMB = 30; // Уменьшаем лимит памяти для стабильности
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   private constructor() {
@@ -133,7 +133,7 @@ class MemoryManager {
         const memory = (performance as any).memory;
         const usage = memory.usedJSHeapSize / 1024 / 1024; // МБ
         
-        if (usage > 100) { // Если больше 100МБ
+        if (usage > 80) { // Снижаем порог для более агрессивной очистки
           console.warn('[MemoryManager] High memory usage detected:', usage.toFixed(2), 'MB');
           this.cleanup();
         }

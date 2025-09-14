@@ -6,10 +6,12 @@ import { WelcomeSection } from "@/components/dashboard/WelcomeSection";
 import { UserStatsPanel } from "@/components/dashboard/UserStatsPanel";
 import { PublicTracksFeed } from "@/components/dashboard/PublicTracksFeed";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+import { usePrefetchPublicTracks } from "@/hooks/usePublicTracks";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
   const { isInTelegram, isAuthenticated } = useTelegramAuth();
+  const { prefetch } = usePrefetchPublicTracks();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,7 +19,12 @@ const Index = () => {
     if (!loading && !user && !isInTelegram) {
       navigate("/auth");
     }
-  }, [user, loading, navigate, isInTelegram]);
+    
+    // Предзагружаем треки для улучшения UX
+    if (user && !loading) {
+      prefetch(10);
+    }
+  }, [user, loading, navigate, isInTelegram, prefetch]);
 
   if (loading) {
     return (
@@ -70,7 +77,7 @@ const Index = () => {
 
         {/* Лента треков сообщества */}
         <div className="mb-6">
-          <PublicTracksFeed limit={15} />
+          <PublicTracksFeed limit={10} />
         </div>
 
         {/* Account Actions */}
