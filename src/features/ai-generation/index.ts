@@ -1,6 +1,6 @@
 // AI Generation feature exports
 export { useTrackGeneration } from './hooks/useTrackGeneration';
-export { useTrackGenerationWithRetry } from './hooks/useTrackGenerationWithRetry';
+// Retry logic is now built into useSimpleGeneration
 export { useImageGeneration } from './hooks/useImageGeneration';
 export { useGenerationState } from './hooks/useGenerationState';
 
@@ -23,7 +23,7 @@ export { MurekaInstrumentalDialog } from './components/MurekaInstrumentalDialog'
 export { GenerationFeed } from './components/GenerationFeed';
 export { GenerationTrackCard } from './components/GenerationTrackCard';
 export { TaskQueuePanel } from './components/TaskQueuePanel';
-export { useTrackGenerationWithProgress } from './hooks/useTrackGenerationWithProgress';
+export { useSimpleGeneration } from './hooks/useSimpleGeneration';
 export { FileUploadZone } from './components/FileUploadZone';
 
 // Type exports

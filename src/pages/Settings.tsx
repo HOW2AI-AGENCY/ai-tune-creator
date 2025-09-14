@@ -9,13 +9,13 @@ import { SettingsTextarea } from "@/components/settings/SettingsTextarea";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useOptimizedSettings } from "@/hooks/optimization/useOptimizedSettings";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import { AIPromptSettings } from "@/features/ai-generation/components/AIPromptSettings";
 
 export default function Settings() {
   const { user } = useAuth();
   const { t } = useTranslation();
-  const { settings, isLoading, isSaving, updateSetting, saveSettings } = useOptimizedSettings();
+  const { settings, isLoading, isSaving, updateSetting, saveSettings } = useUserSettings();
 
   const handleSave = async (section: string) => {
     const sectionKey = section.toLowerCase() as keyof typeof settings;

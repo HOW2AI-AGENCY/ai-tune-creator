@@ -14,7 +14,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RefreshCw } from "lucide-react";
-import { PerformanceMonitor } from "@/components/debug/PerformanceMonitor";
+// Performance monitoring simplified
 import { ErrorBoundary } from "@/components/debug/ErrorBoundary";
 import { GlobalErrorHandler } from "@/components/debug/GlobalErrorHandler";
 import { bootLogger } from "@/components/debug/BootLogger";
@@ -30,7 +30,7 @@ const AIGenerationStudio = lazy(() => import("./pages/AIGenerationStudio"));
 const Tracks = lazy(() => import("./pages/Tracks"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Auth = lazy(() => import("./pages/Auth"));
-const Index = lazy(() => import("./pages/OptimizedIndex"));
+const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const TrackDetailsDemo = lazy(() => import("./pages/TrackDetailsDemo"));
 const HealthCheck = lazy(() => import("./pages/HealthCheck"));
@@ -158,7 +158,7 @@ const App = () => {
                     <SidebarProvider>
                       <Toaster />
                       <Sonner />
-                      {(import.meta.env.DEV && localStorage.getItem('perfMonitor')==='1') && <PerformanceMonitor />}
+                      {/* Performance monitoring simplified */}
                       <AppContent />
                     </SidebarProvider>
                   </TooltipProvider>

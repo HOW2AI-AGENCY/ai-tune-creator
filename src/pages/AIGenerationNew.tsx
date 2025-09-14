@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackLibrary } from "@/components/tracks/TrackLibrary";
 import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
 import { LyricsDrawer } from "@/features/ai-generation/components/LyricsDrawer";
-import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
+import { useSimpleGeneration } from "@/features/ai-generation/hooks/useSimpleGeneration";
 import { lazy, Suspense } from "react";
 const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(m => ({ default: m.FloatingPlayer })));
 import { 
@@ -101,8 +101,8 @@ export default function AIGenerationNew() {
     code?: string;
   } | null>(null);
   
-  // Хук для генерации с прогрессом
-  const { generateTrack, isGenerating: hookIsGenerating, generationProgress } = useTrackGenerationWithProgress();
+  // Simple generation hook
+  const { generateTrack, activeGenerations, isGenerating: hookIsGenerating, generationProgress } = useSimpleGeneration();
   
   // Хук для синхронизации треков
   const { isSyncing, syncTracks, downloadSingleTrack, lastSyncResults } = useTrackSync();

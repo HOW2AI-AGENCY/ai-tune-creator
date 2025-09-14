@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
-import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
+import { useSimpleGeneration } from "@/features/ai-generation/hooks/useSimpleGeneration";
+import { CanonicalGenerationInput } from "@/features/ai-generation/types/canonical";
 import { UnifiedGenerationSidebar } from "@/features/ai-generation/components/UnifiedGenerationSidebar";
+import { convertGenerationParams } from "@/lib/ai-services/types/generation-converter";
 import type { GenerationParams } from "@/features/ai-generation/types";
 import { GenerationFeed } from "@/features/ai-generation/components/GenerationFeed";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -49,8 +51,8 @@ export default function AIGeneration() {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<any | null>(null);
 
-  // Polling hook для отслеживания прогресса
-  const { generateTrack, isGenerating, generationProgress, retryGeneration } = useTrackGenerationWithProgress();
+  // Simple generation hook for backward compatibility
+  const { generateTrack, activeGenerations, retryGeneration, isGenerating, generationProgress } = useSimpleGeneration();
 
   const fetchGenerations = async () => {
     if (!user) return;
@@ -273,7 +275,7 @@ export default function AIGeneration() {
     };
     
     try {
-      await generateTrack(paramsWithInputType);
+      await generateTrack(params);
       // Принудительно обновляем данные после генерации
       console.log("Generation completed, refreshing data...");
       setTimeout(async () => {
@@ -535,7 +537,7 @@ export default function AIGeneration() {
                       link.click();
                       document.body.removeChild(link);
                     }}
-                    onRetry={retryGeneration}
+                    onRetry={(generation) => retryGeneration(generation.id)}
                   />
                 </TabsContent>
 

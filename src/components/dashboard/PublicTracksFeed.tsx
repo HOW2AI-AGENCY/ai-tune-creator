@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { usePublicTracks } from '@/hooks/usePublicTracks';
-import { usePerformanceTracking } from '@/lib/optimization/PerformanceOptimizer';
+// Performance tracking simplified
 
 interface Track {
   id: string;
@@ -27,7 +27,7 @@ interface PublicTracksFeedProps {
 }
 
 export const PublicTracksFeed = React.memo(({ limit = 10, showHeader = true }: PublicTracksFeedProps) => {
-  usePerformanceTracking('PublicTracksFeed'); // Мониторинг производительности
+  // Performance tracking simplified
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   
   // Используем оптимизированный хук вместо прямых запросов

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TrackGenerationSidebar } from "@/features/ai-generation/components/TrackGenerationSidebar";
 import { TrackLibrary } from "@/components/tracks/TrackLibrary";
 import { LyricsDrawer } from "@/features/ai-generation/components/LyricsDrawer";
-import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
+import { useSimpleGeneration } from "@/features/ai-generation/hooks/useSimpleGeneration";
 import { useTrackSync } from "@/hooks/useTrackSync";
 import { lazy, Suspense } from "react";
 const FloatingPlayer = lazy(() => import("@/features/ai-generation/components/FloatingPlayer").then(m => ({ default: m.FloatingPlayer })));
@@ -69,7 +69,7 @@ export default function AIGenerationSimple() {
   } | null>(null);
   
   // Hooks
-  const { generateTrack, isGenerating, generationProgress } = useTrackGenerationWithProgress();
+  const { generateTrack, activeGenerations, isGenerating, generationProgress } = useSimpleGeneration();
   const { isSyncing, syncTracks, lastSyncResults } = useTrackSync();
 
   // Handlers

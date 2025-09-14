@@ -18,7 +18,7 @@ import { cn, getErrorMessage } from "@/lib/utils";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useTrackGenerationWithProgress } from "@/features/ai-generation/hooks/useTrackGenerationWithProgress";
+import { useSimpleGeneration } from "@/features/ai-generation/hooks/useSimpleGeneration";
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
 import { TrackStorageManager } from "@/components/dev/TrackStorageManager";
 import { useEventListener } from "@/lib/events/event-bus";
@@ -100,11 +100,12 @@ export default function AIGenerationStudio() {
   // Generation with progress tracking
   const {
     generateTrack,
+    activeGenerations,
+    retryGeneration,
+    cancelGeneration,
     isGenerating,
-    generationProgress,
-    ongoingGenerations,
-    cancelGeneration
-  } = useTrackGenerationWithProgress();
+    generationProgress
+  } = useSimpleGeneration();
 
   // Check sidebar actual state
   const sidebarCollapsed = sidebarState === "collapsed";
@@ -554,8 +555,8 @@ export default function AIGenerationStudio() {
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
           {/* Generation Progress Skeletons */}
-          {ongoingGenerations.length > 0 && <div className="p-4 space-y-3">
-              {ongoingGenerations.map(generation => <TrackSkeleton key={generation.taskId} progress={generation.progress} title={generation.taskId} subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'} status={generation.status as any} steps={generation.steps} animated={true} />)}
+          {Array.from(activeGenerations.values()).length > 0 && <div className="p-4 space-y-3">
+              {Array.from(activeGenerations.values()).map(generation => <TrackSkeleton key={generation.taskId} progress={generation.overallProgress} title={generation.title} subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'} status={generation.status === 'pending' ? 'preparing' : generation.status === 'generating' ? 'generating' : generation.status === 'completed' ? 'completed' : 'error'} steps={generation.steps} animated={true} />)}
             </div>}
           
           <TrackResultsGrid tracks={filteredTracks} onTrackClick={handleTrackClick} onPlayTrack={handlePlayTrack} currentPlayingTrack={currentPlayingTrack} isPlaying={isPlaying} isSyncing={isSyncing} onTrackDeleted={fetchTracks} />
@@ -654,8 +655,8 @@ export default function AIGenerationStudio() {
         {/* Results Grid */}
         <div className="flex-1 overflow-y-auto scrollbar-slim">
           {/* Generation Progress Skeletons */}
-          {ongoingGenerations.length > 0 && <div className="p-4 space-y-3 bg-muted/20 border-b border-border">
-              {ongoingGenerations.map(generation => <TrackSkeleton key={generation.taskId} progress={generation.progress} title={generation.title} subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'} status={generation.status as any} steps={generation.steps} animated={true} />)}
+          {Array.from(activeGenerations.values()).length > 0 && <div className="p-4 space-y-3 bg-muted/20 border-b border-border">
+              {Array.from(activeGenerations.values()).map(generation => <TrackSkeleton key={generation.taskId} progress={generation.overallProgress} title={generation.title} subtitle={generation.service === 'suno' ? 'Suno AI' : 'Mureka'} status={generation.status === 'pending' ? 'preparing' : generation.status === 'generating' ? 'generating' : generation.status === 'completed' ? 'completed' : 'error'} steps={generation.steps} animated={true} />)}
             </div>}
           
           <TrackResultsGrid tracks={filteredTracks} onTrackClick={handleTrackClick} onPlayTrack={handlePlayTrack} currentPlayingTrack={currentPlayingTrack} isPlaying={isPlaying} isSyncing={isSyncing} onTrackDeleted={fetchTracks} />

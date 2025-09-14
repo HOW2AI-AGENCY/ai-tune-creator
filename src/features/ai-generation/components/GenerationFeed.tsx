@@ -5,7 +5,7 @@ import { Music2, RefreshCw } from "lucide-react";
 import { AIGeneration, useGenerationState } from '../hooks/useGenerationState';
 import { GenerationTrackCard } from './GenerationTrackCard';
 import { TrackSkeleton } from "@/components/ui/track-skeleton";
-import { useTrackGenerationWithProgress } from '../hooks/useTrackGenerationWithProgress';
+import { useUnifiedGeneration } from '../hooks/useUnifiedGeneration';
 
 interface GenerationFeedProps {
   onPlay?: (url: string) => void;
@@ -23,7 +23,7 @@ export function GenerationFeed({ onPlay, onDownload, onRetry }: GenerationFeedPr
     syncTracks 
   } = useGenerationState();
   
-  const { ongoingGenerations } = useTrackGenerationWithProgress();
+  const { activeGenerations } = useUnifiedGeneration();
 
   const handleDownload = async (url: string, filename: string) => {
     try {
@@ -102,13 +102,16 @@ export function GenerationFeed({ onPlay, onDownload, onRetry }: GenerationFeedPr
       </div>
 
       {/* Show ongoing generations first */}
-      {ongoingGenerations.map((generation) => (
+      {Array.from(activeGenerations.values()).map((generation) => (
         <TrackSkeleton
           key={generation.taskId}
-          progress={generation.progress}
+          progress={generation.overallProgress}
           title={generation.title}
           subtitle={generation.subtitle}
-          status={generation.status}
+          status={generation.status === 'pending' ? 'preparing' : 
+                  generation.status === 'queued' ? 'processing' :
+                  generation.status === 'generating' ? 'generating' :
+                  generation.status === 'completed' ? 'completed' : 'error'}
           steps={generation.steps}
           animated={true}
         />
