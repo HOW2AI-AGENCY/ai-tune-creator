@@ -247,6 +247,36 @@ export type Database = {
         }
         Relationships: []
       }
+      generation_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          generation_job_id: string
+          id: string
+          message: string
+          metadata: Json | null
+          progress: number
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          generation_job_id: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          progress?: number
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          generation_job_id?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          progress?: number
+        }
+        Relationships: []
+      }
       logs: {
         Row: {
           action: string | null

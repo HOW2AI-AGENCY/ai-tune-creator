@@ -2,58 +2,16 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// SECURITY FIX: Use environment variables instead of hardcoded credentials
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://zwbhlfhwymbmvioaikvs.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3YmhsZmh3eW1ibXZpb2Fpa3ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3MjU3MTMsImV4cCI6MjA2OTMwMTcxM30.qyCcLcEzRQ7S2J1GUNpgO597BKn768Pmb-lOGjIC4bU';
-
-// Development mode warning instead of hard error
-if (import.meta.env.DEV && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY)) {
-  console.warn(
-    '⚠️  Development mode: Supabase environment variables not set.\n' +
-    'Please copy .env.example to .env and configure your Supabase credentials.\n' +
-    'Some features may not work properly without proper configuration.'
-  );
-}
-
-// Production validation - only fail in production builds
-if (import.meta.env.PROD) {
-  if (!SUPABASE_URL || SUPABASE_URL.includes('placeholder')) {
-    throw new Error('VITE_SUPABASE_URL environment variable is required in production');
-  }
-  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes('placeholder')) {
-    throw new Error('VITE_SUPABASE_ANON_KEY environment variable is required in production');
-  }
-  
-  // Additional URL validation for security in production
-  try {
-    const url = new URL(SUPABASE_URL);
-    if (!url.hostname.includes('.supabase.co')) {
-      throw new Error('Invalid Supabase URL format');
-    }
-  } catch (error) {
-    throw new Error(`Invalid SUPABASE_URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
+const SUPABASE_URL = "https://zwbhlfhwymbmvioaikvs.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3YmhsZmh3eW1ibXZpb2Fpa3ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM3MjU3MTMsImV4cCI6MjA2OTMwMTcxM30.qyCcLcEzRQ7S2J1GUNpgO597BKn768Pmb-lOGjIC4bU";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-    // Additional security configurations
-    detectSessionInUrl: false, // Prevent session hijacking via URL params
-    flowType: 'pkce', // Use PKCE flow for enhanced security
-  },
-  global: {
-    // Add security headers
-    headers: {
-      'X-Client-Info': 'ai-tune-creator-client',
-    }
-  },
-  db: {
-    schema: 'public'
   }
 });
