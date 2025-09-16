@@ -1,3 +1,274 @@
 /* Accessibility Enhancement Styles */
 
-/* High Contrast Mode */\n.high-contrast {\n  --primary: hsl(0, 0%, 0%);\n  --primary-foreground: hsl(0, 0%, 100%);\n  --secondary: hsl(0, 0%, 20%);\n  --secondary-foreground: hsl(0, 0%, 100%);\n  --background: hsl(0, 0%, 100%);\n  --foreground: hsl(0, 0%, 0%);\n  --muted: hsl(0, 0%, 85%);\n  --muted-foreground: hsl(0, 0%, 0%);\n  --border: hsl(0, 0%, 0%);\n  --input: hsl(0, 0%, 0%);\n  --ring: hsl(0, 0%, 0%);\n}\n\n.dark.high-contrast {\n  --primary: hsl(0, 0%, 100%);\n  --primary-foreground: hsl(0, 0%, 0%);\n  --secondary: hsl(0, 0%, 80%);\n  --secondary-foreground: hsl(0, 0%, 0%);\n  --background: hsl(0, 0%, 0%);\n  --foreground: hsl(0, 0%, 100%);\n  --muted: hsl(0, 0%, 15%);\n  --muted-foreground: hsl(0, 0%, 100%);\n  --border: hsl(0, 0%, 100%);\n  --input: hsl(0, 0%, 100%);\n  --ring: hsl(0, 0%, 100%);\n}\n\n/* Large Text Mode */\n.large-text {\n  font-size: 1.125rem;\n  line-height: 1.6;\n}\n\n.large-text h1 { font-size: 2.5rem; }\n.large-text h2 { font-size: 2rem; }\n.large-text h3 { font-size: 1.75rem; }\n.large-text h4 { font-size: 1.5rem; }\n.large-text h5 { font-size: 1.25rem; }\n.large-text h6 { font-size: 1.125rem; }\n\n.large-text .text-xs { font-size: 0.875rem; }\n.large-text .text-sm { font-size: 1rem; }\n.large-text .text-base { font-size: 1.125rem; }\n.large-text .text-lg { font-size: 1.25rem; }\n.large-text .text-xl { font-size: 1.5rem; }\n\n/* Reduced Motion */\n.reduce-motion,\n.reduce-motion *,\n.reduce-motion *::before,\n.reduce-motion *::after {\n  animation-duration: 0.01ms !important;\n  animation-iteration-count: 1 !important;\n  transition-duration: 0.01ms !important;\n  scroll-behavior: auto !important;\n}\n\n/* Enhanced Focus Indicators */\n.enhanced-focus *:focus-visible {\n  outline: 3px solid hsl(var(--primary));\n  outline-offset: 2px;\n  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 5px hsl(var(--primary));\n}\n\n.enhanced-focus button:focus-visible,\n.enhanced-focus a:focus-visible,\n.enhanced-focus [role=\"button\"]:focus-visible {\n  transform: scale(1.05);\n  z-index: 10;\n  position: relative;\n}\n\n.enhanced-focus input:focus-visible,\n.enhanced-focus textarea:focus-visible,\n.enhanced-focus select:focus-visible {\n  border-width: 2px;\n  border-color: hsl(var(--primary));\n}\n\n/* Skip Links */\n.sr-only {\n  position: absolute;\n  width: 1px;\n  height: 1px;\n  padding: 0;\n  margin: -1px;\n  overflow: hidden;\n  clip: rect(0, 0, 0, 0);\n  white-space: nowrap;\n  border: 0;\n}\n\n.sr-only.focus:not(.sr-only),\n.sr-only:focus-visible {\n  position: static;\n  width: auto;\n  height: auto;\n  padding: 0.5rem 1rem;\n  margin: 0;\n  overflow: visible;\n  clip: auto;\n  white-space: normal;\n}\n\n.focus\\:not-sr-only:focus {\n  position: static;\n  width: auto;\n  height: auto;\n  padding: 0.5rem 1rem;\n  margin: 0;\n  overflow: visible;\n  clip: auto;\n  white-space: normal;\n}\n\n/* Touch Optimization */\n@media (pointer: coarse) {\n  /* Increase tap targets to minimum 44px */\n  button, \n  a, \n  input[type=\"checkbox\"], \n  input[type=\"radio\"], \n  [role=\"button\"], \n  [tabindex=\"0\"] {\n    min-height: 44px;\n    min-width: 44px;\n  }\n  \n  /* Increase spacing for touch interfaces */\n  .touch-optimized {\n    padding: 0.75rem;\n    margin: 0.25rem;\n  }\n  \n  /* Improve visual feedback */\n  button:active,\n  a:active,\n  [role=\"button\"]:active {\n    transform: scale(0.98);\n    transition: transform 0.1s ease;\n  }\n}\n\n/* Keyboard Navigation Indicators */\n[data-keyboard-navigation=\"true\"] *:focus {\n  outline: 2px solid hsl(var(--primary));\n  outline-offset: 2px;\n}\n\n/* Loading States */\n.loading-shimmer {\n  background: linear-gradient(\n    90deg,\n    transparent,\n    hsl(var(--muted)) / 0.4,\n    transparent\n  );\n  background-size: 200% 100%;\n  animation: shimmer 1.5s ease-in-out infinite;\n}\n\n@keyframes shimmer {\n  0% { background-position: -200% 0; }\n  100% { background-position: 200% 0; }\n}\n\n.reduce-motion .loading-shimmer {\n  animation: none;\n  background: hsl(var(--muted)) / 0.4;\n}\n\n/* Print Styles */\n@media print {\n  .no-print {\n    display: none !important;\n  }\n  \n  * {\n    background: transparent !important;\n    color: black !important;\n    box-shadow: none !important;\n    text-shadow: none !important;\n  }\n  \n  a,\n  a:visited {\n    text-decoration: underline;\n  }\n  \n  a[href]:after {\n    content: \" (\" attr(href) \")\";\n  }\n  \n  abbr[title]:after {\n    content: \" (\" attr(title) \")\";\n  }\n  \n  .ir a:after,\n  a[href^=\"javascript:\"]:after,\n  a[href^=\"#\"]:after {\n    content: \"\";\n  }\n  \n  pre,\n  blockquote {\n    border: 1px solid #999;\n    page-break-inside: avoid;\n  }\n  \n  thead {\n    display: table-header-group;\n  }\n  \n  tr,\n  img {\n    page-break-inside: avoid;\n  }\n  \n  img {\n    max-width: 100% !important;\n  }\n  \n  p,\n  h2,\n  h3 {\n    orphans: 3;\n    widows: 3;\n  }\n  \n  h2,\n  h3 {\n    page-break-after: avoid;\n  }\n}\n\n/* Custom Scrollbars (Webkit) */\n::-webkit-scrollbar {\n  width: 8px;\n  height: 8px;\n}\n\n::-webkit-scrollbar-track {\n  background: hsl(var(--muted));\n}\n\n::-webkit-scrollbar-thumb {\n  background: hsl(var(--muted-foreground));\n  border-radius: 4px;\n}\n\n::-webkit-scrollbar-thumb:hover {\n  background: hsl(var(--primary));\n}\n\n/* Firefox Scrollbars */\n* {\n  scrollbar-width: thin;\n  scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--muted));\n}\n\n/* Selection Colors */\n::selection {\n  background: hsl(var(--primary)) / 0.3;\n  color: hsl(var(--foreground));\n}\n\n.high-contrast ::selection {\n  background: hsl(var(--primary));\n  color: hsl(var(--background));\n}"
+/* High Contrast Mode */
+.high-contrast {
+  --primary: 0 0% 0%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 20%;
+  --secondary-foreground: 0 0% 100%;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --muted: 0 0% 85%;
+  --muted-foreground: 0 0% 0%;
+  --border: 0 0% 0%;
+  --input: 0 0% 0%;
+  --ring: 0 0% 0%;
+}
+
+.dark.high-contrast {
+  --primary: 0 0% 100%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 0 0% 80%;
+  --secondary-foreground: 0 0% 0%;
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 100%;
+  --border: 0 0% 100%;
+  --input: 0 0% 100%;
+  --ring: 0 0% 100%;
+}
+
+/* Large Text Mode */
+.large-text {
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.large-text h1 { font-size: 2.5rem; }
+.large-text h2 { font-size: 2rem; }
+.large-text h3 { font-size: 1.75rem; }
+.large-text h4 { font-size: 1.5rem; }
+.large-text h5 { font-size: 1.25rem; }
+.large-text h6 { font-size: 1.125rem; }
+
+.large-text .text-xs { font-size: 0.875rem; }
+.large-text .text-sm { font-size: 1rem; }
+.large-text .text-base { font-size: 1.125rem; }
+.large-text .text-lg { font-size: 1.25rem; }
+.large-text .text-xl { font-size: 1.5rem; }
+
+/* Reduced Motion */
+.reduce-motion,
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Enhanced Focus Indicators */
+.enhanced-focus *:focus-visible {
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 5px hsl(var(--primary));
+}
+
+.enhanced-focus button:focus-visible,
+.enhanced-focus a:focus-visible,
+.enhanced-focus [role="button"]:focus-visible {
+  transform: scale(1.05);
+  z-index: 10;
+  position: relative;
+}
+
+.enhanced-focus input:focus-visible,
+.enhanced-focus textarea:focus-visible,
+.enhanced-focus select:focus-visible {
+  border-width: 2px;
+  border-color: hsl(var(--primary));
+}
+
+/* Skip Links */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sr-only.focus:not(.sr-only),
+.sr-only:focus-visible {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+.focus\:not-sr-only:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Touch Optimization */
+@media (pointer: coarse) {
+  /* Increase tap targets to minimum 44px */
+  button, 
+  a, 
+  input[type="checkbox"], 
+  input[type="radio"], 
+  [role="button"], 
+  [tabindex="0"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Increase spacing for touch interfaces */
+  .touch-optimized {
+    padding: 0.75rem;
+    margin: 0.25rem;
+  }
+  
+  /* Improve visual feedback */
+  button:active,
+  a:active,
+  [role="button"]:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* Keyboard Navigation Indicators */
+[data-keyboard-navigation="true"] *:focus {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Loading States */
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--muted)) / 0.4,
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.reduce-motion .loading-shimmer {
+  animation: none;
+  background: hsl(var(--muted)) / 0.4;
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  * {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  a,
+  a:visited {
+    text-decoration: underline;
+  }
+  
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+  
+  abbr[title]:after {
+    content: " (" attr(title) ")";
+  }
+  
+  .ir a:after,
+  a[href^="javascript:"]:after,
+  a[href^="#"]:after {
+    content: "";
+  }
+  
+  pre,
+  blockquote {
+    border: 1px solid #999;
+    page-break-inside: avoid;
+  }
+  
+  thead {
+    display: table-header-group;
+  }
+  
+  tr,
+  img {
+    page-break-inside: avoid;
+  }
+  
+  img {
+    max-width: 100% !important;
+  }
+  
+  p,
+  h2,
+  h3 {
+    orphans: 3;
+    widows: 3;
+  }
+  
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+}
+
+/* Custom Scrollbars (Webkit) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+/* Firefox Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--muted));
+}
+
+/* Selection Colors */
+::selection {
+  background: hsl(var(--primary)) / 0.3;
+  color: hsl(var(--foreground));
+}
+
+.high-contrast ::selection {
+  background: hsl(var(--primary));
+  color: hsl(var(--background));
+}
