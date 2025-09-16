@@ -211,7 +211,8 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
         if (error) throw error;
         if (!data.success) throw new Error(data.error || 'Suno generation failed');
         
-        taskId = data.data.taskId;
+        // Normalize task id field from edge function (task_id | taskId | id)
+        taskId = data.data.task_id || data.data.taskId || data.data.id;
       } else {
         const murekaRequest = mapToMurekaRequest(input);
         console.log('🎶 Calling Mureka with request:', {
@@ -228,7 +229,12 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
         if (error) throw error;
         if (!data.success) throw new Error(data.error || 'Mureka generation failed');
         
-        taskId = data.data.taskId || data.data.id;
+        // Normalize task id from various possible fields
+        taskId = data.data.taskId 
+          || data.data.task_id 
+          || data.data.mureka_task_id 
+          || data.data.generation_id 
+          || data.data.id;
       }
 
 
