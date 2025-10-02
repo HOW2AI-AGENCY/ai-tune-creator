@@ -118,6 +118,81 @@ export type Database = {
           },
         ]
       }
+      api_request_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          generation_id: string | null
+          id: string
+          metadata: Json | null
+          operation: string
+          request_body: Json | null
+          request_endpoint: string
+          request_headers: Json | null
+          request_method: string
+          response_body: Json | null
+          response_headers: Json | null
+          response_status: number | null
+          response_time_ms: number | null
+          service: string
+          track_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          generation_id?: string | null
+          id?: string
+          metadata?: Json | null
+          operation: string
+          request_body?: Json | null
+          request_endpoint: string
+          request_headers?: Json | null
+          request_method?: string
+          response_body?: Json | null
+          response_headers?: Json | null
+          response_status?: number | null
+          response_time_ms?: number | null
+          service: string
+          track_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          generation_id?: string | null
+          id?: string
+          metadata?: Json | null
+          operation?: string
+          request_body?: Json | null
+          request_endpoint?: string
+          request_headers?: Json | null
+          request_method?: string
+          response_body?: Json | null
+          response_headers?: Json | null
+          response_status?: number | null
+          response_time_ms?: number | null
+          service?: string
+          track_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_request_logs_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_request_logs_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artist_collaborators: {
         Row: {
           accepted_at: string | null
@@ -876,6 +951,75 @@ export type Database = {
             foreignKeyName: "track_stems_track_id_fkey"
             columns: ["track_id"]
             isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      track_storage_sync: {
+        Row: {
+          checksum: string | null
+          created_at: string
+          external_url: string
+          file_size: number | null
+          generation_id: string | null
+          id: string
+          last_error: string | null
+          last_sync_attempt: string | null
+          metadata: Json | null
+          storage_path: string | null
+          storage_url: string | null
+          sync_attempts: number
+          sync_status: string
+          track_id: string
+          updated_at: string
+        }
+        Insert: {
+          checksum?: string | null
+          created_at?: string
+          external_url: string
+          file_size?: number | null
+          generation_id?: string | null
+          id?: string
+          last_error?: string | null
+          last_sync_attempt?: string | null
+          metadata?: Json | null
+          storage_path?: string | null
+          storage_url?: string | null
+          sync_attempts?: number
+          sync_status?: string
+          track_id: string
+          updated_at?: string
+        }
+        Update: {
+          checksum?: string | null
+          created_at?: string
+          external_url?: string
+          file_size?: number | null
+          generation_id?: string | null
+          id?: string
+          last_error?: string | null
+          last_sync_attempt?: string | null
+          metadata?: Json | null
+          storage_path?: string | null
+          storage_url?: string | null
+          sync_attempts?: number
+          sync_status?: string
+          track_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_storage_sync_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "track_storage_sync_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: true
             referencedRelation: "tracks"
             referencedColumns: ["id"]
           },
