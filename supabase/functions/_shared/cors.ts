@@ -23,6 +23,7 @@ export const getSecureCorsHeaders = (origin?: string) => {
     /https:\/\/.*--lovable-app\.netlify\.app/, // Netlify preview domains
     /https:\/\/.*\.lovable\.app/, // Lovable preview domains
     /https:\/\/.*\.sandbox\.lovable\.dev/, // Sandbox domains
+    /https:\/\/.*\.lovableproject\.com/, // Lovable project preview domains
     'https://lovable.app' // Main production domain
   ];
 

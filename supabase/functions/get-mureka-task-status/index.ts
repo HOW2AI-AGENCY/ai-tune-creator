@@ -1,4 +1,6 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +12,7 @@ interface MurekaTaskResponse {
   status: 'pending' | 'running' | 'succeeded' | 'failed';
   audio_urls?: string[];
   lyrics?: string;
+  title?: string;
   error?: string;
   progress?: number;
   estimated_time?: number;
@@ -22,9 +25,7 @@ serve(async (req) => {
   }
 
   try {
-    // Extract task ID from URL query parameters
-    const url = new URL(req.url);
-    const taskId = url.searchParams.get('taskId');
+    const { taskId, generationId } = await req.json();
 
     if (!taskId) {
       return new Response(JSON.stringify({
@@ -36,7 +37,6 @@ serve(async (req) => {
       });
     }
 
-    // Get Mureka API key
     const murekaApiKey = Deno.env.get('MUREKA_API_KEY');
     
     if (!murekaApiKey) {
@@ -78,6 +78,27 @@ serve(async (req) => {
     const murekaData: MurekaTaskResponse = await response.json();
     console.log(`[MUREKA STATUS] Task ${taskId} status: ${murekaData.status}`);
 
+    // Update ai_generations if completed
+    if (generationId && murekaData.status === 'succeeded') {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      await supabase
+        .from('ai_generations')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          result_url: murekaData.audio_urls?.[0],
+          metadata: {
+            lyrics: murekaData.lyrics,
+            title: murekaData.title,
+            audio_urls: murekaData.audio_urls
+          }
+        })
+        .eq('id', generationId);
+    }
+
     // Transform status to our format
     let transformedStatus = murekaData.status;
     let progress = 0;
@@ -109,8 +130,10 @@ serve(async (req) => {
         progress: progress,
         audio_urls: murekaData.audio_urls || [],
         lyrics: murekaData.lyrics,
+        title: murekaData.title,
         error: murekaData.error,
         estimated_time: murekaData.estimated_time,
+        completed: murekaData.status === 'succeeded',
         isCompleted: murekaData.status === 'succeeded',
         isFailed: murekaData.status === 'failed',
         isPending: ['pending', 'running'].includes(murekaData.status)
