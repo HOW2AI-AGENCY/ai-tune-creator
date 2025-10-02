@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import React, { useContext, useState, ReactNode } from 'react';
 import { translations, Language, TranslationKey } from '@/i18n/translations';
 
 interface TranslationContextType {
@@ -7,7 +7,7 @@ interface TranslationContextType {
   t: (key: TranslationKey) => string;
 }
 
-const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
+const TranslationContext = React.createContext<TranslationContextType | undefined>(undefined);
 
 interface TranslationProviderProps {
   children: ReactNode;
