@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 
 interface TelegramWebApp {
+  version: string;
+  platform: string;
+  colorScheme: 'light' | 'dark';
+  isExpanded: boolean;
+  viewportHeight: number;
+  viewportStableHeight: number;
   ready(): void;
   close(): void;
   expand(): void;
@@ -41,6 +47,11 @@ interface TelegramWebApp {
     show(): void;
     hide(): void;
   };
+  HapticFeedback?: {
+    impactOccurred(style: 'light' | 'medium' | 'heavy'): void;
+    notificationOccurred(type: 'error' | 'success' | 'warning'): void;
+    selectionChanged(): void;
+  };
 }
 
 export const useTelegramWebApp = () => {
@@ -49,10 +60,20 @@ export const useTelegramWebApp = () => {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const tgWebApp = window.Telegram.WebApp;
+      const tgWebApp = window.Telegram.WebApp as TelegramWebApp;
+      
+      console.log('🔌 useTelegramWebApp hook initialized', {
+        available: true,
+        version: tgWebApp.version,
+        user: tgWebApp.initDataUnsafe?.user,
+        platform: tgWebApp.platform
+      });
+      
       setWebApp(tgWebApp);
       tgWebApp.ready();
       setIsReady(true);
+    } else {
+      console.log('🔌 useTelegramWebApp: SDK not available in window');
     }
   }, []);
 

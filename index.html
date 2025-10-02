@@ -42,13 +42,24 @@
       if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
         
+        console.log('🚀 Telegram WebApp SDK loaded', {
+          version: tg.version,
+          platform: tg.platform,
+          colorScheme: tg.colorScheme,
+          initData: tg.initData ? '✓ present' : '✗ missing',
+          initDataUnsafe: tg.initDataUnsafe
+        });
+        
         // Initialize app
         tg.ready();
         tg.expand();
         
+        console.log('✓ Telegram WebApp ready and expanded');
+        
         // Apply theme
         if (tg.colorScheme === 'dark') {
           document.documentElement.classList.add('dark');
+          console.log('🌙 Dark theme applied');
         }
         
         // Set CSS variables for Telegram theme
@@ -57,6 +68,7 @@
           Object.entries(tg.themeParams).forEach(([key, value]) => {
             root.setProperty(`--tg-${key.replace(/_/g, '-')}`, value);
           });
+          console.log('🎨 Theme params applied:', tg.themeParams);
         }
         
         // Disable context menu and text selection for app-like feel
@@ -71,6 +83,13 @@
         
         adjustViewport();
         tg.onEvent('viewportChanged', adjustViewport);
+        
+        console.log('📱 Viewport configured:', {
+          height: tg.viewportHeight,
+          stableHeight: tg.viewportStableHeight
+        });
+      } else {
+        console.warn('⚠️ Telegram WebApp SDK not available - running in browser mode');
       }
     </script>
     
