@@ -1,11 +1,11 @@
 /**
  * Unified Generation Hook
  * 
- * Replaces useTrackGenerationWithProgress with a cleaner, more reliable system
- * that provides immediate feedback and standardized progress tracking
+ * Улучшенная система генерации с интегрированным мониторингом,
+ * обработкой ошибок и автоматическим восстановлением
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { eventBus } from '@/lib/events/event-bus';
@@ -17,6 +17,9 @@ import {
   createStandardError,
   StandardError
 } from '../types/canonical';
+import { generationMonitor } from '@/lib/generation/generation-monitor';
+import { errorRecovery } from '@/lib/generation/error-recovery';
+import { logger } from '@/lib/logger';
 
 interface UseUnifiedGenerationReturn {
   generateTrack: (input: CanonicalGenerationInput) => Promise<string>; // Returns generation ID
@@ -88,7 +91,7 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
   }, []);
 
   /**
-   * Main generation function
+   * Main generation function with integrated monitoring
    */
   const generateTrack = useCallback(async (input: CanonicalGenerationInput): Promise<string> => {
     const generationId = crypto.randomUUID();
@@ -99,23 +102,31 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
       // Clear any previous errors
       setError(null);
 
-      // Show immediate feedback
+      // Показываем немедленную обратную связь
       toast({
         title: "Запуск генерации",
         description: `Создаем трек с помощью ${input.service === 'suno' ? 'Suno AI' : 'Mureka'}...`
       });
 
-      // Create initial progress
+      // Создаем мониторинг генерации
+      const monitorState = generationMonitor.create(generationId, input.service, { input });
+      
+      // Создаем начальный прогресс для UI
       const initialProgress = createInitialProgress(generationId, 'pending', input.service, input);
       setActiveGenerations(prev => new Map(prev).set(generationId, initialProgress));
 
-      // Step 1: Validation
+      // Этап 1: Валидация
+      generationMonitor.updateStage(generationId, 'validation', { status: 'running' });
       updateStep(generationId, 'validate', { status: 'running' });
-      await new Promise(resolve => setTimeout(resolve, 300)); // Visual feedback
+      
+      await new Promise(resolve => setTimeout(resolve, 300)); // Визуальная обратная связь
+      
+      generationMonitor.updateStage(generationId, 'validation', { status: 'completed', progress: 100 });
       updateStep(generationId, 'validate', { status: 'done', progress: 100 });
       updateProgress(generationId, { overallProgress: 20 });
 
-      // Step 2: Queue submission
+      // Этап 2: Добавление в очередь
+      generationMonitor.updateStage(generationId, 'queue', { status: 'running' });
       updateStep(generationId, 'queue', { status: 'running' });
       
       /**
