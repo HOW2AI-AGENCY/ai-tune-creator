@@ -97,12 +97,16 @@ serve(async (req) => {
       artistId?: string;
     } = await req.json();
 
-    console.log('Processing Mureka generation save request:', { generationId });
+    console.log('Processing Mureka generation save request:', { 
+      generationId, 
+      variant: trackData.track_variant,
+      totalVariants: trackData.total_variants 
+    });
 
-    // 1. Get generation details
+    // 1. Get generation details including external task_id for variant grouping
     const { data: generation, error: genError } = await supabase
       .from('ai_generations')
-      .select('user_id, prompt, metadata')
+      .select('user_id, prompt, metadata, external_id')
       .eq('id', generationId)
       .single();
 
@@ -112,6 +116,12 @@ serve(async (req) => {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    // Extract task_id for variant grouping (from external_id or metadata)
+    const variantGroupId = generation.external_id || 
+                          (generation.metadata as any)?.mureka_task_id || 
+                          (generation.metadata as any)?.task_id ||
+                          generationId; // Fallback to generation_id
 
     // 2. Determine the project to save the track to.
     // This logic for finding the inbox project can be complex and error-prone.
@@ -133,7 +143,19 @@ serve(async (req) => {
       }
     }
 
-    // 3. Create the new track record
+    // 3. Determine variant number and master status
+    const variantNumber = trackData.track_variant || 1;
+    const totalVariants = trackData.total_variants || 1;
+    const isMasterVariant = variantNumber === 1; // First variant is master
+
+    console.log('[VARIANT] Setting up:', { 
+      variantGroupId, 
+      variantNumber, 
+      totalVariants, 
+      isMasterVariant 
+    });
+
+    // 4. Create the new track record with variant information
     const trackRecord = {
       id: crypto.randomUUID(),
       project_id: targetProjectId,
@@ -144,6 +166,10 @@ serve(async (req) => {
       genre_tags: trackData.genre_tags || ['ai-generated', 'mureka'],
       track_number: await getNextTrackNumber(supabase, targetProjectId || null),
       style_prompt: trackData.style_prompt || generation.prompt,
+      // ✅ FIX: Add variant grouping fields
+      variant_group_id: variantGroupId,
+      variant_number: variantNumber,
+      is_master_variant: isMasterVariant,
       metadata: {
         service: 'mureka',
         model: trackData.model || 'auto',
@@ -153,8 +179,9 @@ serve(async (req) => {
         generation_id: generationId,
         external_audio_url: trackData.audio_url,
         mureka_choice_id: trackData.mureka_choice_id,
-        track_variant: trackData.track_variant || 1,
-        total_variants: trackData.total_variants || 1,
+        task_id: variantGroupId, // Store task_id for reference
+        track_variant: variantNumber,
+        total_variants: totalVariants,
         original_data: trackData,
       }
     };
@@ -168,12 +195,15 @@ serve(async (req) => {
       });
     }
 
-    // 4. Update the generation status
+    console.log(`✅ Track saved with variants: ID=${savedTrack.id}, Group=${variantGroupId}, Variant=${variantNumber}/${totalVariants}, Master=${isMasterVariant}`);
+
+    // 5. Update the generation status
     const updatedMetadata: GenerationMetadata = {
       ...(generation.metadata as GenerationMetadata || {}),
       ...trackData,
       saved_track_id: savedTrack.id,
       track_saved: true,
+      variant_group_id: variantGroupId,
       skip_sync: true
     };
 
@@ -193,7 +223,7 @@ serve(async (req) => {
       console.error('Error updating generation status:', updateError);
     }
 
-    // 5. Start background download
+    // 6. Start background download
     if (trackData.audio_url && trackData.audio_url.startsWith('http')) {
       // Use waitUntil if available in the environment
       if (typeof Deno.waitUntil === 'function') {
