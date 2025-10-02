@@ -219,7 +219,6 @@ serve(async (req) => {
     }
 
     console.log('Processing Telegram auth request');
-    });
 
     // Валидируем данные от Telegram с проверкой повторного использования
     const validation = await validateTelegramAuth(authData.initData, botToken, supabaseClient);
