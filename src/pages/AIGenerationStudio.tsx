@@ -24,7 +24,7 @@ import { TrackStorageManager } from "@/components/dev/TrackStorageManager";
 import { useEventListener } from "@/lib/events/event-bus";
 import { safeLazy, preloadModules } from "@/lib/optimization/SafeLazyLoader";
 import { SimplifiedGenerationPanel } from "@/components/ai-generation/SimplifiedGenerationPanel";
-// import { DynamicGenerationForm } from "@/features/ai-generation/components/DynamicGenerationForm";
+import { GroupTracksButton } from "@/components/tracks/GroupTracksButton";
 import { LocalErrorBoundary } from "@/components/debug/LocalErrorBoundary";
 
 // Увеличены timeout значения для надежной загрузки
@@ -67,6 +67,9 @@ interface Track {
   updated_at?: string;
   audio_url?: string;
   metadata?: any;
+  variant_group_id?: string;
+  variant_number?: number;
+  is_master_variant?: boolean;
   project?: {
     title: string;
     artist?: {
@@ -291,6 +294,9 @@ export default function AIGenerationStudio() {
           duration,
           genre_tags,
           metadata,
+          variant_group_id,
+          variant_number,
+          is_master_variant,
           created_at,
           updated_at,
           projects!inner (
@@ -338,6 +344,9 @@ export default function AIGenerationStudio() {
         audio_url: track.audio_url,
         lyrics: track.lyrics,
         duration: track.duration,
+        variant_group_id: track.variant_group_id,
+        variant_number: track.variant_number,
+        is_master_variant: track.is_master_variant,
         genre_tags: track.genre_tags || [],
         metadata: track.metadata,
         created_at: track.created_at,
@@ -538,6 +547,7 @@ export default function AIGenerationStudio() {
             <Button size="icon" onClick={handleSync} disabled={isSyncing} className="tap-highlight bg-gradient-primary" aria-label={t('syncTracks')}>
               <CloudDownload className={cn("h-4 w-4", isSyncing && "animate-spin")} />
             </Button>
+            <GroupTracksButton />
             <Button variant="outline" size="icon" onClick={() => setShowRecoveryTools(v => !v)} className="tap-highlight" aria-label="Загрузить 2 трека" title="Ручная загрузка последних 2 треков">
               <Download className="h-4 w-4" />
             </Button>
@@ -638,6 +648,8 @@ export default function AIGenerationStudio() {
                 <CloudDownload className={cn("h-4 w-4", isSyncing && "animate-spin")} />
                 {isSyncing ? 'Синхронизация...' : 'Синхронизация'}
               </Button>
+              
+              <GroupTracksButton />
               
               <Badge variant="secondary" className="px-3 py-1 bg-primary/10 text-primary">
                 {filteredTracks.length} треков

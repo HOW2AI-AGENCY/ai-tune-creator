@@ -125,13 +125,31 @@ const App = () => {
   useEffect(() => {
     bootLogger.log('8. App component mounted');
     
+    // Initialize Telegram WebApp
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      bootLogger.log('9. Initializing Telegram WebApp');
+      const tg = window.Telegram.WebApp;
+      
+      try {
+        // Expand to full height
+        tg.expand();
+        
+        // Ready signal
+        tg.ready();
+        
+        bootLogger.log('9. Telegram WebApp initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize Telegram WebApp:', error);
+      }
+    }
+    
     // Установка темной темы по умолчанию
     if (!localStorage.getItem('theme')) {
-      bootLogger.log('9. Setting default dark theme');
+      bootLogger.log('10. Setting default dark theme');
       localStorage.setItem('theme', 'dark');
       document.documentElement.classList.add('dark');
     } else {
-      bootLogger.log('9. Theme already set');
+      bootLogger.log('10. Theme already set');
     }
   }, []);
 

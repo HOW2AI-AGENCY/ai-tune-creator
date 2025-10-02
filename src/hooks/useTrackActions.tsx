@@ -36,6 +36,9 @@ interface TrackActions {
   // Stem separation
   separateStems: (track: Track, type?: 'separate_vocal' | 'separate_music') => Promise<string>;
   
+  // Variant management
+  setMasterVariant: (trackId: string) => Promise<void>;
+  
   // Loading states
   isLiking: boolean;
   isDeleting: boolean;
@@ -341,6 +344,61 @@ export function useTrackActions(): TrackActions {
     }
   }, [toast]);
 
+  // ====================================
+  // ⭐ MASTER VARIANT FUNCTIONALITY
+  // ====================================
+  
+  const setMasterVariant = useCallback(async (trackId: string) => {
+    if (!user) return;
+
+    try {
+      // Get track's variant_group_id
+      const { data: track, error: trackError } = await supabase
+        .from('tracks')
+        .select('variant_group_id')
+        .eq('id', trackId)
+        .single();
+
+      if (trackError) throw trackError;
+      if (!track.variant_group_id) {
+        toast({
+          title: "Ошибка",
+          description: "У трека нет группы вариантов",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Remove master status from all variants in group
+      await supabase
+        .from('tracks')
+        .update({ is_master_variant: false })
+        .eq('variant_group_id', track.variant_group_id);
+
+      // Set new master
+      await supabase
+        .from('tracks')
+        .update({ is_master_variant: true })
+        .eq('id', trackId);
+
+      toast({
+        title: "⭐ Главный вариант обновлен",
+        description: "Новый главный вариант установлен",
+      });
+
+      // Reload tracks
+      window.dispatchEvent(new CustomEvent('tracks-updated'));
+
+    } catch (error: any) {
+      console.error('Error setting master variant:', error);
+      toast({
+        title: "Ошибка",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  }, [user, toast]);
+
   return {
     likeTrack,
     unlikeTrack,
@@ -350,6 +408,7 @@ export function useTrackActions(): TrackActions {
     convertToWAV,
     getWAVConversionStatus,
     separateStems,
+    setMasterVariant,
     isLiking,
     isDeleting,
     isDownloading,

@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useTrackActions } from "@/hooks/useTrackActions";
-import { useState, memo, useCallback } from "react";
+import { useState, memo, useCallback, useMemo } from "react";
+import { GroupedTrackCard } from "./GroupedTrackCard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +48,9 @@ interface Track {
   updated_at?: string;
   audio_url?: string;
   metadata?: any;
+  variant_group_id?: string;
+  variant_number?: number;
+  is_master_variant?: boolean;
   project?: {
     title: string;
     artist?: {
@@ -75,9 +79,26 @@ export const TrackResultsGrid = memo<TrackResultsGridProps>(function TrackResult
   onTrackDeleted
 }: TrackResultsGridProps) {
   const { t } = useTranslation();
-  const { likeTrack, unlikeTrack, isLiked, downloadMP3, deleteTrack, isDeleting } = useTrackActions();
+  const { likeTrack, unlikeTrack, isLiked, downloadMP3, deleteTrack, isDeleting, setMasterVariant } = useTrackActions();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [trackToDelete, setTrackToDelete] = useState<Track | null>(null);
+
+  // Group tracks by variant_group_id
+  const groupedTracks = useMemo(() => {
+    const groups = new Map<string, Track[]>();
+    const standalone: Track[] = [];
+
+    tracks.forEach(track => {
+      if (track.variant_group_id) {
+        const existing = groups.get(track.variant_group_id) || [];
+        groups.set(track.variant_group_id, [...existing, track]);
+      } else {
+        standalone.push(track);
+      }
+    });
+
+    return { groups, standalone };
+  }, [tracks]);
 
   const formatDuration = (seconds?: number) => {
     if (!seconds) return "--:--";
@@ -137,7 +158,26 @@ export const TrackResultsGrid = memo<TrackResultsGridProps>(function TrackResult
     <>
       <div className="p-1 sm:p-2 md:p-4 w-full">
         <div className="space-y-2">
-          {tracks.map((track) => (
+          {/* Render grouped tracks */}
+          {Array.from(groupedTracks.groups.entries()).map(([groupId, variants]) => {
+            const masterTrack = variants.find(v => v.is_master_variant) || variants[0];
+            return (
+              <GroupedTrackCard
+                key={groupId}
+                masterTrack={masterTrack}
+                variants={variants}
+                onTrackClick={onTrackClick}
+                onPlayTrack={onPlayTrack}
+                currentPlayingTrack={currentPlayingTrack}
+                isPlaying={isPlaying}
+                onDownload={(track) => downloadMP3(track)}
+                onSetMaster={(trackId) => setMasterVariant(trackId)}
+              />
+            );
+          })}
+
+          {/* Render standalone tracks */}
+          {groupedTracks.standalone.map((track) => (
             <Card 
               key={track.id} 
               className="bg-card/80 border-border/50 hover:bg-accent/10 transition-all cursor-pointer group backdrop-blur-sm"
