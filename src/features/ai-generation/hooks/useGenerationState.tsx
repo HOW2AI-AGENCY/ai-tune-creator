@@ -77,6 +77,8 @@ export function useGenerationState() {
       console.log('Sync result:', data);
       
       await loadGenerations();
+      // Оповестим другие части UI о возможных изменениях треков
+      try { window.dispatchEvent(new CustomEvent('tracks-updated')); } catch {}
       
       if (data?.data?.summary?.tracks_created > 0) {
         toast.success(`Создано треков: ${data.data.summary.tracks_created}`);
@@ -175,6 +177,17 @@ export function useGenerationState() {
   useEffect(() => {
     loadGenerations();
   }, [loadGenerations]);
+
+  // Автосинхронизация при загрузке страницы/перезагрузке
+  useEffect(() => {
+    (async () => {
+      try {
+        await syncTracks();
+      } catch (e) {
+        console.warn('Initial auto-sync failed:', e);
+      }
+    })();
+  }, [syncTracks]);
 
   return {
     generations,
