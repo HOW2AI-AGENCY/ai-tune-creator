@@ -269,7 +269,43 @@ serve(async (req) => {
     if (existingUser?.user) {
       userId = existingUser.user.id;
       console.log('Telegram auth: Existing user found');
+      
+      // Check if this Telegram ID is already linked to another user
+      const { data: existingProfile } = await supabaseClient
+        .from('user_profiles')
+        .select('user_id')
+        .eq('telegram_id', String(authData.telegramId))
+        .single();
+      
+      if (existingProfile && existingProfile.user_id !== userId) {
+        console.log('Telegram ID already linked to another account');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Этот Telegram аккаунт уже привязан к другому пользователю',
+            code: 'TELEGRAM_ALREADY_LINKED'
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     } else {
+      // Check if this Telegram ID is already used by another user
+      const { data: existingTelegramProfile } = await supabaseClient
+        .from('user_profiles')
+        .select('user_id')
+        .eq('telegram_id', String(authData.telegramId))
+        .single();
+      
+      if (existingTelegramProfile) {
+        console.log('Telegram ID already exists in profiles');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Этот Telegram аккаунт уже зарегистрирован',
+            code: 'TELEGRAM_ALREADY_EXISTS'
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       // Create new user if not found
       const { data: newUser, error: createError } = await supabaseClient.auth.admin.createUser({
         email: telegramEmail,
@@ -292,6 +328,26 @@ serve(async (req) => {
       userId = newUser.user.id;
       isNewUser = true;
       console.log('Telegram auth: New user created');
+      
+      // Create user_profiles entry for the new user
+      const { error: profileError } = await supabaseClient
+        .from('user_profiles')
+        .insert({
+          user_id: userId,
+          telegram_id: String(authData.telegramId),
+          telegram_username: authData.username,
+          telegram_first_name: authData.firstName,
+          telegram_last_name: authData.lastName,
+          display_name: authData.firstName,
+          avatar_url: `https://t.me/i/userpic/320/${authData.username || authData.telegramId}.jpg`
+        });
+      
+      if (profileError) {
+        console.error('Error creating user profile:', profileError);
+        // Don't fail the auth, profile can be created later
+      } else {
+        console.log('User profile created successfully');
+      }
     }
 
     // Generate a session for the user without exposing passwords
