@@ -11,6 +11,9 @@ import { Mail, Lock, CheckCircle, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
+import { useAccountLinking } from "@/hooks/useAccountLinking";
+import { AccountMergeConfirmation } from "./AccountMergeConfirmation";
 
 // Validation schema with security best practices
 const emailLinkingSchema = z.object({
@@ -43,8 +46,16 @@ interface EmailLinkingFormProps {
 export const EmailLinkingForm = ({ onSuccess, onCancel }: EmailLinkingFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [linkingSuccess, setLinkingSuccess] = useState(false);
+  const [showMergeConfirmation, setShowMergeConfirmation] = useState(false);
+  const [pendingMergeData, setPendingMergeData] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
+  
   const { toast } = useToast();
   const { user } = useAuth();
+  const { user: tgUser } = useTelegramWebApp();
+  const { linkToExistingEmail, isLinking } = useAccountLinking();
 
   const { register, handleSubmit, formState: { errors }, watch } = useForm<EmailLinkingFormData>({
     resolver: zodResolver(emailLinkingSchema),
@@ -70,6 +81,39 @@ export const EmailLinkingForm = ({ onSuccess, onCancel }: EmailLinkingFormProps)
 
   const passwordStrength = getPasswordStrength(password);
 
+  const handleMergeConfirm = async () => {
+    if (!pendingMergeData || !tgUser) return;
+
+    const result = await linkToExistingEmail(
+      pendingMergeData.email,
+      pendingMergeData.password,
+      {
+        telegram_id: String(tgUser.id),
+        telegram_username: tgUser.username,
+        telegram_first_name: tgUser.first_name,
+        telegram_last_name: tgUser.last_name,
+      }
+    );
+
+    if (result.success) {
+      // Re-authenticate with new session if provided
+      if (result.session) {
+        await supabase.auth.setSession({
+          access_token: result.session.access_token,
+          refresh_token: result.session.refresh_token,
+        });
+      }
+
+      setLinkingSuccess(true);
+      setTimeout(() => {
+        onSuccess?.();
+      }, 2000);
+    }
+
+    setShowMergeConfirmation(false);
+    setPendingMergeData(null);
+  };
+
   const onSubmit = async (data: EmailLinkingFormData) => {
     if (!user) {
       toast({
@@ -83,23 +127,26 @@ export const EmailLinkingForm = ({ onSuccess, onCancel }: EmailLinkingFormProps)
     setIsSubmitting(true);
 
     try {
-      // Update user email in Supabase Auth
+      // First, check if email already exists by trying to update
       const { error: updateError } = await supabase.auth.updateUser({
         email: data.email,
         password: data.password
       });
 
       if (updateError) {
-        if (updateError.message.includes("already registered")) {
-          toast({
-            title: "Email занят",
-            description: "Этот email уже используется другим аккаунтом",
-            variant: "destructive"
+        if (updateError.message.includes("already registered") || 
+            updateError.message.includes("already in use")) {
+          // Email exists - show merge confirmation
+          setPendingMergeData({
+            email: data.email,
+            password: data.password
           });
+          setShowMergeConfirmation(true);
+          setIsSubmitting(false);
+          return;
         } else {
           throw updateError;
         }
-        return;
       }
 
       // Update user profile
@@ -277,6 +324,36 @@ export const EmailLinkingForm = ({ onSuccess, onCancel }: EmailLinkingFormProps)
             )}
           </div>
         </form>
+
+        {/* Account Merge Confirmation Dialog */}
+        {pendingMergeData && tgUser && (
+          <AccountMergeConfirmation
+            open={showMergeConfirmation}
+            onOpenChange={setShowMergeConfirmation}
+            onConfirm={handleMergeConfirm}
+            onCancel={() => {
+              setShowMergeConfirmation(false);
+              setPendingMergeData(null);
+            }}
+            isLoading={isLinking}
+            sourceAccount={{
+              type: 'telegram',
+              identifier: String(tgUser.id),
+              displayName: `${tgUser.first_name}${tgUser.last_name ? ' ' + tgUser.last_name : ''}`,
+              metadata: {
+                username: tgUser.username,
+                firstName: tgUser.first_name,
+                lastName: tgUser.last_name,
+              }
+            }}
+            targetAccount={{
+              type: 'email',
+              identifier: pendingMergeData.email,
+              displayName: pendingMergeData.email,
+            }}
+            mergeDirection="telegram-to-email"
+          />
+        )}
       </CardContent>
     </Card>
   );

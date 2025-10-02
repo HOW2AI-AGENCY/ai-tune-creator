@@ -150,9 +150,84 @@ export const useAccountLinking = () => {
     }
   };
 
+  const linkToExistingEmail = async (
+    email: string,
+    password: string,
+    telegramInfo: TelegramLinkInfo
+  ): Promise<{ success: boolean; session?: any }> => {
+    if (!user) {
+      toast({
+        title: "Ошибка",
+        description: "Необходимо войти в систему",
+        variant: "destructive",
+      });
+      return { success: false };
+    }
+
+    setIsLinking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('link-telegram-to-existing-email', {
+        body: {
+          email,
+          password,
+          ...telegramInfo
+        }
+      });
+
+      if (error) {
+        console.error('Link to existing email error:', error);
+        toast({
+          title: "Ошибка привязки",
+          description: error.message || "Не удалось привязать аккаунты",
+          variant: "destructive",
+        });
+        return { success: false };
+      }
+
+      const result = data as any;
+      
+      if (!result.success) {
+        const errorMessages: Record<string, string> = {
+          'NOT_TELEGRAM_USER': 'Только Telegram пользователи могут привязать email аккаунт',
+          'INVALID_EMAIL_CREDENTIALS': 'Неверный email или пароль',
+          'EMAIL_ALREADY_LINKED': 'Этот email уже связан с другим Telegram',
+          'TELEGRAM_ALREADY_LINKED': 'Этот Telegram уже привязан к другому аккаунту',
+          'LINK_FAILED': 'Не удалось привязать аккаунты'
+        };
+
+        toast({
+          title: "Ошибка",
+          description: errorMessages[result.code] || result.error || "Не удалось объединить аккаунты",
+          variant: "destructive",
+        });
+        return { success: false };
+      }
+
+      toast({
+        title: "✅ Аккаунты объединены!",
+        description: "Теперь вы можете входить через Telegram или Email",
+      });
+      
+      // Return session for re-authentication
+      return { success: true, session: result.session };
+
+    } catch (error: any) {
+      console.error('Unexpected link error:', error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Произошла непредвиденная ошибка",
+        variant: "destructive",
+      });
+      return { success: false };
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
   return {
     linkTelegramAccount,
     unlinkTelegramAccount,
+    linkToExistingEmail,
     isLinking,
     isUnlinking,
   };
