@@ -367,7 +367,8 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
         if (service === 'suno') {
           functionName = 'get-suno-record-info';
         } else {
-          functionName = isInstrumental ? 'get-mureka-instrumental-status' : 'get-mureka-task-status';
+          // Fallback: use a single status function for both instrumental and non-instrumental
+          functionName = 'get-mureka-task-status';
         }
         const { data, error } = await supabase.functions.invoke(functionName, {
           body: { 

@@ -755,8 +755,8 @@ serve(async (req) => {
     // ВЫПОЛНЕНИЕ ЗАПРОСА К SUNO API С RETRY ЛОГИКОЙ
     // ======================================================================
     
-    const endpoint = '/api/v1/generate'; // ИСПРАВЛЕНО: правильный эндпоинт из документации
-    const fullUrl = `${sunoApiUrl}${endpoint}`;
+    const endpoint = 'generate'; // Use relative endpoint, AuthHandler will add /api/v1
+    const fullUrl = AuthHandler.generateURL('suno', endpoint);
     
     console.log('Отправляем запрос к Suno API:', fullUrl);
     
