@@ -24,7 +24,7 @@ async function handleSuccessfulPayment(payment: any) {
   const invoicePayload = payment.successful_payment.invoice_payload;
   const starsAmount = payment.successful_payment.total_amount;
 
-  console.log(`Processing successful payment for user ${telegramUserId}, payload: ${invoicePayload}, amount: ${starsAmount} stars`);
+  console.log('Processing successful payment');
 
   // Find user in your database by telegram_id
   const { data: userProfile, error } = await supabase
@@ -47,11 +47,11 @@ async function handleSuccessfulPayment(payment: any) {
     .eq('user_id', userProfile.user_id);
 
   if (updateError) {
-    console.error(`Failed to update balance for user ${userProfile.user_id}:`, updateError);
+    console.error('Failed to update star balance:', updateError);
     return;
   }
 
-  console.log(`Successfully credited ${starsAmount} stars to user ${userProfile.user_id}. New balance: ${newBalance}`);
+  console.log('Successfully credited stars');
 
   // You could also send a confirmation message to the user via the bot API here
 }

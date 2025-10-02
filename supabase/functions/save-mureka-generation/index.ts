@@ -118,12 +118,12 @@ serve(async (req) => {
     // A dedicated database function `get_user_inbox_project(user_id)` would be a more robust solution.
     let targetProjectId = projectId;
     if (!targetProjectId) {
-      console.log(`[PROJECT] Attempting to find Inbox project for user: ${generation.user_id}`);
+      console.log('[PROJECT] Finding Inbox project');
       let finalArtistId = artistId;
       if (!finalArtistId) {
         const { data: userArtist } = await supabase.from('artists').select('id').eq('user_id', generation.user_id).single();
         finalArtistId = userArtist?.id;
-        console.log(`[PROJECT] Artist ID found for user: ${finalArtistId}`);
+        console.log('[PROJECT] Artist ID found');
       }
       
       if (finalArtistId) {

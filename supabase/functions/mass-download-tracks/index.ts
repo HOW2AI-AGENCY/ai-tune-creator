@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
 
     const { user_id } = await req.json();
 
-    console.log('[MASS_DOWNLOAD] Starting mass download for user:', user_id);
+    console.log('[MASS_DOWNLOAD] Starting mass download');
 
     // 1. Найти все треки пользователя с внешними URL
     const { data: tracks, error: fetchError } = await supabase

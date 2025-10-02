@@ -49,7 +49,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log(`[CLEANUP] Starting tracks cleanup for user ${userId} (dry run: ${dryRun})`);
+    console.log('[CLEANUP] Starting tracks cleanup');
 
     // Получаем треки пользователя с проблемами
     const { data: problematicTracks, error: tracksError } = await supabase

@@ -14,7 +14,7 @@ serve(async (req) => {
   try {
     const { telegram_id, tracks } = await req.json();
     
-    console.log('Sharing playlist to Telegram:', { telegram_id, trackCount: tracks?.length });
+    console.log('Sharing playlist to Telegram');
     
     if (!telegram_id || !tracks || !Array.isArray(tracks) || tracks.length === 0) {
       throw new Error('Missing required parameters: telegram_id, tracks (non-empty array)');

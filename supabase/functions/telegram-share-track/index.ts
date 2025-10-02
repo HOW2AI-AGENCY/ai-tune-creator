@@ -14,7 +14,7 @@ serve(async (req) => {
   try {
     const { telegram_id, track_id, track_title, track_url, artist_name } = await req.json();
     
-    console.log('Sharing track to Telegram:', { telegram_id, track_id, track_title });
+    console.log('Sharing track to Telegram');
     
     if (!telegram_id || !track_title) {
       throw new Error('Missing required parameters: telegram_id, track_title');
@@ -85,7 +85,7 @@ serve(async (req) => {
       throw new Error(`Telegram API error: ${telegramResult.description || 'Unknown error'}`);
     }
 
-    console.log('Track shared successfully to Telegram user:', telegram_id);
+    console.log('Track shared successfully to Telegram');
 
     return new Response(
       JSON.stringify({ 

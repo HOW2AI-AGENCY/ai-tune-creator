@@ -101,7 +101,7 @@ serve(async (req) => {
         );
       }
 
-      console.log(`Successfully linked Telegram account ${telegram_id} to user ${user.id}`);
+      console.log('Successfully linked Telegram account');
       
       return new Response(
         JSON.stringify({ 
@@ -138,7 +138,7 @@ serve(async (req) => {
         );
       }
 
-      console.log(`Successfully unlinked Telegram account from user ${user.id}`);
+      console.log('Successfully unlinked Telegram account');
       
       return new Response(
         JSON.stringify({ 

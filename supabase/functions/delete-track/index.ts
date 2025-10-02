@@ -51,7 +51,7 @@ export default async function handler(req: Request) {
       );
     }
 
-    console.log('Deleting track:', { trackId, userId: user.id, softDelete });
+    console.log('Deleting track');
 
     // Call the comprehensive delete function
     const { data: deleteResult, error: deleteError } = await adminSupabase.rpc(

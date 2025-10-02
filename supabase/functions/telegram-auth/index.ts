@@ -120,7 +120,7 @@ async function validateTelegramAuth(initData: string, botToken: string, supabase
     const authTime = parseInt(authDate) * 1000;
     const now = Date.now();
     if (now - authTime > 300000) {
-      console.log('Telegram auth: initData too old, age:', (now - authTime) / 1000, 'seconds');
+      console.log('Telegram auth: initData expired');
       return { valid: false, error: 'Authentication data expired' };
     }
 
@@ -157,7 +157,7 @@ async function validateTelegramAuth(initData: string, botToken: string, supabase
       .join('');
     
     const isValid = hash === expectedHash;
-    console.log('Telegram validation:', { isValid, authDate, hash: hash.substring(0, 8) + '...' });
+    console.log('Telegram validation:', { isValid });
     
     return { 
       valid: isValid, 
@@ -194,7 +194,7 @@ serve(async (req) => {
     const rateLimit = checkRateLimit(rateLimitKey);
     
     if (!rateLimit.allowed) {
-      console.log(`Rate limit exceeded for ${authData.telegramId} from ${clientIP}`);
+      console.log('Rate limit exceeded for telegram auth');
       return new Response(
         JSON.stringify({ 
           error: 'Too many authentication attempts. Please wait before trying again.',
@@ -218,17 +218,13 @@ serve(async (req) => {
       throw new Error('Service configuration error')
     }
 
-    // Log incoming auth data for debugging
-    console.log(`Processing Telegram auth for user ${authData.telegramId}`, {
-      firstName: authData.firstName,
-      initDataLength: authData.initData.length,
-      hasInitData: !!authData.initData
+    console.log('Processing Telegram auth request');
     });
 
     // Валидируем данные от Telegram с проверкой повторного использования
     const validation = await validateTelegramAuth(authData.initData, botToken, supabaseClient);
     if (!validation.valid) {
-      console.log(`Invalid Telegram auth for ${authData.telegramId}: ${validation.error}`);
+      console.log('Invalid Telegram auth:', validation.error);
       
       // Return more specific error messages
       let errorMessage = 'Ошибка аутентификации Telegram';
@@ -258,7 +254,7 @@ serve(async (req) => {
     // Создаем уникальный email для пользователя Telegram
     const telegramEmail = `telegram_${authData.telegramId}@telegram.local`
     
-    console.log(`Processing auth for Telegram user ${authData.telegramId} (${authData.firstName})`);
+    console.log('Processing Telegram authentication');
     
     // Пытаемся найти существующего пользователя
     const { data: existingUser, error: getUserError } = await supabaseClient.auth.admin.getUserByEmail(telegramEmail)
@@ -273,7 +269,7 @@ serve(async (req) => {
 
     if (existingUser?.user) {
       userId = existingUser.user.id;
-      console.log(`Telegram auth: Found existing user ${userId}`);
+      console.log('Telegram auth: Existing user found');
     } else {
       // Create new user if not found
       const { data: newUser, error: createError } = await supabaseClient.auth.admin.createUser({
@@ -296,7 +292,7 @@ serve(async (req) => {
       }
       userId = newUser.user.id;
       isNewUser = true;
-      console.log(`Telegram auth: New user ${userId} created successfully`);
+      console.log('Telegram auth: New user created');
     }
 
     // Generate a session for the user without exposing passwords
@@ -333,7 +329,7 @@ serve(async (req) => {
     };
 
     const duration = Date.now() - startTime;
-    console.log(`Telegram auth: Session generated for user ${userId} in ${duration}ms`);
+    console.log(`Telegram auth: Session generated in ${duration}ms`);
 
     return new Response(
       JSON.stringify({
