@@ -24,7 +24,7 @@ import { TrackStorageManager } from "@/components/dev/TrackStorageManager";
 import { useEventListener } from "@/lib/events/event-bus";
 import { safeLazy, preloadModules } from "@/lib/optimization/SafeLazyLoader";
 import { SimplifiedGenerationPanel } from "@/components/ai-generation/SimplifiedGenerationPanel";
-import { DynamicGenerationForm } from "@/features/ai-generation/components/DynamicGenerationForm";
+// import { DynamicGenerationForm } from "@/features/ai-generation/components/DynamicGenerationForm";
 import { LocalErrorBoundary } from "@/components/debug/LocalErrorBoundary";
 
 // Увеличены timeout значения для надежной загрузки
