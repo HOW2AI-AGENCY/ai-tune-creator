@@ -4,10 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { Unlink, Link, MessageCircle, User, CheckCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Unlink, Link, MessageCircle, User, CheckCircle, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAccountLinking } from "@/hooks/useAccountLinking";
 import { useTelegramWebApp } from "@/hooks/useTelegramWebApp";
+import { EmailLinkingForm } from "./EmailLinkingForm";
 import { getTelegramData } from "@/lib/secure-profile";
 
 interface UserProfile {
@@ -20,6 +22,7 @@ interface UserProfile {
 export const TelegramAccountLinking = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showEmailLinkingDialog, setShowEmailLinkingDialog] = useState(false);
   const { user } = useAuth();
   const { linkTelegramAccount, unlinkTelegramAccount, isLinking, isUnlinking } = useAccountLinking();
   const { user: telegramUser, isInTelegram } = useTelegramWebApp();
@@ -84,6 +87,9 @@ export const TelegramAccountLinking = () => {
 
   const isLinked = profile?.telegram_id;
   const canLink = isInTelegram && telegramUser && !isLinked;
+  
+  // Check if user authenticated via Telegram (has telegram email format)
+  const isTelegramUser = user?.email?.includes('@telegram.local');
 
   return (
     <Card className="w-full">
@@ -117,7 +123,7 @@ export const TelegramAccountLinking = () => {
                     {profile.telegram_first_name}
                     {profile.telegram_last_name && ` ${profile.telegram_last_name}`}
                   </span>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100">
                     Привязан
                   </Badge>
                 </div>
@@ -131,6 +137,29 @@ export const TelegramAccountLinking = () => {
                 </p>
               </div>
             </div>
+
+            {/* Show email linking option if user logged in via Telegram */}
+            {isTelegramUser && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <Alert>
+                    <Mail className="h-4 w-4" />
+                    <AlertDescription>
+                      Добавьте email и пароль для входа без Telegram
+                    </AlertDescription>
+                  </Alert>
+                  <Button
+                    variant="default"
+                    onClick={() => setShowEmailLinkingDialog(true)}
+                    className="w-full"
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    Привязать Email
+                  </Button>
+                </div>
+              </>
+            )}
 
             <Separator />
 
@@ -215,6 +244,25 @@ export const TelegramAccountLinking = () => {
           </div>
         )}
       </CardContent>
+
+      {/* Email Linking Dialog */}
+      <Dialog open={showEmailLinkingDialog} onOpenChange={setShowEmailLinkingDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Привязать Email к аккаунту</DialogTitle>
+            <DialogDescription>
+              Добавьте email и пароль для альтернативного способа входа
+            </DialogDescription>
+          </DialogHeader>
+          <EmailLinkingForm 
+            onSuccess={() => {
+              setShowEmailLinkingDialog(false);
+              fetchUserProfile();
+            }}
+            onCancel={() => setShowEmailLinkingDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
