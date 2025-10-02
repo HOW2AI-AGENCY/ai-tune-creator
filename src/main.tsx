@@ -7,21 +7,57 @@ import { bootLogger } from '@/components/debug/BootLogger'
 
 bootLogger.log('1. Starting application bootstrap');
 
-// Initialize quota manager for localStorage management (only once)
+// Initialize quota manager and clear excessive storage
 try {
-  bootLogger.log('2. Initializing quota manager');
-  // Remove duplicate call - already handled in App.tsx
+  bootLogger.log('2. Checking storage quota');
   
-  // Monitor storage usage and preemptively clear if near quota
-  if (quotaManager.isNearQuota(0.8)) {
-    bootLogger.log('3. Storage near quota, clearing cache');
-    console.warn('[QuotaManager] Storage near quota, clearing cache...');
-    quotaManager.clearStorage(['auth', 'user', 'supabase']);
+  // Aggressive cleanup to prevent quota issues
+  const storageInfo = quotaManager.getStorageInfo();
+  const percentUsed = (storageInfo.used / storageInfo.total) * 100;
+  
+  console.log('[Storage] Current usage:', {
+    used: `${(storageInfo.used / 1024).toFixed(2)} KB`,
+    total: `${(storageInfo.total / 1024).toFixed(2)} KB`,
+    percent: `${percentUsed.toFixed(1)}%`
+  });
+  
+  // If storage is over 50%, clear everything except critical data
+  if (percentUsed > 50) {
+    bootLogger.log('3. Storage over 50%, performing aggressive cleanup');
+    console.warn('[QuotaManager] Storage usage high, clearing non-essential data...');
+    quotaManager.clearStorage(['auth', 'supabase', 'sb-']);
+    bootLogger.log('3. Cleanup complete');
   } else {
     bootLogger.log('3. Storage quota OK');
   }
 } catch (error) {
   bootLogger.log('3. ERROR in quota manager', error);
+  // Try emergency cleanup
+  try {
+    console.error('[QuotaManager] Emergency cleanup triggered');
+    const keysToPreserve: string[] = [];
+    
+    // Save auth keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.includes('auth') || key.includes('sb-'))) {
+        keysToPreserve.push(key);
+      }
+    }
+    
+    const preserved: Record<string, string> = {};
+    keysToPreserve.forEach(key => {
+      const value = localStorage.getItem(key);
+      if (value) preserved[key] = value;
+    });
+    
+    localStorage.clear();
+    Object.entries(preserved).forEach(([k, v]) => {
+      try { localStorage.setItem(k, v); } catch {}
+    });
+  } catch (e) {
+    console.error('[QuotaManager] Failed emergency cleanup', e);
+  }
 }
 
 bootLogger.log('4. Looking for root element');
