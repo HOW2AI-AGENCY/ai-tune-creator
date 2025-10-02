@@ -108,15 +108,25 @@ export function useGenerationState() {
   const syncTracks = useCallback(async () => {
     try {
       setIsRefreshing(true);
+      console.log('Starting track synchronization...');
+      
       const { data, error } = await supabase.functions.invoke('sync-generated-tracks');
       
       if (error) {
+        console.error('Sync error:', error);
         toast.error(`Ошибка синхронизации: ${error.message}`);
         return;
       }
 
+      console.log('Sync result:', data);
+      
       await loadGenerations();
-      toast.success('Треки синхронизированы');
+      
+      if (data?.data?.summary?.tracks_created > 0) {
+        toast.success(`Создано треков: ${data.data.summary.tracks_created}`);
+      } else {
+        toast.info('Нет новых треков для синхронизации');
+      }
     } catch (error) {
       console.error('Error syncing tracks:', error);
       toast.error('Ошибка синхронизации треков');
@@ -125,20 +135,29 @@ export function useGenerationState() {
     }
   }, [loadGenerations]);
 
-  // Auto-poll processing generations every 15 seconds (faster polling)
+  // Auto-poll processing generations every 10 seconds (aggressive polling)
   useEffect(() => {
-    const processingGenerations = generations.filter(g => g.status === 'processing');
+    const processingGenerations = generations.filter(g => 
+      g.status === 'processing' || g.status === 'pending'
+    );
     
     if (processingGenerations.length === 0) return;
 
-    console.log(`Starting auto-poll for ${processingGenerations.length} processing generations`);
+    console.log(`Starting auto-poll for ${processingGenerations.length} processing/pending generations`);
 
+    // Immediate first check
+    processingGenerations.forEach(gen => {
+      console.log(`Initial status check for generation ${gen.id}`);
+      checkGenerationStatus(gen.id);
+    });
+
+    // Then poll every 10 seconds
     const interval = setInterval(() => {
       processingGenerations.forEach(gen => {
-        console.log(`Auto-checking status for generation ${gen.id}`);
+        console.log(`Auto-checking status for generation ${gen.id} (${gen.service})`);
         checkGenerationStatus(gen.id);
       });
-    }, 15000); // Reduced from 30s to 15s for faster updates
+    }, 10000); // Aggressive 10s polling for faster updates
 
     return () => {
       console.log('Stopping auto-poll interval');
