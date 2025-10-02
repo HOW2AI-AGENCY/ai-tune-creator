@@ -117,6 +117,7 @@ export function UnifiedGenerationSidebar({
   const modelOptions = selectedService === 'suno' 
     ? [
         { value: "auto", label: "Авто (рекомендовано)" },
+        { value: "V3", label: "Suno v3 - Базовая (макс 2 мин)" },
         { value: "V3_5", label: "Suno v3.5 - Стабильная (макс 4 мин)" },
         { value: "V4", label: "Suno v4 - Качественный вокал (макс 4 мин)" },
         { value: "V4_5", label: "Suno v4.5 - Продвинутая (макс 8 мин)" },

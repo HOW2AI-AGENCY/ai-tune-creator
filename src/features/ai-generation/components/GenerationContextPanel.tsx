@@ -46,7 +46,7 @@ export function GenerationContextPanel({
   const [prompt, setPrompt] = useState("");
   const [selectedService, setSelectedService] = useState<'suno' | 'mureka'>('suno');
   const [selectedModel, setSelectedModel] = useState<string>('auto');
-  const sunoModelOptions = ['auto','V3_5','V4','V4_5','V4_5PLUS'];
+  const sunoModelOptions = ['auto','V3','V3_5','V4','V4_5','V4_5PLUS'];
   const murekaModelOptions = ['auto','V7','O1','V6'];
   const [selectedProjectId, setSelectedProjectId] = useState<string>("none");
   const [selectedArtistId, setSelectedArtistId] = useState<string>("none");

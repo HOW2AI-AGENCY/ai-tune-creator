@@ -87,10 +87,10 @@ interface GenerationRequest {
 }
 
 /** Поддерживаемые модели Suno AI */
-type SunoModelType = 'V3_5' | 'V4' | 'V4_5' | 'V4_5PLUS';
+type SunoModelType = 'V3' | 'V3_5' | 'V4' | 'V4_5' | 'V4_5PLUS';
 
 /** Нормализованные названия моделей для API (используются напрямую) */
-type NormalizedSunoModel = 'V3_5' | 'V4' | 'V4_5' | 'V4_5PLUS';
+type NormalizedSunoModel = 'V3' | 'V3_5' | 'V4' | 'V4_5' | 'V4_5PLUS';
 
 /** Структура запроса к Suno API согласно официальной документации */
 interface SunoApiRequest {
@@ -156,17 +156,19 @@ type OperationResult<T> = {
  * @returns Нормализованное название модели
  */
 function normalizeModelName(model: string): NormalizedSunoModel {
-  // Модели передаются напрямую в правильном формате V3_5, V4, V4_5, V4_5PLUS
-  if (model === 'V3_5' || model === 'V4' || model === 'V4_5' || model === 'V4_5PLUS') {
+  // Модели передаются напрямую в правильном формате V3, V3_5, V4, V4_5, V4_5PLUS
+  if (model === 'V3' || model === 'V3_5' || model === 'V4' || model === 'V4_5' || model === 'V4_5PLUS') {
     return model as NormalizedSunoModel;
   }
   
   // Резервный маппинг для старых форматов
   const modelMap: Record<string, NormalizedSunoModel> = {
+    'chirp-v3': 'V3',
     'chirp-v3-5': 'V3_5',
     'chirp-v4': 'V4',
     'chirp-v4-5': 'V4_5',
     'chirp-bluejay': 'V4_5PLUS',
+    'v3': 'V3',
     'v3.5': 'V3_5',
     'v4': 'V4', 
     'v4.5': 'V4_5',

@@ -74,7 +74,7 @@ export interface SunoStyleBoostRequest {
 
 export class SunoCompleteService {
   private baseUrl = '/api/suno';
-  private readonly SUPPORTED_MODELS = ['V3_5', 'V4', 'V4_5', 'V4_5PLUS'] as const;
+  private readonly SUPPORTED_MODELS = ['V3', 'V3_5', 'V4', 'V4_5', 'V4_5PLUS'] as const;
   private readonly DEFAULT_MODEL = 'V3_5';
   private readonly API_VERSION = 'v1';
   

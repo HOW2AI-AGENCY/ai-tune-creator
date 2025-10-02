@@ -219,8 +219,16 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
           body: sunoRequest
         });
 
-        if (error) throw error;
-        if (!data.success) throw new Error(data.error || 'Suno generation failed');
+        if (error) {
+          logger.error('Suno API error:', error);
+          throw new Error(error.message || 'Failed to connect to Suno API');
+        }
+        if (!data) {
+          throw new Error('No response from Suno API');
+        }
+        if (!data.success) {
+          throw new Error(data.error || data.message || 'Suno generation failed');
+        }
         
         // Normalize task id field from edge function (task_id | taskId | id)
         taskId = data.data.task_id || data.data.taskId || data.data.id;
@@ -237,8 +245,16 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
           body: murekaRequest.data
         });
 
-        if (error) throw error;
-        if (!data.success) throw new Error(data.error || 'Mureka generation failed');
+        if (error) {
+          logger.error('Mureka API error:', error);
+          throw new Error(error.message || 'Failed to connect to Mureka API');
+        }
+        if (!data) {
+          throw new Error('No response from Mureka API');
+        }
+        if (!data.success) {
+          throw new Error(data.error || data.message || 'Mureka generation failed');
+        }
         
         // Normalize task id from various possible fields
         taskId = data.data.taskId 
@@ -270,18 +286,46 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
       return generationId;
 
     } catch (error: any) {
-      console.error('Generation error:', error);
+      logger.error('Generation error:', error);
       
-      // Handle different error types
+      // Handle different error types with detailed diagnostics
       let standardError: StandardError;
+      
       if (error.name === 'AbortError') {
-        standardError = createStandardError('unknown', 'Generation cancelled', 'User cancelled the operation');
-      } else if (error instanceof Error && error.message.includes('fetch')) {
-        standardError = createStandardError('network', 'Network error', error.message);
+        standardError = createStandardError('unknown', 'Генерация отменена', 'Операция была отменена пользователем');
+      } else if (error.name === 'FunctionsFetchError' || error.message?.includes('Failed to fetch')) {
+        // Network/CORS error - часто связано с неправильной настройкой Edge Function
+        standardError = createStandardError(
+          'network', 
+          'Ошибка соединения с сервером',
+          'Проверьте подключение к интернету или попробуйте позже. Если проблема повторяется, проверьте настройки Edge Function в Supabase.'
+        );
+      } else if (error.message?.includes('timeout') || error.message?.includes('timed out')) {
+        standardError = createStandardError(
+          'network',
+          'Превышено время ожидания',
+          'Сервер не ответил вовремя. Попробуйте позже.'
+        );
+      } else if (error.message?.includes('rate limit') || error.message?.includes('429')) {
+        standardError = createStandardError(
+          'quota',
+          'Превышен лимит запросов',
+          'Слишком много запросов. Подождите немного и попробуйте снова.'
+        );
+      } else if (error.message?.includes('credits') || error.message?.includes('quota')) {
+        standardError = createStandardError(
+          'quota',
+          'Недостаточно кредитов',
+          'Проверьте баланс API кредитов в настройках сервиса'
+        );
       } else if (error.type) {
         standardError = error as StandardError;
       } else {
-        standardError = createStandardError('unknown', 'Generation failed', error.message || 'Unknown error occurred');
+        standardError = createStandardError(
+          'unknown', 
+          'Ошибка генерации',
+          error.message || 'Произошла неизвестная ошибка. Попробуйте еще раз.'
+        );
       }
 
       setError(standardError);
@@ -289,6 +333,16 @@ export function useUnifiedGeneration(): UseUnifiedGenerationReturn {
       // Update progress to show error
       updateProgress(generationId, { status: 'failed', overallProgress: 0 });
       updateStep(generationId, 'queue', { status: 'error' });
+      
+      // Record error for monitoring
+      errorRecovery.recordError({
+        generationId,
+        service: input.service,
+        stage: 'generation',
+        attempt: 0,
+        error: error instanceof Error ? error : new Error(String(error)),
+        timestamp: Date.now()
+      });
 
       toast({
         title: "Ошибка генерации",

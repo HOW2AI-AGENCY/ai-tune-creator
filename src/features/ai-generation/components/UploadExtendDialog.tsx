@@ -403,10 +403,11 @@ export function UploadExtendDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="V3_5">V3.5 - Улучшенная структура</SelectItem>
-                    <SelectItem value="V4">V4 - Качество вокала</SelectItem>
-                    <SelectItem value="V4_5">V4.5 - Умные промпты</SelectItem>
-                    <SelectItem value="V4_5PLUS">V4.5+ - Богатый звук</SelectItem>
+                    <SelectItem value="V3">V3 - Базовая (макс 2 мин)</SelectItem>
+                    <SelectItem value="V3_5">V3.5 - Улучшенная структура (макс 4 мин)</SelectItem>
+                    <SelectItem value="V4">V4 - Качество вокала (макс 4 мин)</SelectItem>
+                    <SelectItem value="V4_5">V4.5 - Умные промпты (макс 8 мин)</SelectItem>
+                    <SelectItem value="V4_5PLUS">V4.5+ - Богатый звук (макс 8 мин)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

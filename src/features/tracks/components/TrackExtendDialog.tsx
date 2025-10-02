@@ -37,6 +37,7 @@ interface TrackExtendDialogProps {
 }
 
 const SUNO_MODELS = [
+  { value: 'V3', label: 'V3 - Classic model, max 2 min', maxDuration: 120 },
   { value: 'V3_5', label: 'V3.5 - Better song structure, max 4 min', maxDuration: 240 },
   { value: 'V4', label: 'V4 - Improved vocal quality, max 4 min', maxDuration: 240 },
   { value: 'V4_5', label: 'V4.5 - Smarter prompts, faster generations, max 8 min', maxDuration: 480 },

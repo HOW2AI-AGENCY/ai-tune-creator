@@ -676,12 +676,13 @@ export const UniversalAIInterface = memo(function UniversalAIInterface() {
                                   Auto (Recommended)
                                 </div>
                               </SelectItem>
-                              <SelectItem value="V3_5">V3.5 - Balanced</SelectItem>
-                              <SelectItem value="V4">V4 - High Quality</SelectItem>
-                              <SelectItem value="V4_5">V4.5 - Advanced</SelectItem>
+                              <SelectItem value="V3">V3 - Classic (max 2 min)</SelectItem>
+                              <SelectItem value="V3_5">V3.5 - Balanced (max 4 min)</SelectItem>
+                              <SelectItem value="V4">V4 - High Quality (max 4 min)</SelectItem>
+                              <SelectItem value="V4_5">V4.5 - Advanced (max 8 min)</SelectItem>
                               <SelectItem value="V4_5PLUS">
                                 <div className="flex items-center gap-2">
-                                  V4.5+ - Premium
+                                  V4.5+ - Premium (max 8 min)
                                   <Badge variant="secondary" className="text-xs">Pro</Badge>
                                 </div>
                               </SelectItem>
