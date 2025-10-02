@@ -61,6 +61,36 @@ export function useGenerationState() {
     }
   }, []);
 
+  const syncTracks = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      console.log('Starting track synchronization...');
+      
+      const { data, error } = await supabase.functions.invoke('sync-generated-tracks');
+      
+      if (error) {
+        console.error('Sync error:', error);
+        toast.error(`Ошибка синхронизации: ${error.message}`);
+        return;
+      }
+
+      console.log('Sync result:', data);
+      
+      await loadGenerations();
+      
+      if (data?.data?.summary?.tracks_created > 0) {
+        toast.success(`Создано треков: ${data.data.summary.tracks_created}`);
+      } else {
+        toast.info('Нет новых треков для синхронизации');
+      }
+    } catch (error) {
+      console.error('Error syncing tracks:', error);
+      toast.error('Ошибка синхронизации треков');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadGenerations]);
+
   const checkGenerationStatus = useCallback(async (generationId: string) => {
     try {
       setIsRefreshing(true);
@@ -91,6 +121,13 @@ export function useGenerationState() {
       
       if (data?.status === 'completed' || data?.completed) {
         toast.success('Генерация завершена!');
+        // Автосинхронизация треков после завершения и оповещение UI
+        try {
+          await syncTracks();
+          window.dispatchEvent(new CustomEvent('tracks-updated'));
+        } catch (e) {
+          console.warn('Auto-sync failed:', e);
+        }
       } else if (data?.status === 'failed' || data?.failed) {
         toast.error('Генерация завершилась с ошибкой');
       } else {
@@ -103,37 +140,7 @@ export function useGenerationState() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [generations, loadGenerations]);
-
-  const syncTracks = useCallback(async () => {
-    try {
-      setIsRefreshing(true);
-      console.log('Starting track synchronization...');
-      
-      const { data, error } = await supabase.functions.invoke('sync-generated-tracks');
-      
-      if (error) {
-        console.error('Sync error:', error);
-        toast.error(`Ошибка синхронизации: ${error.message}`);
-        return;
-      }
-
-      console.log('Sync result:', data);
-      
-      await loadGenerations();
-      
-      if (data?.data?.summary?.tracks_created > 0) {
-        toast.success(`Создано треков: ${data.data.summary.tracks_created}`);
-      } else {
-        toast.info('Нет новых треков для синхронизации');
-      }
-    } catch (error) {
-      console.error('Error syncing tracks:', error);
-      toast.error('Ошибка синхронизации треков');
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [loadGenerations]);
+  }, [generations, loadGenerations, syncTracks]);
 
   // Auto-poll processing generations every 10 seconds (aggressive polling)
   useEffect(() => {
