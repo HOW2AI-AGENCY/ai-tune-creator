@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTrackStems } from '@/hooks/useTrackStems';
+import { useTrackVariants } from '@/hooks/useTrackVariants';
 import { STEM_ICONS, STEM_NAMES } from '@/types/track-stems';
+import { TrackVariantsSelector } from './TrackVariantsSelector';
 
 interface Track {
   id: string;
@@ -39,6 +41,7 @@ export function TrackRowWithStems({
     track.id,
     track.variant_number || 1
   );
+  const { variantGroup, setMasterVariant } = useTrackVariants(track.id);
 
   const formatDuration = (seconds?: number) => {
     if (!seconds) return '0:00';
@@ -99,6 +102,16 @@ export function TrackRowWithStems({
             )}
           </div>
         </div>
+
+        {/* Variants Selector */}
+        {variantGroup && variantGroup.variants.length > 1 && (
+          <TrackVariantsSelector
+            variants={variantGroup.variants}
+            currentVariantId={track.id}
+            onVariantSelect={(variant) => onSelect?.(variant as any)}
+            onSetMaster={setMasterVariant}
+          />
+        )}
 
         {track.has_stems && track.stems_count && track.stems_count > 0 && (
           <div className="flex items-center gap-2">
