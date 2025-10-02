@@ -1,18 +1,22 @@
 import { useState } from 'react';
-import { Layers, Loader2 } from 'lucide-react';
+import { GitMerge, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTrackVariants } from '@/hooks/useTrackVariants';
+import { useManualGroupTracks } from '@/hooks/useManualGroupTracks';
 
 export function GroupTracksButton() {
   const [isGrouping, setIsGrouping] = useState(false);
-  const { groupExistingTracks } = useTrackVariants();
+  const { groupTracks } = useManualGroupTracks();
 
   const handleGroupTracks = async () => {
     setIsGrouping(true);
     try {
-      await groupExistingTracks();
-      // Reload the page to show updated tracks
-      window.location.reload();
+      const result = await groupTracks(); // Group all tracks
+      if (result?.success && result.tracks_updated > 0) {
+        // Reload the page to show updated tracks
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
     } finally {
       setIsGrouping(false);
     }
@@ -25,6 +29,7 @@ export function GroupTracksButton() {
       variant="outline"
       size="sm"
       className="gap-2"
+      title="Объединяет треки с одинаковым task_id в варианты"
     >
       {isGrouping ? (
         <>
@@ -33,7 +38,7 @@ export function GroupTracksButton() {
         </>
       ) : (
         <>
-          <Layers className="h-4 w-4" />
+          <GitMerge className="h-4 w-4" />
           Объединить версии
         </>
       )}

@@ -1,14 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Restrict CORS to known Telegram origins and app domains
+// Allow all origins for Telegram Mini Apps
 const getAllowedOrigins = () => {
   const origins = [
     'https://web.telegram.org',
     'https://telegram.org', 
     'https://t.me',
-    'https://zwbhlfhwymbmvioaikvs.supabase.co'
+    'https://zwbhlfhwymbmvioaikvs.supabase.co',
+    // Lovable domains
+    'https://lovableproject.com',
+    'https://lovable.app',
+    'https://lovable.dev'
   ];
+  
+  // Allow all Lovable preview URLs (pattern: *.lovableproject.com)
+  const origin = globalThis?.origin || '';
+  if (origin.includes('lovableproject.com') || origin.includes('lovable.app')) {
+    origins.push(origin);
+  }
   
   // Add development origins in non-production
   const isDev = Deno.env.get('ENVIRONMENT') !== 'production';
@@ -19,14 +29,28 @@ const getAllowedOrigins = () => {
   return origins;
 };
 
-const getCorsHeaders = (origin?: string) => {
+const getCorsHeaders = (origin?: string | null) => {
   const allowedOrigins = getAllowedOrigins();
-  const allowedOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
   
+  // For Telegram Mini Apps, allow any origin that matches patterns
+  if (origin) {
+    if (origin.includes('lovableproject.com') || 
+        origin.includes('lovable.app') ||
+        origin.includes('telegram.org') ||
+        origin.includes('t.me') ||
+        allowedOrigins.includes(origin)) {
+      return {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Credentials': 'true'
+      };
+    }
+  }
+  
+  // Fallback to wildcard for Telegram Mini Apps
   return {
-    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Credentials': 'true'
   };
 };
 
