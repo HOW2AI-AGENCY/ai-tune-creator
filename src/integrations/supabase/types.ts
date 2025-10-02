@@ -69,8 +69,10 @@ export type Database = {
           result_url: string | null
           service: string
           status: string
+          total_variants: number | null
           track_id: string | null
           user_id: string
+          variant_group_id: string | null
         }
         Insert: {
           completed_at?: string | null
@@ -84,8 +86,10 @@ export type Database = {
           result_url?: string | null
           service: string
           status?: string
+          total_variants?: number | null
           track_id?: string | null
           user_id: string
+          variant_group_id?: string | null
         }
         Update: {
           completed_at?: string | null
@@ -99,8 +103,10 @@ export type Database = {
           result_url?: string | null
           service?: string
           status?: string
+          total_variants?: number | null
           track_id?: string | null
           user_id?: string
+          variant_group_id?: string | null
         }
         Relationships: [
           {
@@ -244,6 +250,39 @@ export type Database = {
           success?: boolean
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      filter_presets: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          filters: Json
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          filters: Json
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          filters?: Json
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -741,6 +780,107 @@ export type Database = {
           },
         ]
       }
+      track_relations: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          metadata: Json | null
+          relation_type: Database["public"]["Enums"]["track_relation_type"]
+          source_track_id: string
+          target_track_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          relation_type: Database["public"]["Enums"]["track_relation_type"]
+          source_track_id: string
+          target_track_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          relation_type?: Database["public"]["Enums"]["track_relation_type"]
+          source_track_id?: string
+          target_track_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_relations_source_track_id_fkey"
+            columns: ["source_track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "track_relations_target_track_id_fkey"
+            columns: ["target_track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      track_stems: {
+        Row: {
+          created_at: string | null
+          duration: number | null
+          file_size: number | null
+          id: string
+          metadata: Json | null
+          separation_mode: string
+          stem_name: string
+          stem_type: string
+          stem_url: string
+          track_id: string
+          updated_at: string | null
+          variant_number: number
+          waveform_data: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          duration?: number | null
+          file_size?: number | null
+          id?: string
+          metadata?: Json | null
+          separation_mode: string
+          stem_name: string
+          stem_type: string
+          stem_url: string
+          track_id: string
+          updated_at?: string | null
+          variant_number?: number
+          waveform_data?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          duration?: number | null
+          file_size?: number | null
+          id?: string
+          metadata?: Json | null
+          separation_mode?: string
+          stem_name?: string
+          stem_type?: string
+          stem_url?: string
+          track_id?: string
+          updated_at?: string | null
+          variant_number?: number
+          waveform_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_stems_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       track_versions: {
         Row: {
           audio_url: string
@@ -787,11 +927,15 @@ export type Database = {
           description: string | null
           duration: number | null
           genre_tags: string[] | null
+          has_stems: boolean | null
           id: string
+          is_master_variant: boolean | null
           is_public: boolean
           lyrics: string | null
           metadata: Json | null
           project_id: string
+          stems_count: number | null
+          stems_separation_mode: string | null
           storage_metadata: Json | null
           storage_path: string | null
           storage_status: string | null
@@ -799,6 +943,8 @@ export type Database = {
           title: string
           track_number: number
           updated_at: string
+          variant_group_id: string | null
+          variant_number: number | null
           waveform_data: Json | null
         }
         Insert: {
@@ -808,11 +954,15 @@ export type Database = {
           description?: string | null
           duration?: number | null
           genre_tags?: string[] | null
+          has_stems?: boolean | null
           id?: string
+          is_master_variant?: boolean | null
           is_public?: boolean
           lyrics?: string | null
           metadata?: Json | null
           project_id: string
+          stems_count?: number | null
+          stems_separation_mode?: string | null
           storage_metadata?: Json | null
           storage_path?: string | null
           storage_status?: string | null
@@ -820,6 +970,8 @@ export type Database = {
           title: string
           track_number: number
           updated_at?: string
+          variant_group_id?: string | null
+          variant_number?: number | null
           waveform_data?: Json | null
         }
         Update: {
@@ -829,11 +981,15 @@ export type Database = {
           description?: string | null
           duration?: number | null
           genre_tags?: string[] | null
+          has_stems?: boolean | null
           id?: string
+          is_master_variant?: boolean | null
           is_public?: boolean
           lyrics?: string | null
           metadata?: Json | null
           project_id?: string
+          stems_count?: number | null
+          stems_separation_mode?: string | null
           storage_metadata?: Json | null
           storage_path?: string | null
           storage_status?: string | null
@@ -841,6 +997,8 @@ export type Database = {
           title?: string
           track_number?: number
           updated_at?: string
+          variant_group_id?: string | null
+          variant_number?: number | null
           waveform_data?: Json | null
         }
         Relationships: [
@@ -1040,6 +1198,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_stale_generations: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       create_activity_log: {
         Args: {
           p_action: string
@@ -1204,6 +1366,16 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      track_relation_type:
+        | "variant"
+        | "version"
+        | "cover"
+        | "remix"
+        | "prompt_variation"
+        | "lyrics_variation"
+        | "style_variation"
+        | "continuation"
+        | "inspiration"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1332,6 +1504,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      track_relation_type: [
+        "variant",
+        "version",
+        "cover",
+        "remix",
+        "prompt_variation",
+        "lyrics_variation",
+        "style_variation",
+        "continuation",
+        "inspiration",
+      ],
     },
   },
 } as const
