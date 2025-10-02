@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,10 +13,8 @@ import {
   ChevronDown,
   ChevronUp
 } from "lucide-react";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { TrackVariantCard } from "./TrackVariantCard";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Track {
   id: string;
@@ -149,58 +148,53 @@ export function GroupedTrackCard({
 
               {/* Variants Toggle */}
               {variants.length > 1 && (
-                <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                    >
-                      {isExpanded ? (
-                        <>
-                          <ChevronUp className="h-4 w-4 mr-2" />
-                          Скрыть версии
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="h-4 w-4 mr-2" />
-                          Показать версии
-                        </>
-                      )}
-                    </Button>
-                  </CollapsibleTrigger>
-                </Collapsible>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                >
+                  {isExpanded ? (
+                    <>
+                      <ChevronUp className="h-4 w-4 mr-2" />
+                      Скрыть версии
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4 mr-2" />
+                      Показать версии
+                    </>
+                  )}
+                </Button>
               )}
             </div>
           </div>
         </div>
 
         {/* Variants List */}
-        {variants.length > 1 && (
-          <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-            <CollapsibleContent className="mt-4 space-y-2 pl-16">
-              {variants
-                .filter(v => v.id !== masterTrack.id)
-                .map((variant) => (
-                  <TrackVariantCard
-                    key={variant.id}
-                    variant={{
-                      id: variant.id,
-                      title: variant.title,
-                      variant_number: variant.variant_number || 1,
-                      is_master_variant: variant.is_master_variant || false,
-                      audio_url: variant.audio_url,
-                      duration: variant.duration,
-                      created_at: variant.created_at
-                    }}
-                    isPlaying={isPlaying}
-                    isCurrentlyPlaying={currentPlayingTrack?.id === variant.id}
-                    onPlay={() => onPlayTrack(variant)}
-                    onDownload={() => onDownload(variant)}
-                    onSetMaster={() => onSetMaster(variant.id)}
-                  />
-                ))}
-            </CollapsibleContent>
-          </Collapsible>
+        {isExpanded && variants.length > 1 && (
+          <div className="mt-4 space-y-2 pl-16">
+            {variants
+              .filter(v => v.id !== masterTrack.id)
+              .map((variant) => (
+                <TrackVariantCard
+                  key={variant.id}
+                  variant={{
+                    id: variant.id,
+                    title: variant.title,
+                    variant_number: variant.variant_number || 1,
+                    is_master_variant: variant.is_master_variant || false,
+                    audio_url: variant.audio_url,
+                    duration: variant.duration,
+                    created_at: variant.created_at
+                  }}
+                  isPlaying={isPlaying}
+                  isCurrentlyPlaying={currentPlayingTrack?.id === variant.id}
+                  onPlay={() => onPlayTrack(variant)}
+                  onDownload={() => onDownload(variant)}
+                  onSetMaster={() => onSetMaster(variant.id)}
+                />
+              ))}
+          </div>
         )}
       </CardContent>
     </Card>

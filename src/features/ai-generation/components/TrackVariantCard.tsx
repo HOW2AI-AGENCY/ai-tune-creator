@@ -1,8 +1,8 @@
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Download, Clock, Layers, Star } from "lucide-react";
-import { useState } from "react";
+import { Play, Pause, Download, Clock, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TrackVariant {
