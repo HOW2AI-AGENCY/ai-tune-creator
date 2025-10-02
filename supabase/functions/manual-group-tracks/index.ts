@@ -56,7 +56,8 @@ serve(async (req) => {
 
     // Filter by task_id if provided
     if (taskId) {
-      query = query.or(`metadata->task_id.eq."${taskId}",metadata->mureka_task_id.eq."${taskId}"`);
+      // Use text extraction ->> for proper string comparison
+      query = query.or(`metadata->>task_id.eq.${taskId},metadata->>mureka_task_id.eq.${taskId}`);
     }
 
     const { data: tracks, error: tracksError } = await query;
@@ -68,18 +69,25 @@ serve(async (req) => {
 
     console.log(`Found ${tracks?.length || 0} tracks for grouping`);
 
+    // Apply in-code taskId filter as a fallback for JSON filters
+    const filteredTracks = taskId
+      ? (tracks || []).filter((t: any) => {
+          const m = t.metadata as any;
+          const id = m?.task_id || m?.mureka_task_id;
+          return id === taskId;
+        })
+      : (tracks || []);
+
     // Group tracks by task_id from metadata
     const taskGroups = new Map<string, any[]>();
-    
-    for (const track of tracks || []) {
+
+    for (const track of filteredTracks) {
       const metadata = track.metadata as any;
       const trackTaskId = metadata?.task_id || metadata?.mureka_task_id;
-      
       if (!trackTaskId) {
         console.log(`Track ${track.id} has no task_id, skipping`);
         continue;
       }
-
       if (!taskGroups.has(trackTaskId)) {
         taskGroups.set(trackTaskId, []);
       }
@@ -127,9 +135,9 @@ serve(async (req) => {
             variant_group_id: variantGroupId,
             variant_number: variantNumber,
             is_master_variant: isMasterVariant,
-            title: track.title.includes('(вариант') 
-              ? track.title 
-              : `${track.title} (вариант ${variantNumber})`
+            title: track.title?.includes('(вариант')
+              ? track.title
+              : `${track.title || 'Трек'} (вариант ${variantNumber})`
           })
           .eq('id', track.id);
 

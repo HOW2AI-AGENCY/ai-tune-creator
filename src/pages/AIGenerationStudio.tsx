@@ -25,6 +25,7 @@ import { useEventListener } from "@/lib/events/event-bus";
 import { safeLazy, preloadModules } from "@/lib/optimization/SafeLazyLoader";
 import { SimplifiedGenerationPanel } from "@/components/ai-generation/SimplifiedGenerationPanel";
 import { GroupTracksButton } from "@/components/tracks/GroupTracksButton";
+import { ManualGroupTracksButton } from "@/components/admin/ManualGroupTracksButton";
 import { LocalErrorBoundary } from "@/components/debug/LocalErrorBoundary";
 
 // Увеличены timeout значения для надежной загрузки
@@ -548,6 +549,7 @@ export default function AIGenerationStudio() {
               <CloudDownload className={cn("h-4 w-4", isSyncing && "animate-spin")} />
             </Button>
             <GroupTracksButton />
+            <ManualGroupTracksButton />
             <Button variant="outline" size="icon" onClick={() => setShowRecoveryTools(v => !v)} className="tap-highlight" aria-label="Загрузить 2 трека" title="Ручная загрузка последних 2 треков">
               <Download className="h-4 w-4" />
             </Button>
@@ -650,6 +652,7 @@ export default function AIGenerationStudio() {
               </Button>
               
               <GroupTracksButton />
+               <ManualGroupTracksButton />
               
               <Badge variant="secondary" className="px-3 py-1 bg-primary/10 text-primary">
                 {filteredTracks.length} треков
