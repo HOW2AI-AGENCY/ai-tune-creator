@@ -82,7 +82,9 @@ class ConsoleManager {
     const sensitiveKeys = [
       'password', 'token', 'key', 'secret', 'auth', 'authorization',
       'access_token', 'refresh_token', 'api_key', 'private_key',
-      'telegram_id', 'user_id', 'email', 'phone'
+      'telegram_id', 'telegram_username', 'telegram_first_name', 'telegram_last_name',
+      'user_id', 'userid', 'email', 'phone', 'ip_address', 'user_agent',
+      'session', 'cookie', 'apikey', 'accesstoken', 'refreshtoken'
     ];
 
     const sanitized = Array.isArray(data) ? [...data] : { ...data };
@@ -101,6 +103,9 @@ class ConsoleManager {
           result[key] = '[REDACTED]';
         } else if (typeof value === 'object' && value !== null) {
           result[key] = sanitizeRecursive(value);
+        } else if (typeof value === 'string' && value.length > 30 && /^[A-Za-z0-9_-]{30,}$/.test(value)) {
+          // Likely a token/key based on pattern
+          result[key] = '[REDACTED]';
         } else {
           result[key] = value;
         }
