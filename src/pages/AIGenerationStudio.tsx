@@ -26,30 +26,30 @@ import { safeLazy, preloadModules } from "@/lib/optimization/SafeLazyLoader";
 import { SimplifiedGenerationPanel } from "@/components/ai-generation/SimplifiedGenerationPanel";
 import { LocalErrorBoundary } from "@/components/debug/LocalErrorBoundary";
 
-// Безопасная загрузка тяжелых компонентов с retry и timeout
+// Увеличены timeout значения для надежной загрузки
 const GenerationContextPanel = safeLazy(
   () => import("@/features/ai-generation/components/GenerationContextPanel").then(module => ({ default: module.GenerationContextPanel })),
-  { timeout: 5000, retries: 2 }
+  { timeout: 15000, retries: 3 }
 );
 const TaskQueuePanel = safeLazy(
   () => import("@/features/ai-generation/components/TaskQueuePanel").then(module => ({ default: module.TaskQueuePanel })),
-  { timeout: 3000, retries: 1 }
+  { timeout: 10000, retries: 3 }
 );
 const TrackResultsGrid = safeLazy(
   () => import("@/features/ai-generation/components/TrackResultsGrid").then(module => ({ default: module.TrackResultsGrid })),
-  { timeout: 5000, retries: 2 }
+  { timeout: 15000, retries: 3 }
 );
 const TrackDetailsDrawer = safeLazy(
   () => import("@/features/ai-generation/components/TrackDetailsDrawer").then(module => ({ default: module.TrackDetailsDrawer })),
-  { timeout: 3000, retries: 1 }
+  { timeout: 10000, retries: 3 }
 );
 const CommandPalette = safeLazy(
   () => import("@/features/ai-generation/components/CommandPalette").then(module => ({ default: module.CommandPalette })),
-  { timeout: 3000, retries: 1 }
+  { timeout: 10000, retries: 3 }
 );
 const FloatingPlayer = safeLazy(
   () => import("@/features/ai-generation/components/FloatingPlayer").then(module => ({ default: module.FloatingPlayer })),
-  { timeout: 3000, retries: 1 }
+  { timeout: 10000, retries: 3 }
 );
 
 interface Track {

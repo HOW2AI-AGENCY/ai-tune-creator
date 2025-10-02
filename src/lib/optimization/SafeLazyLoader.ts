@@ -20,9 +20,9 @@ export function safeLazy<T extends ComponentType<any>>(
   options: SafeLazyOptions = {}
 ) {
   const {
-    retries = 2,
-    retryDelay = 1000,
-    timeout = 3000, // Оптимальный timeout для быстрой загрузки
+    retries = 3,
+    retryDelay = 1500,
+    timeout = 15000, // Увеличен timeout до 15 секунд
   } = options;
 
   const safeImportFn = () => {
