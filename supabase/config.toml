@@ -1,16 +1,1 @@
-project_id = "zwbhlfhwymbmvioaikvs"
-
-[functions.telegram-auth]
-verify_jwt = false
-
-[functions.link-telegram-to-existing-email]
-verify_jwt = false
-
-[functions.manual-group-tracks]
-verify_jwt = true
-
-[functions.get-mureka-task-status]
-verify_jwt = true
-
-[functions.download-and-save-track]
-verify_jwt = true
+project_id = "fpvzmjnnrwoatjeynizt"
